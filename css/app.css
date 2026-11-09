@@ -318,8 +318,8 @@ input[type=range]::-webkit-slider-thumb {
 .done-mark { position: absolute; top: 12px; right: 12px; background: var(--mint); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 20px; border: var(--line); }
 
 .num-main { flex: 1; display: flex; min-height: 0; }
-.num-palette { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; flex: none; }
-.num-chip { width: 64px; height: 64px; border-radius: 18px; border: var(--line); font-size: 25px; font-weight: 900; box-shadow: 0 4px 0 var(--ink); }
+.num-palette { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; flex: none; }
+.num-chip { width: 58px; height: 58px; border-radius: 16px; border: var(--line); font-size: 23px; font-weight: 900; box-shadow: 0 4px 0 var(--ink); }
 .num-chip.on { transform: translateY(-5px) scale(1.08); outline: 4px solid var(--ink); }
 .num-chip.complete b { opacity: 0; }
 .num-chip.complete::after { content: '✓'; position: absolute; }

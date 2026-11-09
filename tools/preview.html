@@ -1,0 +1,207 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>preview</title>
+<style>
+  body { margin: 0; padding: 10px; background: #fff; font: 700 15px system-ui, sans-serif; color: #2a2140; width: 1560px; }
+  h3 { margin: 12px 0 4px; font-size: 18px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cell { border: 1px solid #ccc; }
+  .cell svg, .cell canvas { display: block; }
+  small { display: block; max-width: 232px; font-weight: 500; font-size: 12px; line-height: 1.15; padding: 2px 4px; }
+  pre { white-space: pre-wrap; font: 13px monospace; }
+  .sw { width: 150px; height: 74px; display: inline-block; border: 1px solid #333; margin: 3px; font-size: 12px; }
+</style>
+<div id="out"></div>
+<pre id="report"></pre>
+<script type="module">
+// Developer tool: renders a content file and checks it. Not part of the app.
+import { h, svgEl, samplePath, canvas, hexRgb } from '../js/util.js';
+import { ALL_LESSONS } from '../js/lessons.js';
+import { PAGES } from '../js/pages.js';
+import { analyze, drawPage } from '../js/coloring.js';
+import { PIX, PIX_KEY, LAB, mixPaint } from '../js/games.js';
+
+const q = new URLSearchParams(location.search);
+const kind = q.get('kind');
+const file = q.get('file');
+const from = +(q.get('from') || 0);
+const count = +(q.get('count') || 100);
+const out = document.getElementById('out');
+const errors = [];
+const stats = {};
+
+const pathSvg = (groups, w, ht, vw = 1000, vh = 750) => {
+  const s = svgEl('svg', { viewBox: `0 0 ${vw} ${vh}`, width: w, height: ht });
+  for (const [paths, stroke, sw] of groups) {
+    for (const d of paths) s.append(svgEl('path', { d, fill: 'none', stroke, 'stroke-width': sw, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+  }
+  return s;
+};
+
+function checkLesson(L) {
+  const name = L.id;
+  if (!L.id || !L.title) errors.push(`${name}: id or title missing`);
+  if (ALL_LESSONS.filter(x => x.id === L.id).length > 1) errors.push(`${name}: duplicate id`);
+  if (L.steps.length < 3 || L.steps.length > 8) errors.push(`${name}: ${L.steps.length} steps, want 3-8`);
+  const pts = [];
+  for (const [n, s] of L.steps.entries()) {
+    if (!s.t || s.t.length > 95) errors.push(`${name} step ${n + 1}: text is ${s.t?.length} chars, max 95`);
+    if (!s.p.length) errors.push(`${name} step ${n + 1}: no paths`);
+    for (const d of s.p) {
+      let sample = [];
+      try { sample = samplePath(d, 8); } catch { errors.push(`${name}: bad path ${d.slice(0, 40)}`); }
+      if (!sample.length || sample.some(p => Number.isNaN(p[0]))) errors.push(`${name}: bad path ${d.slice(0, 40)}`);
+      pts.push(...sample);
+    }
+  }
+  const off = pts.filter(([x, y]) => x < 25 || x > 975 || y < 25 || y > 725).length;
+  if (off) errors.push(`${name}: ${off} points outside the 25..975 x 25..725 area`);
+  if (pts.length) {
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    const w = Math.max(...xs) - Math.min(...xs), ht = Math.max(...ys) - Math.min(...ys);
+    if (Math.max(w / 1000, ht / 750) < 0.55) errors.push(`${name}: picture too small (${Math.round(w)}x${Math.round(ht)})`);
+  }
+  if (L.mirror) {
+    const miss = pts.filter(([x, y]) => !pts.some(([a, b]) => Math.hypot(a - (1000 - x), b - y) < 16)).length;
+    if (miss / pts.length > 0.02) errors.push(`${name}: mirror:true but ${miss}/${pts.length} points have no mirror twin about x=500`);
+  }
+}
+
+function renderLessons(list) {
+  for (const L of list.slice(from, from + count)) {
+    checkLesson(L);
+    out.append(h('h3', {}, `${L.id} — ${L.title}${L.mirror ? ' [mirror]' : ''}${L.habitat ? ` [${L.habitat}]` : ''}`));
+    const row = h('div', { class: 'row' });
+    L.steps.forEach((s, i) => {
+      const old = L.steps.slice(0, i).flatMap(x => x.p);
+      row.append(h('div', { class: 'cell' }, pathSvg([[old, '#2a2140', 9], [s.p, '#e0483a', 11]], 232, 174), h('small', {}, `${i + 1}. ${s.t}`)));
+    });
+    out.append(row);
+  }
+  for (const L of list) if (!out.textContent.includes(`${L.id} —`)) checkLesson(L);
+  stats.lessons = list.length;
+  stats.total = ALL_LESSONS.length;
+}
+
+function renderPages(list) {
+  const W = 1200, H = 900;
+  stats.pages = list.length;
+  stats.detail = [];
+  for (const page of list) {
+    if (PAGES.filter(p => p.id === page.id).length > 1) errors.push(`${page.id}: duplicate id`);
+    const an = analyze(page);
+    const cc = canvas(W, H);
+    const cx = cc.getContext('2d', { willReadFrequently: true });
+    drawPage(cx, page, true);
+    const px = cx.getImageData(0, 0, W, H).data;
+    const regs = an.regions.filter(r => r && r.n > 90 && r.best >= 5);
+    const palette = new Set(regs.map(r => r.target));
+    // A region holding two different fills means a shape is not closed.
+    const counts = new Map();
+    const ink = an.lineC.getContext('2d').getImageData(0, 0, W, H).data;
+    for (let i = 0; i < W * H; i++) {
+      const l = an.lab[i];
+      if (l <= 0 || ink[i * 4 + 3] > 0) continue;
+      const r = an.regions[l];
+      if (!r.target) continue;
+      const [a, b, c] = hexRgb(r.target);
+      const near = Math.abs(px[i * 4] - a) + Math.abs(px[i * 4 + 1] - b) + Math.abs(px[i * 4 + 2] - c) < 40;
+      const e = counts.get(l) || [0, 0];
+      e[near ? 0 : 1]++;
+      counts.set(l, e);
+    }
+    let leaks = 0;
+    for (const r of regs) {
+      const [ok, bad] = counts.get(r.id) || [1, 0];
+      if (bad / (ok + bad) > 0.03) leaks++;
+    }
+    const tiny = an.regions.filter(r => r && r.n > 90 && r.best < 5).length;
+    stats.detail.push({ id: page.id, numbered: regs.length, colors: palette.size, leaks, tiny });
+    if (palette.size > 16) errors.push(`${page.id}: ${palette.size} colours, max 16`);
+    if (palette.size < 5) errors.push(`${page.id}: only ${palette.size} colours, min 5`);
+    if (regs.length < 14) errors.push(`${page.id}: only ${regs.length} areas, min 14`);
+    if (regs.length > 110) errors.push(`${page.id}: ${regs.length} areas, max 110`);
+    if (leaks) errors.push(`${page.id}: ${leaks} areas mix two fills, so some shape is not closed`);
+    if (tiny > 12) errors.push(`${page.id}: ${tiny} slivers too thin for a number, max 12`);
+  }
+  for (const page of list.slice(from, from + count)) {
+    const mk = colored => {
+      const c = canvas(760, 570);
+      const x = c.getContext('2d');
+      x.scale(760 / 1200, 760 / 1200);
+      x.fillStyle = '#fff';
+      x.fillRect(0, 0, 1200, 900);
+      drawPage(x, page, colored);
+      return c;
+    };
+    out.append(h('h3', {}, `${page.id} — ${page.title}`), h('div', { class: 'row' }, h('div', { class: 'cell' }, mk(true)), h('div', { class: 'cell' }, mk(false))));
+  }
+}
+
+function renderPixels(list) {
+  stats.pixels = list.length;
+  stats.total = PIX.length;
+  const row = h('div', { class: 'row' });
+  for (const t of list) {
+    if (PIX.filter(p => p.id === t.id).length > 1) errors.push(`${t.id}: duplicate id`);
+    if (t.a.length !== 12) errors.push(`${t.id}: ${t.a.length} rows, want 12`);
+    t.a.forEach((r, i) => {
+      if (r.length !== 12) errors.push(`${t.id} row ${i}: length ${r.length}`);
+      for (const ch of r) if (!(ch in PIX_KEY)) errors.push(`${t.id}: unknown colour letter ${ch}`);
+    });
+    const used = new Set(t.a.join('').replace(/\./g, ''));
+    if (used.size < 2) errors.push(`${t.id}: fewer than 2 colours`);
+    const c = canvas(240, 240);
+    const x = c.getContext('2d');
+    x.fillStyle = '#eee';
+    x.fillRect(0, 0, 240, 240);
+    t.a.forEach((r, yy) => [...r].forEach((ch, xx) => { if (PIX_KEY[ch]) { x.fillStyle = PIX_KEY[ch]; x.fillRect(xx * 20, yy * 20, 20, 20); } }));
+    row.append(h('div', { class: 'cell' }, c, h('small', {}, `${t.id} — ${t.name}`)));
+  }
+  out.append(row);
+}
+
+function renderGuides(data) {
+  stats.guides = {};
+  for (const [k, list] of Object.entries(data)) {
+    stats.guides[k] = list.length;
+    out.append(h('h3', {}, k));
+    const row = h('div', { class: 'row' });
+    for (const g of list) {
+      const s = svgEl('svg', { viewBox: '0 0 800 600', width: 300, height: 225 });
+      s.append(svgEl('path', { d: g.d, fill: '#efe8fa', stroke: '#6b5b95', 'stroke-width': 5 }));
+      row.append(h('div', { class: 'cell' }, s, h('small', {}, g.name)));
+      const pts = samplePath(g.d, 10);
+      if (pts.length < 20) errors.push(`${k}/${g.name}: bad path`);
+      if (pts.some(([x, y]) => x < 15 || x > 785 || y < 15 || y > 585)) errors.push(`${k}/${g.name}: outside 15..785 x 15..585`);
+    }
+    out.append(row);
+  }
+}
+
+function renderLab() {
+  stats.lab = LAB.length;
+  const seen = [];
+  LAB.forEach((T, i) => {
+    const c = mixPaint(T.mix).map(Math.round);
+    const near = seen.find(s => Math.hypot(s.c[0] - c[0], s.c[1] - c[1], s.c[2] - c[2]) < 26);
+    if (near) errors.push(`${T.name}: too close to ${near.name}`);
+    if (LAB.filter(x => x.name === T.name).length > 1) errors.push(`${T.name}: duplicate name`);
+    if (!T.fact || T.fact.length > 110) errors.push(`${T.name}: fact is ${T.fact?.length} chars, max 110`);
+    const drops = Object.values(T.mix).reduce((a, b) => a + b);
+    if (drops > 8) errors.push(`${T.name}: ${drops} drops, max 8`);
+    for (const k of Object.keys(T.mix)) if (!'rybwk'.includes(k)) errors.push(`${T.name}: unknown paint ${k}`);
+    seen.push({ name: T.name, c });
+    out.append(h('span', { class: 'sw', style: { background: `rgb(${c})`, color: c[0] + c[1] + c[2] < 330 ? '#fff' : '#000' } }, `${i + 1}. ${T.name}`));
+  });
+}
+
+const mod = kind === 'lab' ? null : (await import(`../js/content/${file}.js`)).default;
+if (kind === 'lessons') renderLessons(mod);
+if (kind === 'pages') renderPages(mod);
+if (kind === 'pixels') renderPixels(mod);
+if (kind === 'guides') renderGuides(mod);
+if (kind === 'lab') renderLab();
+
+document.getElementById('report').textContent = `REPORT ${JSON.stringify({ errors, stats, height: document.body.scrollHeight })} END`;
+</script>

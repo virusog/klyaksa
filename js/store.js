@@ -1,12 +1,13 @@
 // Progress lives in localStorage, pictures live in IndexedDB.
 const KEY = 'klyaksa.v1';
 const DEFAULTS = {
-  name: '', nameAsked: false, stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [],
+  name: 'Настя', stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [],
 };
 
 export const state = (() => {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
-  catch { return { ...DEFAULTS }; }
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { /* private mode */ }
+  return { ...DEFAULTS, ...saved, name: saved.name || DEFAULTS.name };
 })();
 
 export function save() {

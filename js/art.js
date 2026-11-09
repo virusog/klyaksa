@@ -1,12 +1,27 @@
 // Original line art. Coloring pages are 1200×900: each shape is [path, fill].
 // A fill of null means a detail line with no colour of its own.
 import { mulberry } from './util.js';
+import moreStickers from './content/stickers.js';
 
 export const O = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${r * 2} 0a${r} ${r} 0 1 0 ${-r * 2} 0Z`;
 export const E = (x, y, a, b) => `M${x - a} ${y}a${a} ${b} 0 1 0 ${a * 2} 0a${a} ${b} 0 1 0 ${-a * 2} 0Z`;
 export const R = (x, y, w, h, r = 0) => r
   ? `M${x + r} ${y}h${w - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}v${h - 2 * r}a${r} ${r} 0 0 1 ${-r} ${r}h${-(w - 2 * r)}a${r} ${r} 0 0 1 ${-r} ${-r}v${-(h - 2 * r)}a${r} ${r} 0 0 1 ${r} ${-r}Z`
   : `M${x} ${y}h${w}v${h}h${-w}Z`;
+
+// A lesson step: the text she reads, then the lines it adds.
+export const S = (t, ...p) => ({ t, p });
+
+export function spiral(cx, cy, r, turns) {
+  let d = `M${cx} ${cy}`;
+  const n = turns * 30;
+  for (let i = 1; i <= n; i++) {
+    const t = i / n;
+    const a = t * turns * 6.2832;
+    d += `L${(cx + Math.cos(a) * r * t).toFixed(1)} ${(cy + Math.sin(a) * r * t).toFixed(1)}`;
+  }
+  return d;
+}
 
 export function starD(x, y, R1, R2 = R1 * 0.45, n = 5, rot = -Math.PI / 2) {
   let d = '';
@@ -24,27 +39,27 @@ export const heartD = (x, y, s) =>
 export const cloudD = (x, y, s) =>
   `M${x - s} ${y + s * 0.4}a${s * 0.4} ${s * 0.4} 0 0 1 ${s * 0.1} ${-s * 0.78}a${s * 0.5} ${s * 0.5} 0 0 1 ${s * 0.85} ${-s * 0.22}a${s * 0.42} ${s * 0.42} 0 0 1 ${s * 0.78} ${s * 0.22}a${s * 0.4} ${s * 0.4} 0 0 1 ${s * 0.07} ${s * 0.78}Z`;
 
-function wave(y, amp, n, W = 1200, H = 900) {
+export function wave(y, amp, n, W = 1200, H = 900) {
   const step = W / n;
   let d = `M0 ${y}`;
   for (let i = 0; i < n; i++) d += `q${step / 2} ${i % 2 ? amp : -amp} ${step} 0`;
   return `${d}V${H}H0Z`;
 }
 
-function petal(x, y, len, w, a) {
+export function petal(x, y, len, w, a) {
   const c = Math.cos(a), s = Math.sin(a);
   const P = (u, v) => `${(x + u * c - v * s).toFixed(1)} ${(y + u * s + v * c).toFixed(1)}`;
   return `M${P(0, 0)}C${P(len * 0.35, -w)} ${P(len * 0.8, -w)} ${P(len, 0)}C${P(len * 0.8, w)} ${P(len * 0.35, w)} ${P(0, 0)}Z`;
 }
 
-function flower(x, y, r, col, mid = '#ffd447', n = 6) {
+export function flower(x, y, r, col, mid = '#ffd447', n = 6) {
   const out = [];
   for (let i = 0; i < n; i++) out.push([petal(x, y, r, r * 0.42, (i / n) * 6.283), col]);
   out.push([O(x, y, r * 0.3), mid]);
   return out;
 }
 
-const fish = (x, y, s, body, fin, flip = 1) => {
+export const fish = (x, y, s, body, fin, flip = 1) => {
   const X = v => x + v * s * flip;
   const Y = v => y + v * s;
   return [
@@ -59,8 +74,8 @@ const fish = (x, y, s, body, fin, flip = 1) => {
   ];
 };
 
-const SKY = '#a9defc', GRASS = '#86d95f', DARK = '#3a2b6b';
-const bg = c => [R(-10, -10, 1220, 920), c];
+export const SKY = '#a9defc', GRASS = '#86d95f', DARK = '#3a2b6b';
+export const bg = c => [R(-10, -10, 1220, 920), c];
 
 export const PAGES = [
   {
@@ -451,7 +466,12 @@ export function mandala(seed) {
     ['#ff8fc7', '#ffd447', '#7fd1ff', '#b58cff', '#7fe0a8'],
     ['#ff6b6b', '#ffb340', '#ffe98a', '#5aa9ff', '#ffffff'],
     ['#66d9c4', '#5aa9ff', '#b58cff', '#ffc1d9', '#fff1d9'],
-  ][seed % 3];
+    ['#ffb4d0', '#ff8f5c', '#ffd447', '#b58cff', '#fff7e8'],
+    ['#7fe0a8', '#47bd7a', '#ffe98a', '#ff8fa3', '#f2fff4'],
+    ['#5aa9ff', '#2b2f77', '#7fd1ff', '#ffe14d', '#e8f4ff'],
+    ['#c98a55', '#ffb340', '#ff6b6b', '#fff1d9', '#ffe7b8'],
+    ['#b58cff', '#ff85c0', '#7fd1ff', '#ffe14d', '#f6eeff'],
+  ][seed % 8];
   const cx = 600, cy = 450;
   const shapes = [bg('#fff7e8'), [O(cx, cy, 435), cols[4]]];
   const rings = [
@@ -487,3 +507,11 @@ export const STICKERS = {
   space: { name: 'Космос', prize: true, list: '🚀🛸👽🤖🌍🌎🌕🌖🌗🌘🌑☄️🛰️👩‍🚀'.match(/\p{Emoji_Presentation}(?:‍\p{Emoji_Presentation})?|\p{Emoji}️/gu) },
   party: { name: 'Праздник', prize: true, list: '🎉🎊🥳🎆🎇🎃🎄🎅🤶🕯️🏆🥇🎤🎸🎹💃'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
 };
+
+// Extra stickers from content/stickers.js, as plain strings of emoji.
+const splitter = new Intl.Segmenter('ru', { granularity: 'grapheme' });
+for (const [key, text] of Object.entries(moreStickers)) {
+  if (!STICKERS[key]) continue;
+  const extra = [...splitter.segment(text)].map(x => x.segment).filter(x => x.trim());
+  STICKERS[key].list = [...new Set([...STICKERS[key].list, ...extra])];
+}

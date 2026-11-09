@@ -1,11 +1,14 @@
 // Short games that each train one thing an artist needs.
 import { h, canvas, pick, shuffle, mulberry, samplePath, matchScore, starsFor, inkPoints, svgEl, sleep, clamp, lerp, rgbHex, outlineSvg, blobOf } from './util.js';
 import { Painter } from './painter.js';
-import { ALL_LESSONS, lessonById, allPaths } from './lessons.js';
+import { ALL_LESSONS, allPaths } from './lessons.js';
 import { state, save, award, awardOnce, db, newId } from './store.js';
 import { topbar, btn, iconBtn, starBadge, paletteBar, sizeSlider, celebrate, speaker, toast, COLORS, mascot, autosaver, safeSave } from './ui.js';
 import { saveArt } from './studio.js';
 import { sfx } from './audio.js';
+import morePixels from './content/pixels.js';
+import moreLab from './content/lab.js';
+import moreDice from './content/dice.js';
 
 const GAMES = [
   { id: 'squiggle', title: 'Закорючка', text: 'Преврати каракулю в кого-нибудь', c: '#ffc83d', art: 'M30 70C10 20 60 10 60 45S20 90 55 75 100 20 85 55' },
@@ -41,6 +44,52 @@ const basicTools = p => {
   return h('footer', { class: 'tools-foot' }, size, pal);
 };
 
+// Five kinds of starting scribble, so the game keeps surprising her.
+function squigglePoints(r) {
+  const kind = Math.floor(r() * 5);
+  const cx = 400 + r() * 400, cy = 320 + r() * 260;
+  const pts = [];
+  if (kind === 0) {
+    let x = cx, y = cy, a = r() * 6.28, bend = 0;
+    const n = 90 + Math.floor(r() * 60);
+    for (let i = 0; i < n; i++) {
+      if (i % 22 === 0) bend = (r() - 0.5) * 0.6;
+      a += bend;
+      x += Math.cos(a) * 9; y += Math.sin(a) * 9;
+      if (x < 180 || x > 1020) a = Math.PI - a;
+      if (y < 160 || y > 740) a = -a;
+      pts.push([x, y]);
+    }
+  } else if (kind === 1) {
+    const turns = 2 + r() * 2, R = 90 + r() * 120, tilt = r() * 6.28;
+    for (let i = 0; i <= 120; i++) {
+      const t = i / 120, a = tilt + t * turns * 6.283;
+      pts.push([cx + Math.cos(a) * R * t, cy + Math.sin(a) * R * t * 0.8]);
+    }
+  } else if (kind === 2) {
+    const n = 5 + Math.floor(r() * 5), step = 400 / n;
+    for (let i = 0; i <= n; i++) pts.push([cx - 200 + i * step, cy + (i % 2 ? -1 : 1) * (50 + r() * 110)]);
+    return pts.flatMap((q, i) => (i ? Array.from({ length: 12 }, (_, k) => {
+      const p0 = pts[i - 1], t = (k + 1) / 12;
+      return [p0[0] + (q[0] - p0[0]) * t, p0[1] + (q[1] - p0[1]) * t];
+    }) : [q]));
+  } else if (kind === 3) {
+    const loops = 3 + Math.floor(r() * 3);
+    for (let i = 0; i <= 160; i++) {
+      const t = i / 160, a = t * loops * 6.283;
+      pts.push([cx - 240 + 480 * t + Math.sin(a) * 60, cy + Math.cos(a) * (60 + r() * 6)]);
+    }
+  } else {
+    const n = 3 + Math.floor(r() * 3), base = 130 + r() * 90;
+    for (let i = 0; i <= 150; i++) {
+      const a = (i / 150) * 6.283;
+      const R = base * (0.72 + 0.28 * Math.sin(a * n));
+      pts.push([cx + Math.cos(a) * R, cy + Math.sin(a) * R * 0.9]);
+    }
+  }
+  return pts;
+}
+
 function squiggle(root) {
   const stageEl = h('div', { class: 'stage-host' });
   const p = new Painter(stageEl, { w: 1200, h: 900, layers: 2, brush: 'marker', color: '#2a2140' });
@@ -60,19 +109,7 @@ function squiggle(root) {
     p.undoStack.length = 0;
     const r = mulberry((Math.random() * 1e9) | 0);
     const col = pick(['#ff6b5e', '#2f93d6', '#8b5cf6', '#27c4a8', '#ff8a1f']);
-    let x = 300 + r() * 600, y = 240 + r() * 420;
-    let a = r() * 6.28;
-    const pts = [[x, y]];
-    const n = 90 + Math.floor(r() * 60);
-    let bend = (r() - 0.5) * 0.5;
-    for (let i = 0; i < n; i++) {
-      if (i % 22 === 0) bend = (r() - 0.5) * 0.6;
-      a += bend;
-      x += Math.cos(a) * 9; y += Math.sin(a) * 9;
-      if (x < 180 || x > 1020) a = Math.PI - a;
-      if (y < 160 || y > 740) a = -a;
-      pts.push([x, y]);
-    }
+    const pts = squigglePoints(r);
     p.noHistory = true;
     p._strokeBegin({ b: 'marker', c: col, z: 14, l: 0, y: 'none', seed: 7 }, pts[0][0], pts[0][1], 0.7);
     for (const q of pts.slice(1)) p._strokePoint(q[0], q[1], 0.7);
@@ -117,6 +154,10 @@ const WHO = ['кот', 'дракон', 'робот', 'единорог', 'пин
 const DOES = ['ест мороженое', 'катается на скейте', 'читает книгу', 'летит на шаре', 'печёт торт', 'танцует', 'играет на гитаре', 'спит в гамаке', 'ловит звезду', 'рисует картину', 'пьёт какао', 'строит замок', 'едет на велосипеде', 'поливает цветы', 'запускает змея'];
 const WHERE = ['в космосе', 'под водой', 'на облаке', 'в лесу', 'на крыше', 'в пустыне', 'в школе', 'в замке', 'на Северном полюсе', 'в кондитерской', 'на Луне', 'в джунглях', 'на маяке', 'в метро'];
 
+WHO.push(...moreDice.who);
+DOES.push(...moreDice.does);
+WHERE.push(...moreDice.where);
+
 function dice(root) {
   const cells = [WHO, DOES, WHERE].map(() => h('div', { class: 'reel' }, '?'));
   let spinning = false;
@@ -158,8 +199,7 @@ function dice(root) {
 }
 
 function half(root) {
-  const pool = ['butterfly', 'owl', 'fox', 'bunny'];
-  const L = lessonById(pick(pool));
+  const L = pick(ALL_LESSONS.filter(l => l.mirror));
   const stageEl = h('div', { class: 'stage-host' });
   const p = new Painter(stageEl, { w: 1200, h: 900, layers: 1, brush: 'pencil', color: '#2a2140' });
   p.size = 9;
@@ -203,7 +243,7 @@ const RYB = [
   [0.16, 0.38, 0.78], [0.5, 0.1, 0.55], [0.1, 0.66, 0.25], [0.23, 0.13, 0.08],
 ];
 
-function mixPaint({ r = 0, y = 0, b = 0, w = 0, k = 0 }) {
+export function mixPaint({ r = 0, y = 0, b = 0, w = 0, k = 0 }) {
   const total = r + y + b + w + k;
   if (!total) return [255, 250, 240];
   const m = Math.max(r, y, b, 0.0001);
@@ -220,7 +260,7 @@ function mixPaint({ r = 0, y = 0, b = 0, w = 0, k = 0 }) {
   return base.map(v => clamp(lerp(lerp(v, 1, wt), 0, kt) * 255, 0, 255));
 }
 
-const LAB = [
+export const LAB = [
   { name: 'Оранжевый', mix: { r: 1, y: 1 }, fact: 'Красный + жёлтый = оранжевый. Это цвет апельсина и заката.' },
   { name: 'Зелёный', mix: { y: 1, b: 1 }, fact: 'Жёлтый + синий = зелёный. Основных цветов всего три!' },
   { name: 'Фиолетовый', mix: { r: 1, b: 1 }, fact: 'Красный + синий = фиолетовый. Его любят художники для теней.' },
@@ -234,6 +274,8 @@ const LAB = [
   { name: 'Сирень', mix: { r: 1, b: 1, w: 2 }, fact: 'Смешиваем цвет, а потом осветляем.' },
   { name: 'Бордовый', mix: { r: 3, b: 1, k: 1 }, fact: 'Чёрного всегда нужно совсем чуть-чуть.' },
 ];
+
+LAB.push(...moreLab);
 
 function lab(root) {
   let level = clamp(state.best['lab:level'] || 0, 0, LAB.length - 1);
@@ -312,8 +354,8 @@ function lab(root) {
   render();
 }
 
-const PIX_KEY = { '.': null, r: '#e5252a', p: '#ff85c0', o: '#ff8a1f', y: '#ffd447', g: '#46c257', b: '#2f93d6', v: '#8b5cf6', w: '#ffffff', k: '#2a2140', t: '#d9a273', n: '#8a5a35' };
-const PIX = [
+export const PIX_KEY = { '.': null, r: '#e5252a', p: '#ff85c0', o: '#ff8a1f', y: '#ffd447', g: '#46c257', b: '#2f93d6', v: '#8b5cf6', w: '#ffffff', k: '#2a2140', t: '#d9a273', n: '#8a5a35', a: '#7fd1ff', s: '#9aa3b2', c: '#27c4a8', f: '#f4d9c0', l: '#c9a7ff', m: '#a3e635' };
+const PIX_BASE = [
   { id: 'heart', name: 'Сердце', a: ['............', '..rr....rr..', '.rrrr..rrrr.', 'rrwrrrrrrrrr', 'rwrrrrrrrrrr', 'rrrrrrrrrrrr', '.rrrrrrrrrr.', '..rrrrrrrr..', '...rrrrrr...', '....rrrr....', '.....rr.....', '............'] },
   { id: 'shroom', name: 'Грибок', a: ['....rrrr....', '..rrwwrrrr..', '.rrrwwrrwrr.', '.rrrrrrrwrr.', 'rrwwrrrrrrrr', 'rrwwrrrrrwwr', 'rrrrrrrrrwwr', '.kkwwwwwwkk.', '...wkwwkw...', '...wwwwww...', '...wwwwww...', '....wwww....'] },
   { id: 'cat', name: 'Котик', a: ['.k........k.', '.kk......kk.', '.kokkkkkkok.', '.kooooooook.', 'kooooooooook', 'kokkookkookk', 'kookooookokk', 'kooooppooook', '.koookkookk.', '..kooooook..', '...kkkkkkk..', '............'] },
@@ -321,6 +363,8 @@ const PIX = [
   { id: 'flower', name: 'Цветок', a: ['....vvvv....', '...vvvvvv...', '.vvvvyyvvvv.', 'vvvvyyyyvvvv', 'vvvvyyyyvvvv', '.vvvvyyvvvv.', '...vvvvvv...', '....vvvv....', '.....gg..gg.', '.gg..gg.gg..', '..gggggg....', '.....gg.....'] },
   { id: 'star', name: 'Звезда', a: ['.....yy.....', '.....yy.....', '....yyyy....', 'yyyyyyyyyyyy', '.yyyyyyyyyy.', '..yykyykyy..', '..yyyyyyyy..', '.yyyyppyyyy.', '.yyyyyyyyyy.', '.yyy....yyy.', 'yyy......yyy', '............'] },
 ];
+
+export const PIX = [...PIX_BASE, ...morePixels];
 
 function pixels(root, tpl) {
   if (!tpl) return pixelsMenu(root);
@@ -440,8 +484,8 @@ function pixelsMenu(root) {
 }
 
 function guess(root) {
-  const pool = ALL_LESSONS.filter(l => !l.noCopy && !['sphere', 'cube', 'road', 'eye'].includes(l.id));
-  const rounds = shuffle(pool).slice(0, 5);
+  const pool = ALL_LESSONS.filter(l => !l.noCopy && l.guess !== false);
+  const rounds = shuffle(pool).slice(0, 12);
   let n = 0, total = 0, closed = false;
   const artBox = h('div', { class: 'guess-art' });
   const opts = h('div', { class: 'guess-opts' });

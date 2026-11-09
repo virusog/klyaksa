@@ -1,6 +1,7 @@
 // Coloring pages, paint-by-number, mandalas and photo-to-coloring.
 import { h, canvas, shade, blobOf, loadImg, hexRgb, clamp } from './util.js';
-import { PAGES, mandala } from './art.js';
+import { mandala } from './art.js';
+import { PAGES } from './pages.js';
 import { Painter } from './painter.js';
 import { db, state, award, awardOnce, newId } from './store.js';
 import { topbar, btn, iconBtn, starBadge, brushRail, paletteBar, sizeSlider, celebrate, toast, mascot, autosaver, safeSave } from './ui.js';
@@ -9,7 +10,7 @@ import { sfx } from './audio.js';
 const W = 1200, H = 900;
 const INK = '#2a2140';
 
-function drawPage(ctx, page, colored, lw = 5.5) {
+export function drawPage(ctx, page, colored, lw = 5.5) {
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.strokeStyle = INK;
@@ -32,7 +33,7 @@ function thumbOf(page, colored) {
 }
 
 // Finds every closed area of the picture, so taps and magic strokes know their region.
-function analyze(page) {
+export function analyze(page) {
   const lineC = canvas(W, H);
   const lx = lineC.getContext('2d', { willReadFrequently: true });
   if (page.lineCanvas) {
@@ -255,10 +256,10 @@ export function coloringHub(root, tabName = 'pages') {
     let seed = Number(sessionStorage.getItem('mandalaSeed') || 1);
     const fill = () => {
       grid.textContent = '';
-      for (let i = 0; i < 6; i++) grid.append(card(mandala(seed + i), 'free'));
+      for (let i = 0; i < 12; i++) grid.append(card(mandala(seed + i), 'free'));
       grid.append(h('button', {
         class: 'page-card more',
-        onclick: () => { seed += 6; sessionStorage.setItem('mandalaSeed', seed); fill(); },
+        onclick: () => { seed += 12; sessionStorage.setItem('mandalaSeed', seed); fill(); },
       }, mascot('wow'), h('b', {}, 'Ещё мандалы!')));
     };
     fill();

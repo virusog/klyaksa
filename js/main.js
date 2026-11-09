@@ -8,6 +8,7 @@ import { gamesHub, gameRoute } from './games.js';
 import { gallery, artView } from './gallery.js';
 import { mascot, icon, topbar, btn, starBadge, toast, confirmBox, shareBlob } from './ui.js';
 import { ALL_LESSONS } from './lessons.js';
+import moreIdeas from './content/ideas.js';
 import { sfx } from './audio.js';
 
 const IDEAS = [
@@ -17,6 +18,7 @@ const IDEAS = [
   'твой самый счастливый день', 'зверь, которого ещё никто не видел', 'подводная школа', 'замок из облаков', 'рюкзак волшебника',
   'погода в твоём настроении', 'семья ёжиков на пикнике', 'летающий велосипед',
 ];
+IDEAS.push(...moreIdeas);
 
 const TILES = [
   { href: '#/studio/new', cls: 'studio', title: 'Мастерская', sub: 'Рисуй что хочешь',
@@ -44,7 +46,7 @@ function home(root) {
     h('header', { class: 'home-top' },
       h('a', { class: 'mascot-wrap', href: '#/prizes', 'aria-label': 'Подарки' }, mascot('joy')),
       h('div', { class: 'hello' },
-        h('h1', {}, state.name ? `Привет, ${state.name}!` : 'Привет!'),
+        h('h1', {}, `Привет, ${state.name}!`),
         h('p', {}, h('span', {}, 'Идея дня: '), h('b', {}, idea)),
       ),
       h('button', {
@@ -61,30 +63,6 @@ function home(root) {
     ))),
     nr && h('a', { class: 'next-gift', href: '#/prizes' }, `Следующий подарок: ${nr.name} — ещё ${nr.at - state.stars} ★`),
   ));
-  if (!state.name && !state.nameAsked) askName(root);
-}
-
-function askName(root) {
-  const input = h('input', { class: 'field', 'aria-label': 'Имя', autocomplete: 'off', maxlength: 24 });
-  const done = name => {
-    state.name = name;
-    state.nameAsked = true;
-    save();
-    o.remove();
-    root.textContent = '';
-    home(root);
-  };
-  const o = h('div', { class: 'modal-back' }, h('div', { class: 'modal' },
-    mascot('joy'),
-    h('h2', {}, 'Привет! Я Клякса.'),
-    h('p', {}, 'А как зовут тебя?'),
-    input,
-    h('div', { class: 'row' },
-      btn('ghost', 'Потом', () => done('')),
-      btn('primary', 'Это я!', () => done(input.value.trim())),
-    ),
-  ));
-  document.body.append(o);
 }
 
 function prizes(root) {
@@ -131,7 +109,7 @@ function parents(root) {
     }),
   );
   const name = h('input', { value: state.name, class: 'field', 'aria-label': 'Имя' });
-  name.addEventListener('change', () => { state.name = name.value.trim(); state.nameAsked = true; save(); });
+  name.addEventListener('change', () => { state.name = name.value.trim() || 'Настя'; save(); });
   const check = (label, k) => h('label', { class: 'set' }, h('span', {}, label), h('input', {
     type: 'checkbox', ...(state[k] ? { checked: true } : {}),
     onchange: e => { state[k] = e.target.checked; save(); },

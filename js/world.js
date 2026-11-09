@@ -4,6 +4,7 @@ import { Painter } from './painter.js';
 import { db, newId, awardOnce } from './store.js';
 import { topbar, btn, iconBtn, brushRail, paletteBar, sizeSlider, celebrate, confirmBox, toast, speaker, autosaver, safeSave } from './ui.js';
 import { sfx } from './audio.js';
+import moreGuides from './content/world-guides.js';
 
 export const HABITATS = {
   sea: { name: 'Море', who: 'рыбку', hint: 'Нарисуй морского жителя. Пусть смотрит направо!',
@@ -13,6 +14,8 @@ export const HABITATS = {
   land: { name: 'Луг', who: 'зверька', hint: 'Нарисуй зверя, который живёт на лугу. Лапы внизу, голова справа!',
     guide: 'M180 330C180 230 300 200 420 220C450 140 590 130 620 220C650 300 590 350 530 360V500H470V380H290V500H230V370C200 370 180 350 180 330Z' },
 };
+
+for (const [k, list] of Object.entries(moreGuides)) HABITATS[k].guides = [{ name: HABITATS[k].who, d: HABITATS[k].guide }, ...list];
 
 function alphaBox(ctx, w, ht) {
   const d = ctx.getImageData(0, 0, w, ht).data;
@@ -388,10 +391,11 @@ export function creatureDraw(root, habitat) {
   const stageEl = h('div', { class: 'stage-host' });
   const p = new Painter(stageEl, { w: 800, h: 600, layers: 1, brush: 'marker', color: '#ff6b5e' });
   p.size = 16;
-  p.under.append(h('div', {
-    class: 'silhouette',
-    html: `<svg viewBox="0 0 800 600"><path d="${H.guide}"/></svg>`,
-  }));
+  let guideN = Math.floor(Math.random() * H.guides.length);
+  const shape = h('div', { class: 'silhouette' });
+  const showShape = () => { shape.innerHTML = `<svg viewBox="0 0 800 600"><path d="${H.guides[guideN].d}"/></svg>`; };
+  showShape();
+  p.under.append(shape);
   const rail = brushRail(p, ['marker', 'pen', 'crayon', 'watercolor', 'glitter', 'rainbow', 'fur', 'eraser'], { onPick: () => size.sync() });
   const size = sizeSlider(p);
   const pal = paletteBar(p, { onPick: () => { rail.redraw(); size.sync(); } });
@@ -444,6 +448,10 @@ export function creatureDraw(root, habitat) {
       right: [
         restartBtn,
         iconBtn('undo', 'Отменить', () => p.undo()),
+        H.guides.length > 1 && iconBtn('dice', 'Другая подсказка', () => {
+          guideN = (guideN + 1) % H.guides.length;
+          showShape();
+        }),
         iconBtn('eye', 'Подсказка', () => {
           showGuide = !showGuide;
           p.under.style.opacity = showGuide ? 1 : 0;

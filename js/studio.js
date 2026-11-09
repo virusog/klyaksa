@@ -176,7 +176,7 @@ export function studio(root, editId) {
     await safeSave(saver.flush);
     const r = awardOnce('studio');
     celebrate({
-      title: state.name ? `Красота, ${state.name}!` : 'Красота!',
+      title: `Красота, ${state.name}!`,
       text: r.gain ? 'Рисунок в галерее. Держи звезду за сегодняшнее творчество.' : 'Рисунок в галерее.',
       unlocked: r.unlocked,
       actions: [
