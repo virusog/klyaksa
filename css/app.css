@@ -343,7 +343,9 @@ input[type=range]::-webkit-slider-thumb {
 .game-card small { font-size: 16px; opacity: .85; position: relative; }
 .game-art { position: absolute; right: 8px; top: 6px; width: 110px; }
 .game-art svg { width: 100%; display: block; fill: none; stroke: var(--ink); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
-.pix-card { align-items: center; }
+.pix-card { align-items: center; text-align: center; }
+.pix-count { font-style: normal; font-size: 12px; margin-left: 6px; padding: 1px 6px; border-radius: 8px; background: #efe6d2; }
+.pix-count.full { background: var(--mint); color: #fff; }
 .pix-card canvas { width: 100px; height: 100px; image-rendering: pixelated; margin-bottom: 4px; }
 
 .dice-body { display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 16px; }

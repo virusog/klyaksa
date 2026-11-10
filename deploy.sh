@@ -24,7 +24,7 @@ git init -q -b gh-pages
 git add -A
 git -c user.name="$name" -c user.email="$email" commit -q -m "Release $sha
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude <noreply@anthropic.com>"
 git push -q -f "$remote" gh-pages
 rm -rf "$out"
 echo "Published $sha"

@@ -141,9 +141,12 @@ function renderPages(list) {
 function renderPixels(list) {
   stats.pixels = list.length;
   stats.total = PIX.length;
+  const strict = file !== 'pixels' && !file.startsWith('_');
   const row = h('div', { class: 'row' });
   for (const t of list) {
     if (PIX.filter(p => p.id === t.id).length > 1) errors.push(`${t.id}: duplicate id`);
+    if (PIX.filter(p => p.name === t.name).length > 1) errors.push(`${t.id}: another picture is already named ${t.name}`);
+    if (!/^[a-z][a-z0-9-]*$/.test(t.id || '')) errors.push(`${t.id}: id must be lowercase latin letters, digits and dashes`);
     if (t.a.length !== 12) errors.push(`${t.id}: ${t.a.length} rows, want 12`);
     t.a.forEach((r, i) => {
       if (r.length !== 12) errors.push(`${t.id} row ${i}: length ${r.length}`);
@@ -151,12 +154,42 @@ function renderPixels(list) {
     });
     const used = new Set(t.a.join('').replace(/\./g, ''));
     if (used.size < 2) errors.push(`${t.id}: fewer than 2 colours`);
-    const c = canvas(240, 240);
-    const x = c.getContext('2d');
-    x.fillStyle = '#eee';
-    x.fillRect(0, 0, 240, 240);
-    t.a.forEach((r, yy) => [...r].forEach((ch, xx) => { if (PIX_KEY[ch]) { x.fillStyle = PIX_KEY[ch]; x.fillRect(xx * 20, yy * 20, 20, 20); } }));
-    row.append(h('div', { class: 'cell' }, c, h('small', {}, `${t.id} — ${t.name}`)));
+    if (strict && t.a.length === 12 && t.a.every(r => r.length === 12)) {
+      if (used.size > 7) errors.push(`${t.id}: ${used.size} colours, max 7 so she can copy it`);
+      const at = (x, y) => (x < 0 || y < 0 || x > 11 || y > 11 ? '.' : t.a[y][x]);
+      let filled = 0, open = 0, x0 = 12, x1 = -1, y0 = 12, y1 = -1;
+      for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+        const ch = at(x, y);
+        if (ch === '.') continue;
+        filled++;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+        if (ch === 'w' && [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].includes('.')) open++;
+      }
+      if (filled < 40) errors.push(`${t.id}: only ${filled} painted cells, min 40`);
+      if (open) errors.push(`${t.id}: ${open} white cells touch the empty background or the edge; the game board is white, so they vanish. Outline them or use i (light grey)`);
+      if (Math.max(x1 - x0, y1 - y0) < 9) errors.push(`${t.id}: picture is small (${x1 - x0 + 1}x${y1 - y0 + 1}), make it at least 10 cells wide or tall`);
+      if (Math.abs(x0 - (11 - x1)) > 1) errors.push(`${t.id}: not centred left to right (margins ${x0} and ${11 - x1})`);
+      if (Math.abs(y0 - (11 - y1)) > 2) errors.push(`${t.id}: not centred top to bottom (margins ${y0} and ${11 - y1})`);
+    }
+    // Drawn the way the game shows it: white board with grid lines, plus the small menu card.
+    const draw = (size, lines) => {
+      const c = canvas(size, size);
+      const x = c.getContext('2d');
+      const z = size / 12;
+      x.fillStyle = '#fff';
+      x.fillRect(0, 0, size, size);
+      t.a.forEach((r, yy) => [...r].forEach((ch, xx) => { if (PIX_KEY[ch]) { x.fillStyle = PIX_KEY[ch]; x.fillRect(xx * z, yy * z, z, z); } }));
+      if (lines) {
+        x.strokeStyle = '#e5ddd0';
+        x.lineWidth = 1;
+        x.beginPath();
+        for (let i = 0; i <= 12; i++) { x.moveTo(i * z, 0); x.lineTo(i * z, size); x.moveTo(0, i * z); x.lineTo(size, i * z); }
+        x.stroke();
+      }
+      return c;
+    };
+    const pair = h('div', { style: { display: 'flex', gap: '8px', alignItems: 'flex-end' } }, draw(264, true), draw(96, false));
+    row.append(h('div', { class: 'cell' }, pair, h('small', { style: { maxWidth: '360px', fontSize: '15px' } }, `${t.id} — ${t.name}`)));
   }
   out.append(row);
 }
@@ -199,7 +232,7 @@ function renderLab() {
 const mod = kind === 'lab' ? null : (await import(`../js/content/${file}.js`)).default;
 if (kind === 'lessons') renderLessons(mod);
 if (kind === 'pages') renderPages(mod);
-if (kind === 'pixels') renderPixels(mod);
+if (kind === 'pixels') renderPixels(mod.slice(from, from + count));
 if (kind === 'guides') renderGuides(mod);
 if (kind === 'lab') renderLab();
 

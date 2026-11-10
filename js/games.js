@@ -7,6 +7,16 @@ import { topbar, btn, iconBtn, starBadge, paletteBar, sizeSlider, celebrate, spe
 import { saveArt } from './studio.js';
 import { sfx } from './audio.js';
 import morePixels from './content/pixels.js';
+import pixPets from './content/pixels-pets.js';
+import pixWild from './content/pixels-wild.js';
+import pixSea from './content/pixels-sea.js';
+import pixNature from './content/pixels-nature.js';
+import pixFood from './content/pixels-food.js';
+import pixFruit from './content/pixels-fruit.js';
+import pixMagic from './content/pixels-magic.js';
+import pixSpace from './content/pixels-space.js';
+import pixThings from './content/pixels-things.js';
+import pixHolidays from './content/pixels-holidays.js';
 import moreLab from './content/lab.js';
 import moreDice from './content/dice.js';
 
@@ -354,7 +364,7 @@ function lab(root) {
   render();
 }
 
-export const PIX_KEY = { '.': null, r: '#e5252a', p: '#ff85c0', o: '#ff8a1f', y: '#ffd447', g: '#46c257', b: '#2f93d6', v: '#8b5cf6', w: '#ffffff', k: '#2a2140', t: '#d9a273', n: '#8a5a35', a: '#7fd1ff', s: '#9aa3b2', c: '#27c4a8', f: '#f4d9c0', l: '#c9a7ff', m: '#a3e635' };
+export const PIX_KEY = { '.': null, r: '#e5252a', p: '#ff85c0', o: '#ff8a1f', y: '#ffd447', g: '#46c257', b: '#2f93d6', v: '#8b5cf6', w: '#ffffff', k: '#2a2140', t: '#d9a273', n: '#8a5a35', a: '#7fd1ff', s: '#9aa3b2', c: '#27c4a8', f: '#f4d9c0', l: '#c9a7ff', m: '#a3e635', d: '#14935a', e: '#1e4fc2', h: '#d6336c', i: '#cfd6e0', z: '#5a3a22' };
 const PIX_BASE = [
   { id: 'heart', name: 'Сердце', a: ['............', '..rr....rr..', '.rrrr..rrrr.', 'rrwrrrrrrrrr', 'rwrrrrrrrrrr', 'rrrrrrrrrrrr', '.rrrrrrrrrr.', '..rrrrrrrr..', '...rrrrrr...', '....rrrr....', '.....rr.....', '............'] },
   { id: 'shroom', name: 'Грибок', a: ['....rrrr....', '..rrwwrrrr..', '.rrrwwrrwrr.', '.rrrrrrrwrr.', 'rrwwrrrrrrrr', 'rrwwrrrrrwwr', 'rrrrrrrrrwwr', '.kkwwwwwwkk.', '...wkwwkw...', '...wwwwww...', '...wwwwww...', '....wwww....'] },
@@ -364,11 +374,27 @@ const PIX_BASE = [
   { id: 'star', name: 'Звезда', a: ['.....yy.....', '.....yy.....', '....yyyy....', 'yyyyyyyyyyyy', '.yyyyyyyyyy.', '..yykyykyy..', '..yyyyyyyy..', '.yyyyppyyyy.', '.yyyyyyyyyy.', '.yyy....yyy.', 'yyy......yyy', '............'] },
 ];
 
-export const PIX = [...PIX_BASE, ...morePixels];
+export const PIX_PACKS = [
+  { id: 'first', name: 'Первые', list: [...PIX_BASE, ...morePixels] },
+  { id: 'pets', name: 'Питомцы', list: pixPets },
+  { id: 'wild', name: 'Дикие звери', list: pixWild },
+  { id: 'sea', name: 'Море', list: pixSea },
+  { id: 'nature', name: 'Природа', list: pixNature },
+  { id: 'food', name: 'Вкусности', list: pixFood },
+  { id: 'fruit', name: 'Фрукты и овощи', list: pixFruit },
+  { id: 'magic', name: 'Сказка', list: pixMagic },
+  { id: 'space', name: 'Космос и машины', list: pixSpace },
+  { id: 'things', name: 'Вещи', list: pixThings },
+  { id: 'holidays', name: 'Праздники и смайлики', list: pixHolidays },
+];
+export const PIX = PIX_PACKS.flatMap(p => p.list);
+const packOf = id => PIX_PACKS.find(p => p.list.some(t => t.id === id));
 
 function pixels(root, tpl) {
   if (!tpl) return pixelsMenu(root);
   const T = PIX.find(x => x.id === tpl);
+  if (!T && tpl !== 'free') { location.hash = '#/game/pixels'; return undefined; }
+  if (T) sessionStorage.setItem('pixPack', packOf(T.id).id);
   const N = T ? 12 : 24;
   const grid = new Array(N * N).fill(null);
   let col = T ? '#e5252a' : '#ff6b5e';
@@ -433,6 +459,7 @@ function pixels(root, tpl) {
   }
 
   const done = btn('primary', 'Готово', async () => {
+    if (!grid.some(Boolean)) { toast('Сначала закрась клеточки!'); return; }
     const out = canvas(N * 40, N * 40);
     const x = out.getContext('2d');
     x.fillStyle = '#fff';
@@ -445,17 +472,37 @@ function pixels(root, tpl) {
     let stars = 1;
     let res;
     if (T) {
-      let right = 0;
-      T.a.forEach((row, yy) => [...row].forEach((c, xx) => { if ((PIX_KEY[c] || '#ffffff') === (grid[xx + yy * N] || '#ffffff')) right++; }));
-      const k = right / (N * N);
-      stars = k > 0.97 ? 3 : k > 0.85 ? 2 : 1;
+      // Only cells that are painted in the sample or by her count, so empty
+      // background cannot earn stars. White equals empty: the board is white.
+      let right = 0, all = 0;
+      T.a.forEach((row, yy) => [...row].forEach((c, xx) => {
+        const want = PIX_KEY[c] || '#ffffff';
+        const got = grid[xx + yy * N] || '#ffffff';
+        if (want === '#ffffff' && got === '#ffffff') return;
+        all++;
+        if (want === got) right++;
+      }));
+      const k = all ? right / all : 0;
+      stars = k >= 0.94 ? 3 : k >= 0.75 ? 2 : 1;
       res = award(`pix:${T.id}`, stars);
     } else res = awardOnce('pixels');
     celebrate({
       title: 'Пиксель к пикселю!', text: 'Картинка в галерее.', stars: T ? stars : null, unlocked: res.unlocked,
-      actions: [{ label: 'Ещё', primary: true, fn: () => { location.hash = '#/game/pixels'; } }],
+      actions: [
+        { label: 'К картинкам', primary: !next, fn: () => { location.hash = '#/game/pixels'; } },
+        next && { label: `Дальше: ${next.name}`, primary: true, fn: () => { location.hash = `#/game/pixels/${next.id}`; } },
+      ].filter(Boolean),
     });
   });
+
+  // The next picture of the same set she has not finished yet.
+  let next = null;
+  if (T) {
+    const list = packOf(T.id).list;
+    const at = list.indexOf(T);
+    const rest = [...list.slice(at + 1), ...list.slice(0, at)];
+    next = rest.find(t => !state.best[`pix:${t.id}`]) || null;
+  }
 
   root.append(h('div', { class: 'screen scroll pix' },
     topbar(T ? `Повтори: ${T.name}` : 'Свободные пиксели', { back: '#/game/pixels', right: [eraseBtn, done] }),
@@ -469,18 +516,38 @@ function pixels(root, tpl) {
 }
 
 function pixelsMenu(root) {
-  root.append(h('div', { class: 'screen scroll hub' },
-    topbar('Пиксели', { back: '#/games', right: [starBadge()] }),
-    h('div', { class: 'games-grid' },
+  const grid = h('div', { class: 'games-grid' });
+  const tabs = h('div', { class: 'tabs small pix-tabs' });
+  const doneIn = p => p.list.filter(t => state.best[`pix:${t.id}`]).length;
+  const show = id => {
+    const pack = PIX_PACKS.find(p => p.id === id) || PIX_PACKS[0];
+    sessionStorage.setItem('pixPack', pack.id);
+    [...tabs.children].forEach(c => c.classList.toggle('on', c.dataset.k === pack.id));
+    grid.textContent = '';
+    grid.append(
       h('a', { class: 'game-card', style: { '--c': '#ffc83d' }, href: '#/game/pixels/free' }, h('b', {}, 'Свободный режим'), h('small', {}, 'Большое поле 24×24')),
-      PIX.map(t => {
+      ...pack.list.map(t => {
         const c = canvas(120, 120);
         const x = c.getContext('2d');
         t.a.forEach((row, yy) => [...row].forEach((ch, xx) => { if (PIX_KEY[ch]) { x.fillStyle = PIX_KEY[ch]; x.fillRect(xx * 10, yy * 10, 10, 10); } }));
         return h('a', { class: 'game-card pix-card', style: { '--c': '#fff' }, href: `#/game/pixels/${t.id}` }, c, h('b', {}, t.name), h('small', {}, '★'.repeat(state.best[`pix:${t.id}`] || 0) || 'Повтори по образцу'));
       }),
-    ),
+    );
+  };
+  for (const p of PIX_PACKS) {
+    if (!p.list.length) continue;
+    const n = doneIn(p);
+    tabs.append(h('button', {
+      class: 'tab', 'data-k': p.id,
+      onclick: () => { sfx.pop(); show(p.id); },
+    }, p.name, h('i', { class: `pix-count ${n === p.list.length ? 'full' : ''}` }, n === p.list.length ? '✓' : `${n}/${p.list.length}`)));
+  }
+  root.append(h('div', { class: 'screen scroll hub' },
+    topbar('Пиксели', { back: '#/games', right: [starBadge()] }),
+    tabs,
+    grid,
   ));
+  show(sessionStorage.getItem('pixPack'));
 }
 
 function guess(root) {
