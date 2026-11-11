@@ -1,5 +1,5 @@
 // Coloring pages, paint-by-number, mandalas and photo-to-coloring.
-import { h, canvas, shade, blobOf, loadImg, hexRgb, clamp } from './util.js';
+import { h, canvas, shade, blobOf, loadImg, hexRgb, clamp, mulberry } from './util.js';
 import { mandala } from './art.js';
 import { PAGES } from './pages.js';
 import { Painter } from './painter.js';
@@ -90,10 +90,14 @@ export function analyze(page) {
     if (i % W < W - 1) dist[i] = Math.min(dist[i], dist[i + 1] + 1);
     if (i < N - W) dist[i] = Math.min(dist[i], dist[i + W] + 1);
     const l = lab[i];
-    if (l > 0 && dist[i] > regions[l].best) {
-      regions[l].best = dist[i];
-      regions[l].px = i % W;
-      regions[l].py = (i - (i % W)) / W;
+    if (l <= 0) continue;
+    // The sheet's edge counts as a line too, so a number never sits half off the page.
+    const x = i % W, y = (i - x) / W;
+    const room = Math.min(dist[i], x + 1, W - x, y + 1, H - y);
+    if (room > regions[l].best) {
+      regions[l].best = room;
+      regions[l].px = x;
+      regions[l].py = y;
     }
   }
 
@@ -241,17 +245,18 @@ function photoToLines(img) {
 
 export function coloringHub(root, tabName = 'pages') {
   const grid = h('div', { class: 'pages-grid' });
-  const tabs = [['pages', 'Раскраски'], ['num', 'По номерам'], ['mandala', 'Мандалы'], ['photo', 'Из фото']];
+  const tabs = [['pages', 'Раскраски'], ['num', 'По номерам'], ['math', 'По примерам'], ['mandala', 'Мандалы'], ['photo', 'Из фото']];
   const tabBar = h('div', { class: 'tabs' }, tabs.map(([k, v]) => h('a', { class: `tab ${k === tabName ? 'on' : ''}`, href: `#/coloring/${k}` }, v)));
 
   const card = (page, mode) => h('a', { class: 'page-card', href: `#/color/${page.id}/${mode}` },
-    thumbOf(page, mode === 'num'),
+    thumbOf(page, mode !== 'free'),
     h('b', {}, page.title),
     state.best[`col:${page.id}:${mode}`] && h('em', { class: 'done-mark' }, '✓'),
   );
 
   if (tabName === 'pages') grid.append(...PAGES.map(p => card(p, 'free')));
   if (tabName === 'num') grid.append(...PAGES.map(p => card(p, 'num')));
+  if (tabName === 'math') grid.append(...PAGES.map(p => card(p, 'math')));
   if (tabName === 'mandala') {
     let seed = Number(sessionStorage.getItem('mandalaSeed') || 1);
     const fill = () => {
@@ -301,7 +306,8 @@ export async function coloringPlay(root, id, mode = 'free') {
     if (pageCache.size > 6) pageCache.clear();
     pageCache.set(id, an);
   }
-  return mode === 'num' ? playNumbers(root, page, an) : playFree(root, page, an);
+  if (mode === 'num' || mode === 'math') return playNumbers(root, page, an, mode === 'math');
+  return playFree(root, page, an);
 }
 
 function makeStage(an, opts) {
@@ -477,7 +483,19 @@ function playFree(root, page, an) {
   };
 }
 
-function playNumbers(root, page, an) {
+// A sum, difference, product or quotient whose answer is n.
+function exprFor(n, rnd) {
+  const kinds = [];
+  if (n >= 2) kinds.push(() => { const a = 1 + Math.floor(rnd() * (n - 1)); return `${a}+${n - a}`; });
+  kinds.push(() => { const b = 1 + Math.floor(rnd() * 9); return `${n + b}−${b}`; });
+  const pairs = [];
+  for (let a = 2; a * a <= n; a++) if (n % a === 0) pairs.push([a, n / a]);
+  if (pairs.length) kinds.push(() => { const [a, b] = pairs[Math.floor(rnd() * pairs.length)]; return rnd() < 0.5 ? `${a}×${b}` : `${b}×${a}`; });
+  kinds.push(() => { const d = 2 + Math.floor(rnd() * 4); return `${n * d}:${d}`; });
+  return kinds[Math.floor(rnd() * kinds.length)]();
+}
+
+function playNumbers(root, page, an, math = false) {
   const { stageEl, p } = makeStage(an, {
     onTap: (x, y) => {
       const id = regionAt(an, x, y);
@@ -486,7 +504,7 @@ function playNumbers(root, page, an) {
       if (!r.num || filled.has(id)) return;
       if (r.num - 1 !== cur) {
         sfx.soft();
-        toast(`Здесь номер ${r.num}`);
+        toast(math ? 'Посчитай ещё раз!' : `Здесь номер ${r.num}`);
         return;
       }
       fillNum(id, x, y, true);
@@ -501,6 +519,12 @@ function playNumbers(root, page, an) {
   regions.forEach(r => { r.num = palette.indexOf(r.target) + 1; });
   const filled = new Set();
   let cur = 0;
+  // In the arithmetic mode every area shows a small sum instead of its number.
+  const labels = new Map();
+  if (math) {
+    const rnd = mulberry([...page.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7));
+    for (const r of regions) labels.set(r.id, r.best >= 13 ? exprFor(r.num, rnd) : String(r.num));
+  }
 
   const hi = canvas(W, H);
   hi.className = 'layer hi';
@@ -544,14 +568,17 @@ function playNumbers(root, page, an) {
     x.fillStyle = INK;
     for (const r of regions) {
       if (filled.has(r.id)) continue;
-      const fs = clamp(r.best * 1.1, 13, 40);
+      const text = labels.get(r.id) || String(r.num);
+      const fs = text.length > 2 ? clamp(r.best * (text.length > 4 ? 0.52 : 0.62), 11, 30) : clamp(r.best * 1.1, 13, 40);
       x.font = `800 ${fs}px ui-rounded, system-ui, sans-serif`;
-      x.fillText(String(r.num), r.px, r.py);
+      x.fillText(text, r.px, r.py);
     }
   }
 
   function drawHi() {
     const x = hi.getContext('2d');
+    // With sums she has to find the right areas herself, so nothing is highlighted.
+    if (math) { x.clearRect(0, 0, W, H); return; }
     const img = x.createImageData(W, H);
     const on = new Uint8Array(an.regions.length);
     for (const r of regions) if (r.num - 1 === cur && !filled.has(r.id)) on[r.id] = 1;
@@ -600,7 +627,7 @@ function playNumbers(root, page, an) {
     }
   }
 
-  const kv = `num_${page.id}`;
+  const kv = `${math ? 'math' : 'num'}_${page.id}`;
   function save() { db.put('kv', { id: kv, filled: [...filled] }); }
 
   async function complete() {
@@ -616,18 +643,18 @@ function playNumbers(root, page, an) {
       // The finished picture lives in the gallery, so this page can be painted again.
       await db.del('kv', kv);
     } catch { return; }
-    const res = award(`col:${page.id}:num`, 3);
+    const res = award(`col:${page.id}:${math ? 'math' : 'num'}`, 3);
     celebrate({
       title: 'Картина готова!',
       text: 'Ты закрасила всё до последней клеточки.',
       stars: 3,
       unlocked: res.unlocked,
-      actions: [{ label: 'Другие картины', primary: true, fn: () => { location.hash = '#/coloring/num'; } }],
+      actions: [{ label: 'Другие картины', primary: true, fn: () => { location.hash = `#/coloring/${math ? 'math' : 'num'}`; } }],
     });
   }
 
   root.append(h('div', { class: 'screen num' },
-    topbar(page.title, { back: '#/coloring/num' }),
+    topbar(page.title, { back: `#/coloring/${math ? 'math' : 'num'}` }),
     h('div', { class: 'num-main' }, stageEl),
     paletteEl,
   ));

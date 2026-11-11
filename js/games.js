@@ -6,19 +6,13 @@ import { state, save, award, awardOnce, db, newId } from './store.js';
 import { topbar, btn, iconBtn, starBadge, paletteBar, sizeSlider, celebrate, speaker, toast, COLORS, mascot, autosaver, safeSave } from './ui.js';
 import { saveArt } from './studio.js';
 import { sfx } from './audio.js';
-import morePixels from './content/pixels.js';
-import pixPets from './content/pixels-pets.js';
-import pixWild from './content/pixels-wild.js';
-import pixSea from './content/pixels-sea.js';
-import pixNature from './content/pixels-nature.js';
-import pixFood from './content/pixels-food.js';
-import pixFruit from './content/pixels-fruit.js';
-import pixMagic from './content/pixels-magic.js';
-import pixSpace from './content/pixels-space.js';
-import pixThings from './content/pixels-things.js';
-import pixHolidays from './content/pixels-holidays.js';
 import moreLab from './content/lab.js';
+import moreLab2 from './content/lab2.js';
 import moreDice from './content/dice.js';
+import moreDice2 from './content/dice2.js';
+import { PIX_KEY, PIX_PACKS, PIX, packOf } from './pix.js';
+
+export { PIX_KEY, PIX_PACKS, PIX };
 
 const GAMES = [
   { id: 'squiggle', title: 'Закорючка', text: 'Преврати каракулю в кого-нибудь', c: '#ffc83d', art: 'M30 70C10 20 60 10 60 45S20 90 55 75 100 20 85 55' },
@@ -29,12 +23,26 @@ const GAMES = [
   { id: 'guess', title: 'Что рисует Клякса?', text: 'Угадай как можно раньше', c: '#ff6b5e', art: 'M55 95v.5M55 75c0-20 25-20 25-42S65 10 50 10 25 20 25 35' },
 ];
 
+// Newer games live in their own files under js/play and load when opened.
+const PLAY = [
+  { id: 'pairs', title: 'Пары', text: 'Найди одинаковые картинки', c: '#7fd1ff', art: 'M12 20h36v48H12zM62 42h36v48H62zM30 36v16M22 44h16M80 58v16M72 66h16' },
+  { id: 'puzzle', title: 'Пазл', text: 'Собери картину из кусочков', c: '#ffb340', art: 'M15 15h35v12a8 8 0 1 0 0 16v12H38a8 8 0 1 1-16 0H15zM60 55h35v40H60V83a8 8 0 1 1 0-16z' },
+  { id: 'diff', title: 'Найди отличия', text: 'Картинки не совсем одинаковые', c: '#a3e635', art: 'M10 20h40v60H10zM60 20h40v60H60zM30 40v.5M80 40v.5M22 62q8 8 16 0M72 66q8-8 16 0' },
+  { id: 'dots', title: 'По точкам', text: 'Соедини точки по порядку', c: '#ff8fa3', art: 'M20 80v.5M35 40v.5M60 20v.5M85 45v.5M92 82v.5M20 80L35 40 60 20' },
+  { id: 'dictation', title: 'Диктант по клеточкам', text: 'Рисуй линию по командам', c: '#c9a7ff', art: 'M15 85V55h20V35h20V15h20v40h20v30M15 55v.5M55 35v.5M95 55v.5' },
+  { id: 'oneline', title: 'Одним росчерком', text: 'Обведи, не отрывая карандаша', c: '#27c4a8', art: 'M20 90V45L55 15 90 45V90H20L90 45H20L90 90' },
+  { id: 'shades', title: 'Оттенки', text: 'Расставь цвета по порядку', c: '#ff85c0', art: 'M10 35h18v40H10zM33 35h18v40H33zM56 35h18v40H56zM79 35h18v40H79z' },
+  { id: 'patterns', title: 'Продолжи узор', text: 'Найди правило', c: '#ffd447', art: 'M10 45h20v20H10zM50 43a12 12 0 1 0 .1 0zM72 45h20v20H72zM20 85v.5M50 85v.5M82 85v.5' },
+  { id: 'anim', title: 'Мультик', text: 'Нарисуй кадры и оживи их', c: '#4aa8ff', art: 'M12 22h86v62H12zM12 36h86M26 22v14M44 22v14M62 22v14M80 22v14M46 50l22 12-22 12z' },
+].map(g => ({ ...g, fresh: true, load: () => import(`./play/${g.id}.js`) }));
+
 export function gamesHub(root) {
   root.append(h('div', { class: 'screen scroll hub' },
     topbar('Игры', { right: [starBadge()] }),
-    h('div', { class: 'games-grid' }, GAMES.map(g =>
+    h('div', { class: 'games-grid' }, [...GAMES, ...PLAY].map(g =>
       h('a', { class: 'game-card', style: { '--c': g.c }, href: `#/game/${g.id}` },
         h('span', { class: 'game-art', html: `<svg viewBox="0 0 110 110"><path d="${g.art}"/></svg>` }),
+        g.fresh && h('em', { class: 'tag fresh' }, 'Новое'),
         h('b', {}, g.title), h('small', {}, g.text),
       ))),
   ));
@@ -54,9 +62,9 @@ const basicTools = p => {
   return h('footer', { class: 'tools-foot' }, size, pal);
 };
 
-// Five kinds of starting scribble, so the game keeps surprising her.
+// Nine kinds of starting scribble, so the game keeps surprising her.
 function squigglePoints(r) {
-  const kind = Math.floor(r() * 5);
+  const kind = Math.floor(r() * 9);
   const cx = 400 + r() * 400, cy = 320 + r() * 260;
   const pts = [];
   if (kind === 0) {
@@ -89,6 +97,41 @@ function squigglePoints(r) {
       const t = i / 160, a = t * loops * 6.283;
       pts.push([cx - 240 + 480 * t + Math.sin(a) * 60, cy + Math.cos(a) * (60 + r() * 6)]);
     }
+  } else if (kind === 5) {
+    // A tilted figure-eight.
+    const a = 140 + r() * 80, tilt = r() * 3.14;
+    for (let i = 0; i <= 140; i++) {
+      const t = (i / 140) * 6.283, q = 1 + Math.sin(t) ** 2;
+      const u = (a * Math.cos(t)) / q, v = (a * Math.sin(t) * Math.cos(t)) / q;
+      pts.push([cx + u * Math.cos(tilt) - v * Math.sin(tilt), cy + u * Math.sin(tilt) + v * Math.cos(tilt)]);
+    }
+  } else if (kind === 6) {
+    // A square spiral.
+    let x = cx, y = cy, len = 40;
+    const turns = 7 + Math.floor(r() * 4), flip = r() < 0.5 ? 1 : -1;
+    pts.push([x, y]);
+    for (let i = 0; i < turns; i++) {
+      const [dx, dy] = [[1, 0], [0, 1], [-1, 0], [0, -1]][i % 4];
+      for (let k = 0; k < len / 8; k++) { x += dx * 8 * flip; y += dy * 8; pts.push([x, y]); }
+      len += 34;
+    }
+  } else if (kind === 7) {
+    // A row of bumps, like the top of a cloud.
+    const n = 3 + Math.floor(r() * 3), rr = 220 / n, up = r() < 0.5 ? 1 : -1;
+    for (let b = 0; b < n; b++) {
+      for (let i = 0; i <= 16; i++) {
+        const t = Math.PI - (i / 16) * Math.PI;
+        pts.push([cx - 220 + rr + b * rr * 2 + Math.cos(t) * rr, cy - Math.sin(t) * rr * (0.8 + (b % 2) * 0.5) * up]);
+      }
+    }
+  } else if (kind === 8) {
+    // A hook with a long tail.
+    const rr = 80 + r() * 30, flip = r() < 0.5 ? 1 : -1;
+    for (let i = 0; i <= 40; i++) {
+      const t = Math.PI + (i / 40) * Math.PI * 1.5;
+      pts.push([cx + Math.cos(t) * rr * flip, cy + Math.sin(t) * rr]);
+    }
+    for (let i = 1; i <= 16; i++) pts.push([cx, cy + rr + i * 9]);
   } else {
     const n = 3 + Math.floor(r() * 3), base = 130 + r() * 90;
     for (let i = 0; i <= 150; i++) {
@@ -164,9 +207,9 @@ const WHO = ['кот', 'дракон', 'робот', 'единорог', 'пин
 const DOES = ['ест мороженое', 'катается на скейте', 'читает книгу', 'летит на шаре', 'печёт торт', 'танцует', 'играет на гитаре', 'спит в гамаке', 'ловит звезду', 'рисует картину', 'пьёт какао', 'строит замок', 'едет на велосипеде', 'поливает цветы', 'запускает змея'];
 const WHERE = ['в космосе', 'под водой', 'на облаке', 'в лесу', 'на крыше', 'в пустыне', 'в школе', 'в замке', 'на Северном полюсе', 'в кондитерской', 'на Луне', 'в джунглях', 'на маяке', 'в метро'];
 
-WHO.push(...moreDice.who);
-DOES.push(...moreDice.does);
-WHERE.push(...moreDice.where);
+WHO.push(...moreDice.who, ...moreDice2.who);
+DOES.push(...moreDice.does, ...moreDice2.does);
+WHERE.push(...moreDice.where, ...moreDice2.where);
 
 function dice(root) {
   const cells = [WHO, DOES, WHERE].map(() => h('div', { class: 'reel' }, '?'));
@@ -215,8 +258,11 @@ function half(root) {
   p.size = 9;
   let closed = false;
   const guide = svgEl('svg', { viewBox: '0 0 1000 750', class: 'guide' });
+  // Sometimes the left half is missing, which is harder for a right-hander.
+  const side = Math.random() < 0.5 ? 'R' : 'L';
+  const sideName = side === 'R' ? 'правую' : 'левую';
   const defs = svgEl('clipPath', { id: 'leftHalf' });
-  defs.append(svgEl('rect', { x: 0, y: 0, width: 500, height: 750 }));
+  defs.append(svgEl('rect', { x: side === 'R' ? 0 : 500, y: 0, width: 500, height: 750 }));
   guide.append(defs);
   const g = svgEl('g', { 'clip-path': 'url(#leftHalf)' });
   allPaths(L).forEach(d => g.append(svgEl('path', { d, class: 'g-solid' })));
@@ -225,10 +271,11 @@ function half(root) {
 
   const done = btn('primary', 'Проверить', async () => {
     const ink = inkPoints(p.log, 0, 1.2);
-    if (!ink.length) { toast('Дорисуй правую сторону!'); return; }
-    const right = allPaths(L).flatMap(d => samplePath(d, 10)).filter(([x]) => x > 503);
+    if (!ink.length) { toast(`Дорисуй ${sideName} сторону!`); return; }
+    const right = allPaths(L).flatMap(d => samplePath(d, 10)).filter(([x]) => (side === 'R' ? x > 503 : x < 497));
     const stars = starsFor(matchScore(right, ink, { tol: 42 }));
     const res = award(`half:${L.id}`, stars);
+    defs.firstChild.setAttribute('x', 0);
     defs.firstChild.setAttribute('width', 1000);
     await sleep(900);
     if (closed) return;
@@ -241,8 +288,8 @@ function half(root) {
       ],
     });
   });
-  drawLayout(root, 'Дорисуй правую половину', [iconBtn('undo', 'Отменить', () => p.undo()), done], stageEl,
-    h('footer', { class: 'tools-foot' }, speaker('Смотри на левую сторону: каждая точка отражается справа на том же расстоянии от линии.')));
+  drawLayout(root, `Дорисуй ${sideName} половину`, [iconBtn('undo', 'Отменить', () => p.undo()), done], stageEl,
+    h('footer', { class: 'tools-foot' }, speaker('Смотри на готовую сторону: каждая точка отражается на том же расстоянии от линии.')));
   p.fit();
   let cleanup = () => p.destroy();
   return () => { closed = true; cleanup(); };
@@ -285,7 +332,7 @@ export const LAB = [
   { name: 'Бордовый', mix: { r: 3, b: 1, k: 1 }, fact: 'Чёрного всегда нужно совсем чуть-чуть.' },
 ];
 
-LAB.push(...moreLab);
+LAB.push(...moreLab, ...moreLab2);
 
 function lab(root) {
   let level = clamp(state.best['lab:level'] || 0, 0, LAB.length - 1);
@@ -364,38 +411,13 @@ function lab(root) {
   render();
 }
 
-export const PIX_KEY = { '.': null, r: '#e5252a', p: '#ff85c0', o: '#ff8a1f', y: '#ffd447', g: '#46c257', b: '#2f93d6', v: '#8b5cf6', w: '#ffffff', k: '#2a2140', t: '#d9a273', n: '#8a5a35', a: '#7fd1ff', s: '#9aa3b2', c: '#27c4a8', f: '#f4d9c0', l: '#c9a7ff', m: '#a3e635', d: '#14935a', e: '#1e4fc2', h: '#d6336c', i: '#cfd6e0', z: '#5a3a22' };
-const PIX_BASE = [
-  { id: 'heart', name: 'Сердце', a: ['............', '..rr....rr..', '.rrrr..rrrr.', 'rrwrrrrrrrrr', 'rwrrrrrrrrrr', 'rrrrrrrrrrrr', '.rrrrrrrrrr.', '..rrrrrrrr..', '...rrrrrr...', '....rrrr....', '.....rr.....', '............'] },
-  { id: 'shroom', name: 'Грибок', a: ['....rrrr....', '..rrwwrrrr..', '.rrrwwrrwrr.', '.rrrrrrrwrr.', 'rrwwrrrrrrrr', 'rrwwrrrrrwwr', 'rrrrrrrrrwwr', '.kkwwwwwwkk.', '...wkwwkw...', '...wwwwww...', '...wwwwww...', '....wwww....'] },
-  { id: 'cat', name: 'Котик', a: ['.k........k.', '.kk......kk.', '.kokkkkkkok.', '.kooooooook.', 'kooooooooook', 'kokkookkookk', 'kookooookokk', 'kooooppooook', '.koookkookk.', '..kooooook..', '...kkkkkkk..', '............'] },
-  { id: 'cream', name: 'Мороженое', a: ['....pppp....', '...pppppp...', '..ppwppppp..', '..pwpppppp..', '..pppppppp..', '..yyyyyyyy..', '..tntttntt..', '...ttnttn...', '...tntttt...', '....ttnt....', '....tnt.....', '.....t......'] },
-  { id: 'flower', name: 'Цветок', a: ['....vvvv....', '...vvvvvv...', '.vvvvyyvvvv.', 'vvvvyyyyvvvv', 'vvvvyyyyvvvv', '.vvvvyyvvvv.', '...vvvvvv...', '....vvvv....', '.....gg..gg.', '.gg..gg.gg..', '..gggggg....', '.....gg.....'] },
-  { id: 'star', name: 'Звезда', a: ['.....yy.....', '.....yy.....', '....yyyy....', 'yyyyyyyyyyyy', '.yyyyyyyyyy.', '..yykyykyy..', '..yyyyyyyy..', '.yyyyppyyyy.', '.yyyyyyyyyy.', '.yyy....yyy.', 'yyy......yyy', '............'] },
-];
-
-export const PIX_PACKS = [
-  { id: 'first', name: 'Первые', list: [...PIX_BASE, ...morePixels] },
-  { id: 'pets', name: 'Питомцы', list: pixPets },
-  { id: 'wild', name: 'Дикие звери', list: pixWild },
-  { id: 'sea', name: 'Море', list: pixSea },
-  { id: 'nature', name: 'Природа', list: pixNature },
-  { id: 'food', name: 'Вкусности', list: pixFood },
-  { id: 'fruit', name: 'Фрукты и овощи', list: pixFruit },
-  { id: 'magic', name: 'Сказка', list: pixMagic },
-  { id: 'space', name: 'Космос и машины', list: pixSpace },
-  { id: 'things', name: 'Вещи', list: pixThings },
-  { id: 'holidays', name: 'Праздники и смайлики', list: pixHolidays },
-];
-export const PIX = PIX_PACKS.flatMap(p => p.list);
-const packOf = id => PIX_PACKS.find(p => p.list.some(t => t.id === id));
 
 function pixels(root, tpl) {
   if (!tpl) return pixelsMenu(root);
   const T = PIX.find(x => x.id === tpl);
   if (!T && tpl !== 'free') { location.hash = '#/game/pixels'; return undefined; }
   if (T) sessionStorage.setItem('pixPack', packOf(T.id).id);
-  const N = T ? 12 : 24;
+  const N = T ? T.a.length : 24;
   const grid = new Array(N * N).fill(null);
   let col = T ? '#e5252a' : '#ff6b5e';
   let tool = 'pen';
@@ -448,13 +470,14 @@ function pixels(root, tpl) {
     const x = ref.getContext('2d');
     x.fillStyle = '#fff';
     x.fillRect(0, 0, 240, 240);
+    const z = 240 / N;
     T.a.forEach((row, yy) => [...row].forEach((c, xx) => {
-      if (PIX_KEY[c]) { x.fillStyle = PIX_KEY[c]; x.fillRect(xx * 20, yy * 20, 20, 20); }
+      if (PIX_KEY[c]) { x.fillStyle = PIX_KEY[c]; x.fillRect(xx * z, yy * z, z, z); }
     }));
     x.strokeStyle = '#e5ddd0';
     x.lineWidth = 1;
     x.beginPath();
-    for (let i = 0; i <= 12; i++) { x.moveTo(i * 20, 0); x.lineTo(i * 20, 240); x.moveTo(0, i * 20); x.lineTo(240, i * 20); }
+    for (let i = 0; i <= N; i++) { x.moveTo(i * z, 0); x.lineTo(i * z, 240); x.moveTo(0, i * z); x.lineTo(240, i * z); }
     x.stroke();
   }
 
@@ -518,32 +541,44 @@ function pixels(root, tpl) {
 function pixelsMenu(root) {
   const grid = h('div', { class: 'games-grid' });
   const tabs = h('div', { class: 'tabs small pix-tabs' });
+  const sizes = h('div', { class: 'tabs pix-sizes' });
+  const packs = PIX_PACKS.filter(p => p.list.length);
   const doneIn = p => p.list.filter(t => state.best[`pix:${t.id}`]).length;
   const show = id => {
-    const pack = PIX_PACKS.find(p => p.id === id) || PIX_PACKS[0];
+    const pack = packs.find(p => p.id === id) || packs[0];
     sessionStorage.setItem('pixPack', pack.id);
-    [...tabs.children].forEach(c => c.classList.toggle('on', c.dataset.k === pack.id));
+    [...sizes.children].forEach(c => c.classList.toggle('on', (c.dataset.big === '1') === !!pack.big));
+    tabs.textContent = '';
+    for (const p of packs.filter(q => !!q.big === !!pack.big)) {
+      const n = doneIn(p);
+      tabs.append(h('button', {
+        class: `tab ${p === pack ? 'on' : ''}`, 'data-k': p.id,
+        onclick: () => { sfx.pop(); show(p.id); },
+      }, p.name, h('i', { class: `pix-count ${n === p.list.length ? 'full' : ''}` }, n === p.list.length ? '✓' : `${n}/${p.list.length}`)));
+    }
     grid.textContent = '';
     grid.append(
       h('a', { class: 'game-card', style: { '--c': '#ffc83d' }, href: '#/game/pixels/free' }, h('b', {}, 'Свободный режим'), h('small', {}, 'Большое поле 24×24')),
       ...pack.list.map(t => {
-        const c = canvas(120, 120);
+        const n = t.a.length;
+        const c = canvas(n * 8, n * 8);
         const x = c.getContext('2d');
-        t.a.forEach((row, yy) => [...row].forEach((ch, xx) => { if (PIX_KEY[ch]) { x.fillStyle = PIX_KEY[ch]; x.fillRect(xx * 10, yy * 10, 10, 10); } }));
+        t.a.forEach((row, yy) => [...row].forEach((ch, xx) => { if (PIX_KEY[ch]) { x.fillStyle = PIX_KEY[ch]; x.fillRect(xx * 8, yy * 8, 8, 8); } }));
         return h('a', { class: 'game-card pix-card', style: { '--c': '#fff' }, href: `#/game/pixels/${t.id}` }, c, h('b', {}, t.name), h('small', {}, '★'.repeat(state.best[`pix:${t.id}`] || 0) || 'Повтори по образцу'));
       }),
     );
   };
-  for (const p of PIX_PACKS) {
-    if (!p.list.length) continue;
-    const n = doneIn(p);
-    tabs.append(h('button', {
-      class: 'tab', 'data-k': p.id,
-      onclick: () => { sfx.pop(); show(p.id); },
-    }, p.name, h('i', { class: `pix-count ${n === p.list.length ? 'full' : ''}` }, n === p.list.length ? '✓' : `${n}/${p.list.length}`)));
+  if (packs.some(p => p.big)) {
+    for (const [big, name] of [[false, 'Обычные 12×12'], [true, 'Сложные 16×16']]) {
+      sizes.append(h('button', {
+        class: 'tab', 'data-big': big ? '1' : '0',
+        onclick: () => { sfx.pop(); show(packs.find(p => !!p.big === big).id); },
+      }, name));
+    }
   }
   root.append(h('div', { class: 'screen scroll hub' },
     topbar('Пиксели', { back: '#/games', right: [starBadge()] }),
+    sizes.children.length ? sizes : null,
     tabs,
     grid,
   ));
@@ -573,7 +608,10 @@ function guess(root) {
     [...art.children].forEach(e => { e.style.visibility = 'hidden'; });
     artBox.append(art);
     let shown = 0, solved = false, wrong = 0;
-    const others = shuffle(pool.filter(x => x !== L)).slice(0, 3);
+    // The second half of the game is harder: six answers and a faster hand.
+    const hard = n >= 6;
+    opts.style.gridTemplateColumns = `repeat(${hard ? 3 : 4}, minmax(150px, 1fr))`;
+    const others = shuffle(pool.filter(x => x !== L)).slice(0, hard ? 5 : 3);
     shuffle([L, ...others]).forEach(o => {
       const b = btn('ghost', o.title, () => {
         if (solved) return;
@@ -593,7 +631,7 @@ function guess(root) {
       if (solved || closed) return;
       e.style.visibility = 'visible';
       shown++;
-      await sleep(1000);
+      await sleep(hard ? 750 : 1000);
     }
   }
 
@@ -609,7 +647,9 @@ function guess(root) {
   return () => { closed = true; };
 }
 
-export function gameRoute(root, id, arg) {
+export function gameRoute(root, id, arg, ...rest) {
+  const extra = PLAY.find(x => x.id === id);
+  if (extra) return extra.load().then(m => m.default(root, arg, ...rest));
   if (id === 'squiggle') return squiggle(root);
   if (id === 'dice') return dice(root);
   if (id === 'half') return half(root);

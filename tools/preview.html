@@ -19,7 +19,10 @@ import { h, svgEl, samplePath, canvas, hexRgb } from '../js/util.js';
 import { ALL_LESSONS } from '../js/lessons.js';
 import { PAGES } from '../js/pages.js';
 import { analyze, drawPage } from '../js/coloring.js';
-import { PIX, PIX_KEY, LAB, mixPaint } from '../js/games.js';
+import { LAB, mixPaint } from '../js/games.js';
+import { PIX, PIX_KEY } from '../js/pix.js';
+import { parseMoves, eulerInfo } from '../js/play/kit.js';
+import { HABITATS } from '../js/world.js';
 
 const q = new URLSearchParams(location.search);
 const kind = q.get('kind');
@@ -42,7 +45,11 @@ function checkLesson(L) {
   const name = L.id;
   if (!L.id || !L.title) errors.push(`${name}: id or title missing`);
   if (ALL_LESSONS.filter(x => x.id === L.id).length > 1) errors.push(`${name}: duplicate id`);
-  if (L.steps.length < 3 || L.steps.length > 8) errors.push(`${name}: ${L.steps.length} steps, want 3-8`);
+  const hard = file.startsWith('lessons2');
+  const maxSteps = hard ? 10 : 8;
+  if (L.steps.length < (hard ? 5 : 3) || L.steps.length > maxSteps) errors.push(`${name}: ${L.steps.length} steps, want ${hard ? 5 : 3}-${maxSteps}`);
+  const nPaths = L.steps.reduce((a, s) => a + s.p.length, 0);
+  if (hard && nPaths > 60) errors.push(`${name}: ${nPaths} paths in total, max 60`);
   const pts = [];
   for (const [n, s] of L.steps.entries()) {
     if (!s.t || s.t.length > 95) errors.push(`${name} step ${n + 1}: text is ${s.t?.length} chars, max 95`);
@@ -119,8 +126,10 @@ function renderPages(list) {
     stats.detail.push({ id: page.id, numbered: regs.length, colors: palette.size, leaks, tiny });
     if (palette.size > 16) errors.push(`${page.id}: ${palette.size} colours, max 16`);
     if (palette.size < 5) errors.push(`${page.id}: only ${palette.size} colours, min 5`);
-    if (regs.length < 14) errors.push(`${page.id}: only ${regs.length} areas, min 14`);
-    if (regs.length > 110) errors.push(`${page.id}: ${regs.length} areas, max 110`);
+    const detailed = file.startsWith('pages2');
+    const minAreas = detailed ? 80 : 14, maxAreas = detailed ? 170 : 110;
+    if (regs.length < minAreas) errors.push(`${page.id}: only ${regs.length} areas, min ${minAreas}`);
+    if (regs.length > maxAreas) errors.push(`${page.id}: ${regs.length} areas, max ${maxAreas}`);
     if (leaks) errors.push(`${page.id}: ${leaks} areas mix two fills, so some shape is not closed`);
     if (tiny > 12) errors.push(`${page.id}: ${tiny} slivers too thin for a number, max 12`);
   }
@@ -147,35 +156,40 @@ function renderPixels(list) {
     if (PIX.filter(p => p.id === t.id).length > 1) errors.push(`${t.id}: duplicate id`);
     if (PIX.filter(p => p.name === t.name).length > 1) errors.push(`${t.id}: another picture is already named ${t.name}`);
     if (!/^[a-z][a-z0-9-]*$/.test(t.id || '')) errors.push(`${t.id}: id must be lowercase latin letters, digits and dashes`);
-    if (t.a.length !== 12) errors.push(`${t.id}: ${t.a.length} rows, want 12`);
+    const N = file.startsWith('pixels16') ? 16 : 12;
+    const M = N - 1;
+    if (t.a.length !== N) errors.push(`${t.id}: ${t.a.length} rows, want ${N}`);
     t.a.forEach((r, i) => {
-      if (r.length !== 12) errors.push(`${t.id} row ${i}: length ${r.length}`);
+      if (r.length !== N) errors.push(`${t.id} row ${i}: length ${r.length}, want ${N}`);
       for (const ch of r) if (!(ch in PIX_KEY)) errors.push(`${t.id}: unknown colour letter ${ch}`);
     });
     const used = new Set(t.a.join('').replace(/\./g, ''));
     if (used.size < 2) errors.push(`${t.id}: fewer than 2 colours`);
-    if (strict && t.a.length === 12 && t.a.every(r => r.length === 12)) {
-      if (used.size > 7) errors.push(`${t.id}: ${used.size} colours, max 7 so she can copy it`);
-      const at = (x, y) => (x < 0 || y < 0 || x > 11 || y > 11 ? '.' : t.a[y][x]);
-      let filled = 0, open = 0, x0 = 12, x1 = -1, y0 = 12, y1 = -1;
-      for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+    if (strict && t.a.length === N && t.a.every(r => r.length === N)) {
+      const maxCol = N === 16 ? 9 : 7;
+      if (used.size > maxCol) errors.push(`${t.id}: ${used.size} colours, max ${maxCol} so she can copy it`);
+      if (N === 16 && used.size < 4) errors.push(`${t.id}: only ${used.size} colours; a 16x16 picture should use at least 4`);
+      const at = (x, y) => (x < 0 || y < 0 || x > M || y > M ? '.' : t.a[y][x]);
+      let filled = 0, open = 0, x0 = N, x1 = -1, y0 = N, y1 = -1;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
         const ch = at(x, y);
         if (ch === '.') continue;
         filled++;
         x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
         if (ch === 'w' && [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].includes('.')) open++;
       }
-      if (filled < 40) errors.push(`${t.id}: only ${filled} painted cells, min 40`);
+      const minFill = N === 16 ? 90 : 40;
+      if (filled < minFill) errors.push(`${t.id}: only ${filled} painted cells, min ${minFill}`);
       if (open) errors.push(`${t.id}: ${open} white cells touch the empty background or the edge; the game board is white, so they vanish. Outline them or use i (light grey)`);
-      if (Math.max(x1 - x0, y1 - y0) < 9) errors.push(`${t.id}: picture is small (${x1 - x0 + 1}x${y1 - y0 + 1}), make it at least 10 cells wide or tall`);
-      if (Math.abs(x0 - (11 - x1)) > 1) errors.push(`${t.id}: not centred left to right (margins ${x0} and ${11 - x1})`);
-      if (Math.abs(y0 - (11 - y1)) > 2) errors.push(`${t.id}: not centred top to bottom (margins ${y0} and ${11 - y1})`);
+      if (Math.max(x1 - x0, y1 - y0) < N - 3) errors.push(`${t.id}: picture is small (${x1 - x0 + 1}x${y1 - y0 + 1}), make it at least ${N - 2} cells wide or tall`);
+      if (Math.abs(x0 - (M - x1)) > 1) errors.push(`${t.id}: not centred left to right (margins ${x0} and ${M - x1})`);
+      if (Math.abs(y0 - (M - y1)) > 2) errors.push(`${t.id}: not centred top to bottom (margins ${y0} and ${M - y1})`);
     }
     // Drawn the way the game shows it: white board with grid lines, plus the small menu card.
     const draw = (size, lines) => {
       const c = canvas(size, size);
       const x = c.getContext('2d');
-      const z = size / 12;
+      const z = size / N;
       x.fillStyle = '#fff';
       x.fillRect(0, 0, size, size);
       t.a.forEach((r, yy) => [...r].forEach((ch, xx) => { if (PIX_KEY[ch]) { x.fillStyle = PIX_KEY[ch]; x.fillRect(xx * z, yy * z, z, z); } }));
@@ -183,12 +197,12 @@ function renderPixels(list) {
         x.strokeStyle = '#e5ddd0';
         x.lineWidth = 1;
         x.beginPath();
-        for (let i = 0; i <= 12; i++) { x.moveTo(i * z, 0); x.lineTo(i * z, size); x.moveTo(0, i * z); x.lineTo(size, i * z); }
+        for (let i = 0; i <= N; i++) { x.moveTo(i * z, 0); x.lineTo(i * z, size); x.moveTo(0, i * z); x.lineTo(size, i * z); }
         x.stroke();
       }
       return c;
     };
-    const pair = h('div', { style: { display: 'flex', gap: '8px', alignItems: 'flex-end' } }, draw(264, true), draw(96, false));
+    const pair = h('div', { style: { display: 'flex', gap: '8px', alignItems: 'flex-end' } }, draw(N === 16 ? 320 : 264, true), draw(96, false));
     row.append(h('div', { class: 'cell' }, pair, h('small', { style: { maxWidth: '360px', fontSize: '15px' } }, `${t.id} — ${t.name}`)));
   }
   out.append(row);
@@ -206,6 +220,7 @@ function renderGuides(data) {
       row.append(h('div', { class: 'cell' }, s, h('small', {}, g.name)));
       const pts = samplePath(g.d, 10);
       if (pts.length < 20) errors.push(`${k}/${g.name}: bad path`);
+      if (HABITATS[k].guides.filter(q => q.name === g.name).length > 1) errors.push(`${k}/${g.name}: this name is already used`);
       if (pts.some(([x, y]) => x < 15 || x > 785 || y < 15 || y > 585)) errors.push(`${k}/${g.name}: outside 15..785 x 15..585`);
     }
     out.append(row);
@@ -217,16 +232,182 @@ function renderLab() {
   const seen = [];
   LAB.forEach((T, i) => {
     const c = mixPaint(T.mix).map(Math.round);
-    const near = seen.find(s => Math.hypot(s.c[0] - c[0], s.c[1] - c[1], s.c[2] - c[2]) < 26);
+    const late = i >= 30;
+    const near = seen.find(s => Math.hypot(s.c[0] - c[0], s.c[1] - c[1], s.c[2] - c[2]) < (late ? 18 : 26));
     if (near) errors.push(`${T.name}: too close to ${near.name}`);
     if (LAB.filter(x => x.name === T.name).length > 1) errors.push(`${T.name}: duplicate name`);
     if (!T.fact || T.fact.length > 110) errors.push(`${T.name}: fact is ${T.fact?.length} chars, max 110`);
     const drops = Object.values(T.mix).reduce((a, b) => a + b);
-    if (drops > 8) errors.push(`${T.name}: ${drops} drops, max 8`);
+    if (drops > (late ? 11 : 8)) errors.push(`${T.name}: ${drops} drops, max ${late ? 11 : 8}`);
+    if (late && drops < 4) errors.push(`${T.name}: only ${drops} drops; the new colours should need at least 4`);
     for (const k of Object.keys(T.mix)) if (!'rybwk'.includes(k)) errors.push(`${T.name}: unknown paint ${k}`);
     seen.push({ name: T.name, c });
     out.append(h('span', { class: 'sw', style: { background: `rgb(${c})`, color: c[0] + c[1] + c[2] < 330 ? '#fff' : '#000' } }, `${i + 1}. ${T.name}`));
   });
+}
+
+const segCross = (a, b, c, d) => {
+  const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+};
+const segDist = (p, a, b) => {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+};
+const uniq = (list, t, what) => {
+  if (!/^[a-z][a-z0-9-]*$/.test(t.id || '')) errors.push(`${t.id}: id must be lowercase latin letters, digits and dashes`);
+  if (list.filter(q => q.id === t.id).length > 1) errors.push(`${t.id}: duplicate id`);
+  if (list.filter(q => q.name === t.name).length > 1) errors.push(`${t.id}: duplicate name ${t.name}`);
+  if (!t.name || t.name[0] !== t.name[0].toUpperCase()) errors.push(`${t.id}: ${what} needs a Russian name starting with a capital`);
+};
+
+// Dot-to-dot pictures: { id, name, color, pts: [[x, y], ...], extra: [path, ...] } on 1000x750, always closed.
+function renderDots(list) {
+  stats.dots = list.map(t => `${t.id}:${t.pts.length}`);
+  const row = h('div', { class: 'row' });
+  list.forEach((t, n) => {
+    uniq(list, t, 'picture');
+    const P = t.pts;
+    if (P.length < 12 || P.length > 90) errors.push(`${t.id}: ${P.length} dots, want 12-90`);
+    if (!/^#[0-9a-f]{6}$/i.test(t.color || '')) errors.push(`${t.id}: color must be #rrggbb`);
+    if (n && P.length < list[n - 1].pts.length) errors.push(`${t.id}: pictures must be sorted from fewest dots to most`);
+    P.forEach(([x, y], i) => {
+      if (x < 40 || x > 960 || y < 40 || y > 710) errors.push(`${t.id}: dot ${i + 1} is outside 40..960 x 40..710`);
+      const q = P[(i + 1) % P.length];
+      const d = Math.hypot(q[0] - x, q[1] - y);
+      if (d < 30) errors.push(`${t.id}: dots ${i + 1} and ${((i + 1) % P.length) + 1} are only ${Math.round(d)} apart, min 30`);
+      if (d > 300) errors.push(`${t.id}: dots ${i + 1} and ${((i + 1) % P.length) + 1} are ${Math.round(d)} apart, max 300`);
+      for (let j = i + 2; j < P.length; j++) {
+        const dd = Math.hypot(P[j][0] - x, P[j][1] - y);
+        if (dd < 30 && !(i === 0 && j === P.length - 1)) errors.push(`${t.id}: dots ${i + 1} and ${j + 1} are only ${Math.round(dd)} apart; their numbers would overlap`);
+      }
+    });
+    for (let i = 0; i < P.length; i++) for (let j = i + 2; j < P.length; j++) {
+      if (i === 0 && j === P.length - 1) continue;
+      if (segCross(P[i], P[(i + 1) % P.length], P[j], P[(j + 1) % P.length])) errors.push(`${t.id}: the line ${i + 1}-${i + 2} crosses the line ${j + 1}-${((j + 1) % P.length) + 1}`);
+    }
+    const xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+    if (Math.max((Math.max(...xs) - Math.min(...xs)) / 1000, (Math.max(...ys) - Math.min(...ys)) / 750) < 0.6) errors.push(`${t.id}: picture is small, make it fill the sheet`);
+    for (const d of t.extra || []) { try { if (!samplePath(d, 20).length) throw 0; } catch { errors.push(`${t.id}: bad extra path ${String(d).slice(0, 30)}`); } }
+    const view = done => {
+      const s = svgEl('svg', { viewBox: '0 0 1000 750', width: 372, height: 279 });
+      if (done) {
+        s.append(svgEl('path', { d: `M${P.map(p => p.join(' ')).join('L')}Z`, fill: t.color, stroke: '#2a2140', 'stroke-width': 7, 'stroke-linejoin': 'round' }));
+        for (const d of t.extra || []) s.append(svgEl('path', { d, fill: 'none', stroke: '#2a2140', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+      } else {
+        P.forEach(([x, y], i) => {
+          s.append(svgEl('circle', { cx: x, cy: y, r: 7, fill: '#2a2140' }));
+          const tx = svgEl('text', { x: x + 10, y: y - 8, 'font-size': 24, 'font-weight': 700, fill: '#2a2140' });
+          tx.textContent = String(i + 1);
+          s.append(tx);
+        });
+      }
+      return s;
+    };
+    row.append(h('div', { class: 'cell' }, h('div', { style: { display: 'flex', gap: '6px' } }, view(false), view(true)), h('small', { style: { maxWidth: '740px', fontSize: '15px' } }, `${t.id} — ${t.name} — ${P.length} dots`)));
+  });
+  out.append(row);
+}
+
+// Graphic dictations: { id, name, color, start: [col, row], moves: '3R 2U 1RD ...' } on a 20x14 cell grid.
+function renderDictation(list) {
+  stats.dictation = [];
+  const row = h('div', { class: 'row' });
+  list.forEach((t, n) => {
+    uniq(list, t, 'picture');
+    let mv = [];
+    try { mv = parseMoves(t.moves); } catch (e) { errors.push(`${t.id}: ${e.message}`); }
+    if (!/^#[0-9a-f]{6}$/i.test(t.color || '')) errors.push(`${t.id}: color must be #rrggbb`);
+    if (mv.length < 10 || mv.length > 64) errors.push(`${t.id}: ${mv.length} commands, want 10-64`);
+    if (n && mv.length < stats.dictation[n - 1]) errors.push(`${t.id}: pictures must be sorted from fewest commands to most`);
+    stats.dictation.push(mv.length);
+    let [x, y] = t.start || [0, 0];
+    const pts = [[x, y]];
+    const segs = new Set();
+    let prev = '';
+    for (const [dx, dy, k, name] of mv) {
+      if (name === prev) errors.push(`${t.id}: two commands in a row go ${name}; join them into one`);
+      prev = name;
+      if (k < 1 || k > 12) errors.push(`${t.id}: a command of ${k} cells; keep each within 1-12`);
+      for (let i = 0; i < k; i++) {
+        const a = `${x},${y}`;
+        x += dx; y += dy;
+        const b = `${x},${y}`;
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+        if (segs.has(key)) errors.push(`${t.id}: the line passes twice along ${key}`);
+        segs.add(key);
+        if (x < 0 || x > 20 || y < 0 || y > 14) errors.push(`${t.id}: the line leaves the 20x14 grid at ${x},${y}`);
+      }
+      pts.push([x, y]);
+    }
+    if (x !== t.start?.[0] || y !== t.start?.[1]) errors.push(`${t.id}: the line must end where it starts, but ends at ${x},${y}`);
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    if (Math.max(...xs) - Math.min(...xs) < 7 && Math.max(...ys) - Math.min(...ys) < 7) errors.push(`${t.id}: picture is small, make it at least 8 cells wide or tall`);
+    const Z = 22;
+    const s = svgEl('svg', { viewBox: `-11 -11 ${20 * Z + 22} ${14 * Z + 22}`, width: 462, height: 330 });
+    for (let i = 0; i <= 20; i++) s.append(svgEl('line', { x1: i * Z, y1: 0, x2: i * Z, y2: 14 * Z, stroke: '#cfe0f2' }));
+    for (let i = 0; i <= 14; i++) s.append(svgEl('line', { x1: 0, y1: i * Z, x2: 20 * Z, y2: i * Z, stroke: '#cfe0f2' }));
+    s.append(svgEl('path', { d: `M${pts.map(p => `${p[0] * Z} ${p[1] * Z}`).join('L')}Z`, fill: t.color || '#ccc', 'fill-opacity': 0.55, stroke: '#2a2140', 'stroke-width': 3, 'stroke-linejoin': 'round' }));
+    s.append(svgEl('circle', { cx: (t.start?.[0] || 0) * Z, cy: (t.start?.[1] || 0) * Z, r: 6, fill: '#e5252a' }));
+    row.append(h('div', { class: 'cell' }, s, h('small', { style: { maxWidth: '460px', fontSize: '15px' } }, `${t.id} — ${t.name} — ${mv.length} commands`)));
+  });
+  out.append(row);
+}
+
+// One-stroke puzzles: { id, name, nodes: [[x, y], ...], edges: [[a, b], ...] } on 1000x750.
+function renderOneline(list) {
+  stats.oneline = [];
+  const row = h('div', { class: 'row' });
+  list.forEach((t, n) => {
+    uniq(list, t, 'puzzle');
+    const { nodes: N, edges: E } = t;
+    if (N.length < 4 || N.length > 16) errors.push(`${t.id}: ${N.length} points, want 4-16`);
+    if (E.length < 5 || E.length > 30) errors.push(`${t.id}: ${E.length} lines, want 5-30`);
+    if (n && E.length < list[n - 1].edges.length) errors.push(`${t.id}: puzzles must be sorted from fewest lines to most`);
+    const keys = new Set();
+    for (const [a, b] of E) {
+      if (a === b || !N[a] || !N[b]) errors.push(`${t.id}: bad line ${a}-${b}`);
+      const k = a < b ? `${a}-${b}` : `${b}-${a}`;
+      if (keys.has(k)) errors.push(`${t.id}: line ${k} is listed twice`);
+      keys.add(k);
+    }
+    const info = eulerInfo(t);
+    if (!info.connected) errors.push(`${t.id}: not all points are connected`);
+    if (!info.ok) errors.push(`${t.id}: cannot be drawn in one stroke: ${info.odd.length} points have an odd number of lines (must be 0 or 2)`);
+    stats.oneline.push(`${t.id}:${E.length}${info.odd.length ? '' : 'c'}`);
+    N.forEach(([x, y], i) => {
+      if (x < 80 || x > 920 || y < 80 || y > 670) errors.push(`${t.id}: point ${i} is outside 80..920 x 80..670`);
+      for (let j = i + 1; j < N.length; j++) if (Math.hypot(N[j][0] - x, N[j][1] - y) < 110) errors.push(`${t.id}: points ${i} and ${j} are closer than 110`);
+      for (const [a, b] of E) if (a !== i && b !== i && N[a] && N[b] && segDist([x, y], N[a], N[b]) < 48) errors.push(`${t.id}: point ${i} sits on or too near the line ${a}-${b}`);
+    });
+    const s = svgEl('svg', { viewBox: '0 0 1000 750', width: 372, height: 279 });
+    for (const [a, b] of E) if (N[a] && N[b]) s.append(svgEl('line', { x1: N[a][0], y1: N[a][1], x2: N[b][0], y2: N[b][1], stroke: '#2a2140', 'stroke-width': 9, 'stroke-linecap': 'round' }));
+    N.forEach(([x, y], i) => {
+      s.append(svgEl('circle', { cx: x, cy: y, r: 22, fill: info.odd.includes(i) ? '#ff6b5e' : '#ffd447', stroke: '#2a2140', 'stroke-width': 5 }));
+      const tx = svgEl('text', { x, y: y + 8, 'font-size': 24, 'font-weight': 700, 'text-anchor': 'middle', fill: '#2a2140' });
+      tx.textContent = String(i);
+      s.append(tx);
+    });
+    row.append(h('div', { class: 'cell' }, s, h('small', { style: { maxWidth: '370px', fontSize: '15px' } }, `${t.id} — ${t.name} — ${E.length} lines, start: ${info.odd.length ? info.odd.join(' or ') : 'anywhere'}`)));
+  });
+  out.append(row);
+}
+
+// The three files of one game ('dots', 'dots-a', 'dots-b') share one list of ids and names.
+async function siblings() {
+  const all = [];
+  for (const f of [kind, `${kind}-a`, `${kind}-b`]) {
+    if (f === file) continue;
+    try { all.push(...(await import(`../js/content/${f}.js`)).default); } catch { /* being written right now */ }
+  }
+  return all;
+}
+function crossCheck(list, others) {
+  for (const t of list) {
+    if (others.some(o => o.id === t.id)) errors.push(`${t.id}: this id is already used in another ${kind} file`);
+    if (others.some(o => o.name === t.name)) errors.push(`${t.id}: the name ${t.name} is already used in another ${kind} file`);
+  }
 }
 
 const mod = kind === 'lab' ? null : (await import(`../js/content/${file}.js`)).default;
@@ -235,6 +416,10 @@ if (kind === 'pages') renderPages(mod);
 if (kind === 'pixels') renderPixels(mod.slice(from, from + count));
 if (kind === 'guides') renderGuides(mod);
 if (kind === 'lab') renderLab();
+if (kind === 'dots') renderDots(mod);
+if (kind === 'dictation') renderDictation(mod);
+if (kind === 'oneline') renderOneline(mod);
+if (['dots', 'dictation', 'oneline'].includes(kind)) crossCheck(mod, await siblings());
 
 document.getElementById('report').textContent = `REPORT ${JSON.stringify({ errors, stats, height: document.body.scrollHeight })} END`;
 </script>

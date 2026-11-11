@@ -5,6 +5,7 @@ import { db, newId, awardOnce } from './store.js';
 import { topbar, btn, iconBtn, brushRail, paletteBar, sizeSlider, celebrate, confirmBox, toast, speaker, autosaver, safeSave } from './ui.js';
 import { sfx } from './audio.js';
 import moreGuides from './content/world-guides.js';
+import moreGuides2 from './content/world-guides2.js';
 
 export const HABITATS = {
   sea: { name: 'Море', who: 'рыбку', hint: 'Нарисуй морского жителя. Пусть смотрит направо!',
@@ -15,7 +16,7 @@ export const HABITATS = {
     guide: 'M180 330C180 230 300 200 420 220C450 140 590 130 620 220C650 300 590 350 530 360V500H470V380H290V500H230V370C200 370 180 350 180 330Z' },
 };
 
-for (const [k, list] of Object.entries(moreGuides)) HABITATS[k].guides = [{ name: HABITATS[k].who, d: HABITATS[k].guide }, ...list];
+for (const [k, list] of Object.entries(moreGuides)) HABITATS[k].guides = [{ name: HABITATS[k].who, d: HABITATS[k].guide }, ...list, ...(moreGuides2[k] || [])];
 
 function alphaBox(ctx, w, ht) {
   const d = ctx.getImageData(0, 0, w, ht).data;

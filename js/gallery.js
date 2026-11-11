@@ -9,7 +9,7 @@ export async function gallery(root) {
   const items = (await db.all('art')).sort((a, b) => (b.updated || 0) - (a.updated || 0));
   const grid = h('div', { class: 'wall' });
   items.forEach((it, i) => {
-    grid.append(h('a', { class: 'frame', href: `#/art/${it.id}`, style: { '--r': `${((i * 37) % 7) - 3}deg` } },
+    grid.append(h('a', { class: 'frame', href: it.kind === 'anim' ? `#/game/anim/${it.id}` : `#/art/${it.id}`, style: { '--r': `${((i * 37) % 7) - 3}deg` } },
       h('img', { src: URL.createObjectURL(it.thumb), alt: it.title }),
       h('span', {}, it.title),
     ));
@@ -53,6 +53,7 @@ function worldChooser(rec) {
 export async function artView(root, id, action) {
   const rec = await db.get('art', id);
   if (!rec) { location.hash = '#/gallery'; return undefined; }
+  if (rec.kind === 'anim') { location.hash = `#/game/anim/${id}`; return undefined; }
   const hasLog = rec.data?.log?.length > 0;
   let stop = () => {};
   let painter = null;

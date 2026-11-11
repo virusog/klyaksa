@@ -2,6 +2,7 @@
 // A fill of null means a detail line with no colour of its own.
 import { mulberry } from './util.js';
 import moreStickers from './content/stickers.js';
+import moreStickers2 from './content/stickers2.js';
 
 export const O = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${r * 2} 0a${r} ${r} 0 1 0 ${-r * 2} 0Z`;
 export const E = (x, y, a, b) => `M${x - a} ${y}a${a} ${b} 0 1 0 ${a * 2} 0a${a} ${b} 0 1 0 ${-a * 2} 0Z`;
@@ -471,7 +472,11 @@ export function mandala(seed) {
     ['#5aa9ff', '#2b2f77', '#7fd1ff', '#ffe14d', '#e8f4ff'],
     ['#c98a55', '#ffb340', '#ff6b6b', '#fff1d9', '#ffe7b8'],
     ['#b58cff', '#ff85c0', '#7fd1ff', '#ffe14d', '#f6eeff'],
-  ][seed % 8];
+    ['#ff6b9d', '#8b5cf6', '#27c4a8', '#ffd447', '#fff0f6'],
+    ['#2f93d6', '#27c4a8', '#a3e635', '#fff176', '#eefbff'],
+    ['#e5252a', '#ff8a1f', '#ffd447', '#8a5a35', '#fff4dc'],
+    ['#c9a7ff', '#7fd1ff', '#ffc1d9', '#ffffff', '#f3f0ff'],
+  ][seed % 12];
   const cx = 600, cy = 450;
   const shapes = [bg('#fff7e8'), [O(cx, cy, 435), cols[4]]];
   const rings = [
@@ -487,10 +492,19 @@ export function mandala(seed) {
       shapes.push([petal(x, y, len, Math.max(16, ((rad - len * 0.4) * 3.14 / n) * 0.8), a), cols[c]]);
     }
   }
+  // Two of every three mandalas are busier: more beads, and a ring of small petals.
+  const level = seed % 3;
   const dotR = 285 + r() * 12;
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * 6.2832;
-    shapes.push([O(cx + Math.cos(a) * dotR, cy + Math.sin(a) * dotR, 12), cols[(i % 2) + 1]]);
+  const beads = level ? 24 : 16;
+  for (let i = 0; i < beads; i++) {
+    const a = (i / beads) * 6.2832;
+    shapes.push([O(cx + Math.cos(a) * dotR, cy + Math.sin(a) * dotR, level ? 10 : 12), cols[(i % 2) + 1]]);
+  }
+  if (level === 2) {
+    for (let i = 0; i < 24; i++) {
+      const a = ((i + 0.5) / 24) * 6.2832;
+      shapes.push([petal(cx + Math.cos(a) * 372, cy + Math.sin(a) * 372, 46, 15, a), cols[2]]);
+    }
   }
   shapes.push([O(cx, cy, 86), cols[1]]);
   for (let i = 0; i < 8; i++) shapes.push([petal(cx, cy, 80, 22, (i / 8) * 6.2832), cols[0]]);
@@ -510,8 +524,13 @@ export const STICKERS = {
 
 // Extra stickers from content/stickers.js, as plain strings of emoji.
 const splitter = new Intl.Segmenter('ru', { granularity: 'grapheme' });
+const emojiOf = text => [...splitter.segment(text)].map(x => x.segment).filter(x => x.trim());
 for (const [key, text] of Object.entries(moreStickers)) {
   if (!STICKERS[key]) continue;
-  const extra = [...splitter.segment(text)].map(x => x.segment).filter(x => x.trim());
-  STICKERS[key].list = [...new Set([...STICKERS[key].list, ...extra])];
+  STICKERS[key].list = [...new Set([...STICKERS[key].list, ...emojiOf(text)])];
+}
+// Whole new packs: { key: { name: 'Название', emoji: '...' } }.
+for (const [key, pack] of Object.entries(moreStickers2)) {
+  if (STICKERS[key] || !pack?.name) continue;
+  STICKERS[key] = { name: pack.name, list: [...new Set(emojiOf(pack.emoji))] };
 }

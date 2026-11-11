@@ -7,6 +7,14 @@ import animalsA from './content/lessons-animals-a.js';
 import animalsB from './content/lessons-animals-b.js';
 import volume from './content/lessons-volume.js';
 import people from './content/lessons-people.js';
+import moreWarmup from './content/lessons2-warmup.js';
+import moreShapesA from './content/lessons2-shapes-a.js';
+import moreShapesB from './content/lessons2-shapes-b.js';
+import moreAnimalsA from './content/lessons2-animals-a.js';
+import moreAnimalsB from './content/lessons2-animals-b.js';
+import moreVolume from './content/lessons2-volume.js';
+import morePeople from './content/lessons2-people.js';
+import moreScenes from './content/lessons2-scenes.js';
 
 export const CHAPTERS = [
   {
@@ -172,8 +180,20 @@ export const CHAPTERS = [
   },
 ];
 
-[warmup, [...shapesA, ...shapesB], [...animalsA, ...animalsB], volume, people]
-  .forEach((list, n) => CHAPTERS[n].lessons.push(...list));
+CHAPTERS.push({
+  title: 'Картина целиком', color: '#4aa8ff',
+  about: 'Собираем всё вместе: главный герой, передний план и то, что вдали.',
+  lessons: [],
+});
+
+[
+  [...warmup, ...moreWarmup],
+  [...shapesA, ...shapesB, ...moreShapesA, ...moreShapesB],
+  [...animalsA, ...animalsB, ...moreAnimalsA, ...moreAnimalsB],
+  [...volume, ...moreVolume],
+  [...people, ...morePeople],
+  moreScenes,
+].forEach((list, n) => CHAPTERS[n].lessons.push(...list));
 
 export const ALL_LESSONS = CHAPTERS.flatMap(c => c.lessons);
 export const lessonById = id => ALL_LESSONS.find(l => l.id === id);

@@ -1,6 +1,6 @@
 // The drawing surface: layers, Apple Pencil input, undo, fill, symmetry and replay.
 import { BRUSHES } from './brushes.js';
-import { h, canvas, clamp, blobOf, loadImg, hexRgb, mulberry } from './util.js';
+import { h, canvas, clamp, blobOf, loadImg, hexRgb, mulberry, svgEl } from './util.js';
 
 export const PAPERS = {
   white: { name: 'Белая', color: '#ffffff' },
@@ -11,6 +11,10 @@ export const PAPERS = {
   night: { name: 'Ночная', color: '#1d1a33' },
   grid: { name: 'Клетка', color: '#ffffff', grid: 60 },
   dots: { name: 'Точки', color: '#ffffff', dots: 60 },
+  lined: { name: 'Линейка', color: '#ffffff', lines: 60 },
+  mint: { name: 'Мятная', color: '#dff5e6' },
+  lilac: { name: 'Сиреневая', color: '#ece3ff' },
+  peach: { name: 'Персиковая', color: '#ffe6d1' },
 };
 
 export const SYMMETRY = {
@@ -76,6 +80,7 @@ export class Painter {
     this.size = BRUSHES[this.brushId].def;
     this.sym = 'none';
     this.mode = 'draw';
+    this.shape = 'line';
     this.enabled = true;
     this.log = [];
     this.undoStack = [];
@@ -117,6 +122,13 @@ export class Painter {
       for (let y = P.grid; y < this.h; y += P.grid) { ctx.moveTo(0, y); ctx.lineTo(this.w, y); }
       ctx.stroke();
     }
+    if (P.lines) {
+      ctx.strokeStyle = '#cfe0f2';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let y = P.lines; y < this.h; y += P.lines) { ctx.moveTo(0, y); ctx.lineTo(this.w, y); }
+      ctx.stroke();
+    }
     if (P.dots) {
       ctx.fillStyle = '#b9c9dc';
       for (let x = P.dots; x < this.w; x += P.dots) {
@@ -129,7 +141,8 @@ export class Painter {
 
   setBrush(id) {
     this.brushId = id;
-    this.mode = 'draw';
+    // Even shapes keep working when she switches the brush.
+    if (this.mode !== 'shape') this.mode = 'draw';
     this.size = clamp(this.size, BRUSHES[id].min, BRUSHES[id].max);
   }
 
@@ -246,7 +259,7 @@ export class Painter {
         }
         return;
       }
-      if (this.mode === 'sticker' && now - this.lastPen < 1500) return;
+      if ((this.mode === 'sticker' || this.mode === 'shape') && now - this.lastPen < 1500) return;
       if (this._penRecent() && this.mode === 'draw') {
         if (!this.stroke) this._panStart();
         return;
@@ -265,10 +278,10 @@ export class Painter {
         b: this.brushId, c: this.color, z: this.size, l: this.active, y: this.sym, seed: this.seed++,
       }, x, y, this._pressure(e, x, y));
       this.stroke.touch = e.pointerType === 'touch';
-    } else if (this.mode === 'sticker') {
+    } else if (this.mode === 'sticker' || this.mode === 'shape') {
       this._reveal();
-      this.drag = { x, y };
-      this._stickerPreview(x, y);
+      this.drag = { x, y, x0: x, y0: y };
+      this._dragPreview();
     } else if (e.pointerType === 'touch') {
       // A finger may turn out to be the start of a pinch, so taps wait for the lift.
       this.pendingTap = { id: e.pointerId, x, y, cx: e.clientX, cy: e.clientY, t: performance.now() };
@@ -291,8 +304,8 @@ export class Painter {
     }
     if (this.drag && e.pointerId === this.pid) {
       const [x, y] = this._toDoc(e.clientX, e.clientY);
-      this.drag = { x, y };
-      this._stickerPreview(x, y);
+      this.drag = { ...this.drag, x, y };
+      this._dragPreview();
       return;
     }
     if (!this.stroke || e.pointerId !== this.pid) return;
@@ -327,8 +340,12 @@ export class Painter {
       return;
     }
     if (this.drag && e.pointerId === this.pid) {
-      if (!cancelled) this.placeSticker(this.drag.x, this.drag.y);
+      const d = this.drag;
+      const shape = this.mode === 'shape';
       this._clearSticker();
+      if (!cancelled) {
+        if (shape) this._placeShape(d); else this.placeSticker(d.x, d.y);
+      }
       return;
     }
     if (this.stroke && e.pointerId === this.pid) {
@@ -745,6 +762,52 @@ export class Painter {
     const hex = '#' + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, '0')).join('');
     this.mode = 'draw';
     this.o.onPick?.(hex);
+  }
+
+  _dragPreview() {
+    const d = this.drag;
+    if (this.mode !== 'shape') { this._stickerPreview(d.x, d.y); return; }
+    if (!this._stickerEl) {
+      this._stickerEl = svgEl('svg', { viewBox: `0 0 ${this.w} ${this.h}`, class: 'shape-ghost' });
+      this._stickerEl.append(svgEl('path', {
+        fill: 'none', stroke: this.color, 'stroke-width': Math.max(3, this.size * 0.6),
+        'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.55,
+      }));
+      this.over.append(this._stickerEl);
+    }
+    this._stickerEl.firstChild.setAttribute('d', `M${this._shapePts(d, 14).map(q => `${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('L')}`);
+  }
+
+  // Points along an even line, box, oval or triangle stretched between two corners.
+  _shapePts({ x0, y0, x, y }, step = 6) {
+    const out = [];
+    const line = (ax, ay, bx, by) => {
+      const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / step));
+      for (let i = out.length ? 1 : 0; i <= n; i++) out.push([ax + ((bx - ax) * i) / n, ay + ((by - ay) * i) / n]);
+    };
+    if (this.shape === 'rect') {
+      line(x0, y0, x, y0); line(x, y0, x, y); line(x, y, x0, y); line(x0, y, x0, y0);
+    } else if (this.shape === 'tri') {
+      line(x0, y, (x0 + x) / 2, y0); line((x0 + x) / 2, y0, x, y); line(x, y, x0, y);
+    } else if (this.shape === 'oval') {
+      const cx = (x0 + x) / 2, cy = (y0 + y) / 2, rx = Math.abs(x - x0) / 2, ry = Math.abs(y - y0) / 2;
+      const n = Math.max(24, Math.ceil((Math.PI * (rx + ry)) / step));
+      for (let i = 0; i <= n; i++) out.push([cx + Math.cos((i / n) * 6.28319) * rx, cy + Math.sin((i / n) * 6.28319) * ry]);
+    } else {
+      line(x0, y0, x, y);
+    }
+    return out;
+  }
+
+  // A shape is stored as an ordinary stroke, so undo and time-lapse just work.
+  _placeShape(d) {
+    if (Math.hypot(d.x - d.x0, d.y - d.y0) < 8) return;
+    const pts = this._shapePts(d);
+    this._strokeBegin({
+      b: this.brushId, c: this.color, z: this.size, l: this.active, y: this.sym, seed: this.seed++,
+    }, pts[0][0], pts[0][1], 0.7);
+    for (let i = 1; i < pts.length; i++) this._strokePoint(pts[i][0], pts[i][1], 0.7);
+    this._strokeEnd();
   }
 
   _stickerPreview(x, y) {

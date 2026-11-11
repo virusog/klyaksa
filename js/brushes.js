@@ -55,6 +55,7 @@ for (let i = 0; i < 10; i++) {
   STAR[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rad, Math.sin(a) * rad);
 }
 STAR.closePath();
+const LEAF = new Path2D('M-1 0C-.5 -.7 .5 -.7 1 0C.5 .7 -.5 .7 -1 0Z');
 const HEART = new Path2D('M0 .9C-1.3 0-1 -.9-.45 -.9-.2 -.9 0 -.7 0 -.45 0 -.7 .2 -.9 .45 -.9 1 -.9 1.3 0 0 .9Z');
 
 function shapeStamp(c, shape, o, r, color) {
@@ -199,6 +200,95 @@ export const BRUSHES = {
       c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.stroke();
       c.fillStyle = '#fff';
       c.beginPath(); c.arc(x - r * 0.35, y - r * 0.35, r * 0.17, 0, 6.2832); c.fill();
+    },
+  },
+  calligraphy: {
+    name: 'Перо', spacing: 0.05, min: 6, max: 70, def: 24, opacity: 1, blend: 'source-over', scatter: 1.3, prize: true,
+    stamp(c, o) {
+      // A flat nib held at an angle: thin one way, wide the other.
+      const w = o.r * (0.9 + 0.4 * o.p);
+      c.save();
+      c.translate(o.x, o.y);
+      c.rotate(-0.785);
+      c.globalAlpha = 1;
+      c.fillStyle = o.color;
+      c.fillRect(-w, -w * 0.16, w * 2, w * 0.32);
+      c.restore();
+    },
+  },
+  leaves: {
+    name: 'Листики', spacing: 1.1, min: 16, max: 110, def: 44, opacity: 1, blend: 'source-over', scatter: 1.6, prize: true,
+    stamp(c, o) {
+      const s = o.r * (0.6 + o.rng() * 0.5);
+      c.save();
+      c.translate(o.x + (o.rng() - 0.5) * o.r * 0.6, o.y + (o.rng() - 0.5) * o.r * 0.6);
+      c.rotate(o.angle + (o.rng() - 0.5) * 1.6);
+      c.scale(s, s);
+      c.globalAlpha = 1;
+      c.fillStyle = shade(o.color, (o.rng() - 0.5) * 0.5);
+      c.fill(LEAF);
+      c.strokeStyle = shade(o.color, -0.35);
+      c.lineWidth = 0.08;
+      c.beginPath();
+      c.moveTo(-1, 0);
+      c.lineTo(1, 0);
+      c.stroke();
+      c.restore();
+    },
+  },
+  confetti: {
+    name: 'Конфетти', spacing: 0.5, min: 14, max: 120, def: 46, opacity: 1, blend: 'source-over', scatter: 1.4, prize: true,
+    stamp(c, o) {
+      c.globalAlpha = 1;
+      for (let i = 0; i < 3; i++) {
+        const a = o.rng() * 6.2832, d = o.r * Math.sqrt(o.rng());
+        c.save();
+        c.translate(o.x + Math.cos(a) * d, o.y + Math.sin(a) * d);
+        c.rotate(o.rng() * 3.14);
+        c.fillStyle = `hsl(${Math.floor(o.rng() * 360)} 90% 60%)`;
+        c.fillRect(-o.r * 0.16, -o.r * 0.08, o.r * 0.32, o.r * 0.16);
+        c.restore();
+      }
+    },
+  },
+  dashed: {
+    name: 'Пунктир', spacing: 0.08, min: 4, max: 50, def: 12, opacity: 1, blend: 'source-over', scatter: 1, prize: true,
+    stamp(c, o) { if (Math.floor(o.dist / (o.r * 5)) % 2 === 0) disc(c, o.x, o.y, o.r, o.color); },
+  },
+  snow: {
+    name: 'Снежинки', spacing: 1.4, min: 18, max: 120, def: 46, opacity: 1, blend: 'source-over', scatter: 1.5, prize: true,
+    stamp(c, o) {
+      const s = o.r * (0.55 + o.rng() * 0.45);
+      c.save();
+      c.translate(o.x + (o.rng() - 0.5) * o.r * 0.5, o.y + (o.rng() - 0.5) * o.r * 0.5);
+      c.rotate(o.rng() * 1.05);
+      c.globalAlpha = 1;
+      c.strokeStyle = o.color;
+      c.lineWidth = Math.max(1.5, s * 0.12);
+      c.lineCap = 'round';
+      c.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * 6.2832, cx = Math.cos(a), cy = Math.sin(a);
+        c.moveTo(0, 0);
+        c.lineTo(cx * s, cy * s);
+        for (const t of [-1, 1]) {
+          const b = a + t * 0.9;
+          c.moveTo(cx * s * 0.6, cy * s * 0.6);
+          c.lineTo(cx * s * 0.6 + Math.cos(b) * s * 0.28, cy * s * 0.6 + Math.sin(b) * s * 0.28);
+        }
+      }
+      c.stroke();
+      c.restore();
+    },
+  },
+  pixel: {
+    name: 'Пиксели', spacing: 0.3, min: 10, max: 90, def: 30, opacity: 1, blend: 'source-over', scatter: 2, prize: true,
+    stamp(c, o) {
+      // Snaps to a grid of squares, like pixel art.
+      const g = Math.max(4, Math.round(o.r));
+      c.globalAlpha = 1;
+      c.fillStyle = o.color;
+      c.fillRect(Math.floor(o.x / g) * g, Math.floor(o.y / g) * g, g, g);
     },
   },
   eraser: {

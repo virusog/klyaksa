@@ -437,3 +437,26 @@ figure { margin: 0; text-align: center; font-size: 18px; }
   .topbar .btn:not(.icon) { padding: 0 12px; font-size: 16px; }
   .btn.icon { width: 46px; }
 }
+
+/* Level lists of the newer games */
+.level-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; padding-bottom: 20px; }
+.level-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; text-align: center;
+  min-height: 150px; padding: 12px 8px 10px; background: var(--card); border: var(--line); border-radius: 20px; box-shadow: 0 5px 0 var(--ink);
+  font: inherit; color: inherit; cursor: pointer;
+}
+.level-card:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.level-card.done { background: #e2f8ea; }
+.level-card.locked { background: #efe9dc; opacity: .7; }
+.level-card b { font-size: 17px; line-height: 1.1; }
+.level-card small { font-size: 13px; opacity: .75; }
+.level-n { position: absolute; top: 8px; left: 8px; min-width: 34px; height: 34px; padding: 0 6px; display: grid; place-items: center; border: var(--line); border-radius: 50%; background: var(--sun); font-weight: 900; font-size: 16px; }
+.level-thumb { display: block; margin-bottom: 4px; }
+.level-thumb > * { display: block; max-width: 110px; max-height: 84px; }
+.level-stars { font-size: 20px; color: #f5a800; letter-spacing: 1px; }
+.level-lock { opacity: .6; }
+.levels .speaker { margin-bottom: 4px; }
+.tag.fresh { top: 10px; left: 10px; right: auto; transform: rotate(-4deg); font-size: 13px; z-index: 1; }
+.game-card .game-art { z-index: 0; }
+.pix-sizes .tab { min-height: 44px; font-size: 16px; }
+.shape-ghost { position: absolute; inset: 0; width: 100%; height: 100%; }

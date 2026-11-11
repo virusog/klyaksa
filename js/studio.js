@@ -8,7 +8,8 @@ import {
 } from './ui.js';
 
 const ALL = ['pencil', 'pen', 'marker', 'highlighter', 'watercolor', 'crayon', 'chalk', 'spray',
-  'glitter', 'rainbow', 'neon', 'hearts', 'stars', 'fur', 'bubbles', 'eraser'];
+  'glitter', 'rainbow', 'neon', 'hearts', 'stars', 'fur', 'bubbles',
+  'calligraphy', 'leaves', 'confetti', 'dashed', 'snow', 'pixel', 'eraser'];
 
 export async function saveArt(p, meta) {
   const id = meta.id || newId('art');
@@ -50,6 +51,7 @@ export function studio(root, editId) {
     fillBtn.classList.toggle('on', p.mode === 'fill');
     pickBtn.classList.toggle('on', p.mode === 'pick');
     stickerBtn.classList.toggle('on', p.mode === 'sticker');
+    shapeBtn.classList.toggle('on', p.mode === 'shape');
   };
 
   const p = new Painter(stageEl, {
@@ -164,6 +166,21 @@ export function studio(root, editId) {
 
   const symBtn = iconBtn('sym', 'Симметрия', e => symPop(e.currentTarget));
 
+  // Even shapes drawn with the current brush: drag from corner to corner.
+  const SHAPES = [['', 'Рисую рукой'], ['line', 'Ровная линия'], ['rect', 'Прямоугольник'], ['oval', 'Овал и круг'], ['tri', 'Треугольник']];
+  function shapePop(a) {
+    popover(a, h('div', { class: 'pop-list' }, SHAPES.map(([k, name]) =>
+      h('button', {
+        class: `pick ${(p.mode === 'shape' ? p.shape : '') === k ? 'on' : ''}`,
+        onclick: () => {
+          if (k) { p.shape = k; p.mode = 'shape'; toast('Проведи по холсту от угла до угла'); } else p.mode = 'draw';
+          closePop();
+          sync();
+        },
+      }, name))));
+  }
+  const shapeBtn = iconBtn('shape', 'Фигуры', e => shapePop(e.currentTarget));
+
   let closed = false;
   async function persist() {
     artId = await saveArt(p, { id: artId, kind: 'studio', title: prompt || undefined, layersN: 3 });
@@ -188,7 +205,7 @@ export function studio(root, editId) {
 
   root.append(h('div', { class: 'screen studio' },
     topbar(prompt ? `Тема: ${prompt}` : 'Мастерская', {
-      right: [undoBtn, redoBtn, fillBtn, pickBtn, stickerBtn, symBtn,
+      right: [undoBtn, redoBtn, fillBtn, pickBtn, shapeBtn, stickerBtn, symBtn,
         iconBtn('layers', 'Слои', e => layersPop(e.currentTarget)),
         iconBtn('paper', 'Бумага', e => paperPop(e.currentTarget)),
         done],

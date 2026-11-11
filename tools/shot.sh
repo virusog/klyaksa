@@ -1,6 +1,6 @@
 #!/bin/bash
 # Developer tool: renders a content file to a PNG and prints its check report.
-# Usage: tools/shot.sh <lessons|pages|pixels|guides|lab> <content-file-name> <out.png> [from] [count]
+# Usage: tools/shot.sh <lessons|pages|pixels|guides|lab|dots|dictation|oneline> <content-file-name> <out.png> [from] [count]
 # Needs a local server on port 8123 at the project root.
 set -u
 kind=$1; file=$2; png=$3; from=${4:-0}; count=${5:-100}
@@ -17,6 +17,15 @@ if [ -z "$report" ]; then
 fi
 echo "$report"
 height=$(printf '%s' "$report" | sed -E 's/.*"height":([0-9]+).*/\1/')
-"$chrome" "${flags[@]}" --window-size=1600,"$height" --screenshot="$png" "$url" >/dev/null 2>&1
+# Chrome hangs on a very short window, so an empty file still gets a real page.
+[ "$height" -lt 240 ] && height=240
+"$chrome" "${flags[@]}" --window-size=1600,"$height" --screenshot="$png" "$url" >/dev/null 2>&1 &
+pid=$!
+# Never wait for a stuck browser for more than a minute.
+( sleep 60; kill -9 $pid 2>/dev/null ) &
+guard=$!
+disown $guard 2>/dev/null
+wait $pid 2>/dev/null
+kill $guard 2>/dev/null
 rm -rf "$profile"
 echo "PNG: $png"

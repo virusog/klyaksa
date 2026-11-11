@@ -9,6 +9,7 @@ import { gallery, artView } from './gallery.js';
 import { mascot, icon, topbar, btn, starBadge, toast, confirmBox, shareBlob } from './ui.js';
 import { ALL_LESSONS } from './lessons.js';
 import moreIdeas from './content/ideas.js';
+import moreIdeas2 from './content/ideas2.js';
 import { sfx } from './audio.js';
 
 const IDEAS = [
@@ -18,7 +19,7 @@ const IDEAS = [
   'твой самый счастливый день', 'зверь, которого ещё никто не видел', 'подводная школа', 'замок из облаков', 'рюкзак волшебника',
   'погода в твоём настроении', 'семья ёжиков на пикнике', 'летающий велосипед',
 ];
-IDEAS.push(...moreIdeas);
+IDEAS.push(...moreIdeas, ...moreIdeas2);
 
 const TILES = [
   { href: '#/studio/new', cls: 'studio', title: 'Мастерская', sub: 'Рисуй что хочешь',
@@ -31,7 +32,7 @@ const TILES = [
     art: `<rect x="16" y="16" width="52" height="52" rx="10" fill="#ffc83d"/><rect x="72" y="16" width="52" height="52" rx="10" fill="#fff"/><rect x="16" y="72" width="52" height="52" rx="10" fill="#fff"/><rect x="72" y="72" width="52" height="52" rx="10" fill="#ff6b5e"/><g font-size="30" font-weight="800" text-anchor="middle" fill="#2a2140" font-family="ui-rounded,system-ui"><text x="98" y="53">2</text><text x="42" y="109">3</text></g>` },
   { href: '#/world/sea', cls: 'world', title: 'Живой мир', sub: 'Рисунки оживают!',
     art: `<path d="M18 70C40 26 96 26 118 70 96 114 40 114 18 70z" fill="#ffc83d" stroke="#2a2140" stroke-width="5"/><path d="M116 70l28-26-6 26 6 26z" fill="#ff6b5e" stroke="#2a2140" stroke-width="5" stroke-linejoin="round"/><circle cx="46" cy="60" r="7" fill="#2a2140"/><circle cx="20" cy="30" r="7" fill="none" stroke="#fff" stroke-width="4"/><circle cx="36" cy="14" r="4" fill="none" stroke="#fff" stroke-width="3"/>` },
-  { href: '#/games', cls: 'games', title: 'Игры', sub: 'Закорючки, цвета, пиксели',
+  { href: '#/games', cls: 'games', title: 'Игры', sub: 'Пазлы, пары, мультики, пиксели',
     art: `<rect x="20" y="24" width="88" height="88" rx="16" fill="#fff" stroke="#2a2140" stroke-width="5" transform="rotate(-12 64 68)"/><g fill="#2a2140"><circle cx="46" cy="52" r="8"/><circle cx="82" cy="46" r="8"/><circle cx="64" cy="68" r="8"/><circle cx="46" cy="90" r="8"/><circle cx="84" cy="84" r="8"/></g>` },
   { href: '#/gallery', cls: 'gallery', title: 'Галерея', sub: 'Мои картины',
     art: `<rect x="14" y="20" width="112" height="96" rx="6" fill="#fff" stroke="#2a2140" stroke-width="5"/><path d="M22 106l30-40 22 26 18-16 26 30z" fill="#27c4a8"/><circle cx="96" cy="44" r="12" fill="#ffc83d"/>` },
@@ -141,6 +142,7 @@ function parents(root) {
       h('label', { class: 'set' }, h('span', {}, 'Имя'), name),
       check('Звуки', 'sound'),
       check('Клякса читает подсказки вслух', 'voice'),
+      check('Открыть сразу все уровни в играх', 'unlockAll'),
       h('label', { class: 'set' }, h('span', {}, 'Напоминать об отдыхе глаз'), brk),
     ),
     h('section', {}, h('h3', {}, 'Сохранность рисунков'),

@@ -1,7 +1,7 @@
 // Progress lives in localStorage, pictures live in IndexedDB.
 const KEY = 'klyaksa.v1';
 const DEFAULTS = {
-  name: 'Настя', stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [],
+  name: 'Настя', stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [], unlockAll: false,
 };
 
 export const state = (() => {
@@ -25,6 +25,12 @@ export const REWARDS = [
   { at: 38, kind: 'brush', id: 'fur', name: 'Кисть «Шёрстка»' },
   { at: 46, kind: 'stickers', id: 'party', name: 'Наклейки «Праздник»' },
   { at: 55, kind: 'brush', id: 'bubbles', name: 'Кисть «Пузыри»' },
+  { at: 70, kind: 'brush', id: 'calligraphy', name: 'Кисть «Перо»' },
+  { at: 90, kind: 'brush', id: 'leaves', name: 'Кисть «Листики»' },
+  { at: 115, kind: 'brush', id: 'confetti', name: 'Кисть «Конфетти»' },
+  { at: 140, kind: 'brush', id: 'dashed', name: 'Кисть «Пунктир»' },
+  { at: 170, kind: 'brush', id: 'snow', name: 'Кисть «Снежинки»' },
+  { at: 200, kind: 'brush', id: 'pixel', name: 'Кисть «Пиксели»' },
 ];
 
 export const hasReward = id => {

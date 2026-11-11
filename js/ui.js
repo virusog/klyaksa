@@ -27,6 +27,8 @@ const I = {
   brush: '<path d="M4 20c0-3 2-4 4-4s3 1 3 2c0 2-3 3-7 2z"/><path d="M10 15L20 4"/>',
   film: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
   eraser: '<path d="M8 20l-5-5L14 4l7 7-9 9z"/><path d="M8 9l7 7"/>',
+  shape: '<rect x="3" y="11" width="10" height="10" rx="1"/><circle cx="16" cy="8" r="5"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   fish: '<path d="M3 12c4-6 12-6 15 0-3 6-11 6-15 0z"/><path d="M18 12l3-3v6z"/>',
 };
 
@@ -201,7 +203,7 @@ export function brushRail(p, ids, { onPick } = {}) {
     for (const [id, el] of items) drawSample(el.querySelector('canvas'), id, p.color === '#ffffff' ? '#c9c4e8' : p.color);
   };
   const mark = () => {
-    for (const [id, el] of items) el.classList.toggle('on', p.mode === 'draw' && p.brushId === id);
+    for (const [id, el] of items) el.classList.toggle('on', (p.mode === 'draw' || p.mode === 'shape') && p.brushId === id);
   };
   for (const id of ids) {
     const b = BRUSHES[id];
