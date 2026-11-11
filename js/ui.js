@@ -172,7 +172,8 @@ export function confetti(ms = 2600) {
 export function celebrate({ title, text, stars, unlocked = [], actions = [] }) {
   sfx.win();
   confetti();
-  const close = () => o.remove();
+  // Confetti must not keep falling over whatever she opens next.
+  const close = () => { o.remove(); document.querySelectorAll('.confetti').forEach(c => c.remove()); };
   const o = h('div', { class: 'modal-back celebrate' },
     h('div', { class: 'modal big' },
       mascot('joy'),

@@ -207,7 +207,7 @@ async function go() {
   const my = ++token;
   try { cleanup?.(); } catch (e) { console.error(e); }
   cleanup = null;
-  document.querySelectorAll('.pop,.modal-back,.toast').forEach(e => e.remove());
+  document.querySelectorAll('.pop,.modal-back,.toast,.confetti').forEach(e => e.remove());
   root.textContent = '';
   const [name, ...args] = location.hash.replace(/^#\/?/, '').split('/');
   const route = routes[name] || home;
