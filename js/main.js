@@ -202,6 +202,20 @@ const routes = {
 const root = document.getElementById('app');
 let cleanup = null;
 let token = 0;
+let updateReady = false;
+let updateTimer = 0;
+
+// A new version switches in by itself, but never under her hands: only after she
+// has rested on the home screen for a few seconds, so the picture she just left
+// has finished saving.
+function planUpdate() {
+  clearTimeout(updateTimer);
+  if (!updateReady) return;
+  updateTimer = setTimeout(() => {
+    const home = !location.hash.replace(/^#\/?/, '');
+    if (home && !document.querySelector('.modal-back')) location.reload();
+  }, 4000);
+}
 
 async function go() {
   const my = ++token;
@@ -210,6 +224,7 @@ async function go() {
   document.querySelectorAll('.pop,.modal-back,.toast,.confetti').forEach(e => e.remove());
   root.textContent = '';
   const [name, ...args] = location.hash.replace(/^#\/?/, '').split('/');
+  if (!name) planUpdate();
   const route = routes[name] || home;
   const c = await route(root, ...args.map(decodeURIComponent));
   if (my === token) cleanup = c || null;
@@ -240,6 +255,13 @@ setInterval(() => {
 }, 60000);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  // On the very first visit a worker also takes over, but that is not an update.
+  const hadWorker = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadWorker || updateReady) return;
+    updateReady = true;
+    planUpdate();
+  });
   navigator.serviceWorker.register('sw.js');
 }
 
