@@ -1,0 +1,121 @@
+/* Диктант по клеточкам: a sheet of squared paper and a panel of commands. */
+.dictation-main { flex: 1; min-height: 0; display: flex; gap: 12px; }
+
+/* The sheet keeps the shape of the grid and takes all the room it can get. */
+.dictation-stage { flex: 1; min-width: 0; min-height: 0; container-type: size; display: grid; place-items: center; padding-bottom: 6px; }
+.dictation-board {
+  width: min(100cqw, (100cqh - 6px) * 1.4); aspect-ratio: 7 / 5; background: #fff;
+  border: var(--line); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); overflow: hidden; touch-action: none;
+}
+.dictation-svg { display: block; width: 100%; height: 100%; }
+.dictation-grid { fill: none; stroke: #b9d6f2; stroke-width: 2; }
+.dictation-line { fill: none; stroke: var(--ink); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+.dictation-fill { opacity: 0; transition: opacity .7s; }
+.dictation-board.done .dictation-fill { opacity: .85; }
+.dictation-start { fill: #e5252a; stroke: #fff; stroke-width: 2.5; pointer-events: none; }
+.dictation-cursor circle { fill: var(--ink); }
+.dictation-cursor .dictation-halo {
+  fill: var(--sun); opacity: .75; transform-box: fill-box; transform-origin: center;
+  animation: dictation-pulse 1.4s ease-in-out infinite;
+}
+.dictation-board.wait .dictation-halo { animation: none; opacity: .3; }
+.dictation-board.done .dictation-cursor, .dictation-board.done .dictation-start { display: none; }
+@keyframes dictation-pulse { 50% { transform: scale(1.45); opacity: .35; } }
+.dictation-band { display: none; stroke: var(--sky); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 2 12; }
+.dictation-band.on { display: inline; }
+.dictation-band.bad { stroke: var(--coral); }
+.dictation-miss { stroke: var(--coral); stroke-width: 8; stroke-linecap: round; animation: dictation-miss .5s forwards; }
+@keyframes dictation-miss { 0% { opacity: .9; } 100% { opacity: 0; } }
+
+.dictation-panel { flex: none; width: clamp(250px, 26vw, 300px); min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+/* A fixed height: a longer remark must not push the commands around. */
+.dictation-panel .speaker { flex: none; height: 104px; }
+.dictation-panel .bubble { font-size: clamp(14px, 1.4vw, 16px); line-height: 1.2; padding: 8px 12px; }
+.dictation-cmds {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--card);
+  border: var(--line); border-radius: 20px; padding: 10px;
+}
+.dictation-count {
+  display: inline-flex; align-items: center; height: 52px; padding: 0 14px; font-size: 18px; font-weight: 850; white-space: nowrap;
+  background: var(--card); border: var(--line); border-radius: 18px; flex: none;
+}
+/* The shared bar narrows this button on an upright iPad; here there is room. */
+.dictation .topbar .btn.icon { width: 52px; }
+
+.dictation-arrow { display: inline-flex; }
+.dictation-arrow svg { width: 1em; height: 1em; display: block; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.dictation-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px; min-width: 0;
+  background: #fff; border: 2px solid var(--ink); border-radius: 12px; font-weight: 850; line-height: 1;
+}
+.dictation-chip.done { background: #e2f8ea; opacity: .45; }
+.dictation-chip.cur { background: var(--sun); box-shadow: 0 3px 0 var(--ink); }
+
+/* The whole list stays in sight: the script picks the columns (--cl across,
+   --cp upright) and the chips take the height that many rows leave them. */
+.dictation-list {
+  --cols: var(--cl); --rows: var(--rl); --gap: 5px;
+  flex: 1 1 0; min-height: 0; container-type: size; position: relative; display: grid; align-content: start;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: var(--gap); overflow-y: auto; touch-action: pan-y;
+}
+/* 4px stay free for the shadow under a highlighted chip. --fit is the type
+   size as a share of the column: two digits need a smaller share. */
+.dictation-list .dictation-chip {
+  --tall: clamp(24px, (100cqh - 4px - (var(--rows) - 1) * var(--gap)) / var(--rows), 60px);
+  --fit: .44; height: var(--tall); font-size: min(var(--tall) * .52, 100cqw / var(--cols) * var(--fit)); border-radius: min(12px, var(--tall) * .3);
+}
+.dictation-list .dictation-chip.wide { --fit: .33; }
+
+.dictation-guided { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.dictation-now {
+  flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 10px 8px;
+  background: var(--sun); border: var(--line); border-radius: 18px; box-shadow: 0 4px 0 var(--ink);
+}
+.dictation-now b { display: flex; align-items: center; gap: 2px; font-size: 56px; font-weight: 900; line-height: 1; }
+.dictation-dots { display: flex; gap: 4px; }
+.dictation-dots i { width: 14px; height: 14px; border: 2px solid var(--ink); border-radius: 50%; background: #fff; }
+.dictation-dots i.on { background: var(--ink); }
+.dictation-now small { font-size: 15px; }
+
+.dictation-mem { flex: 1; min-height: 0; container-type: inline-size; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
+.dictation-mem small { font-size: 15px; opacity: .8; }
+/* Always one row, so the order to read them in is never in doubt. */
+.dictation-cards { display: flex; justify-content: center; gap: 6px; width: 100%; }
+.dictation-chip.big { flex: 0 1 calc((100% - 18px) / 4); max-width: 100px; height: 62px; border-width: 3px; border-radius: 14px; font-size: min(36px, 10cqw); }
+.dictation-chip.big.wide { font-size: min(36px, 8cqw); }
+.dictation-chip.hid { background: #efe6ff; color: var(--grape); }
+.dictation-chip.hid.done { background: #e2f8ea; color: var(--ink); opacity: 1; }
+
+.dictation-reveal { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; animation: pop .25s; }
+.dictation-reveal small { font-size: 17px; opacity: .75; }
+.dictation-reveal b { font-size: 32px; font-weight: 900; line-height: 1.1; }
+
+.dictation-pad { flex: none; display: grid; grid-template-columns: repeat(3, 62px); gap: 6px; justify-content: center; padding-bottom: 4px; }
+.dictation-key {
+  width: 62px; height: 62px; padding: 0; display: grid; place-items: center; font-size: 32px; cursor: pointer;
+  background: var(--card); border: var(--line); border-radius: 16px; box-shadow: 0 4px 0 var(--ink);
+}
+.dictation-key:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.dictation-key-mid { place-self: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); }
+
+/* The card's small line is "N команд", a line break, then the kind of level. */
+.level-card:has(.dictation-thumb) small { white-space: pre-line; }
+.dictation-thumb { background: #fff; border: 2px solid var(--ink); border-radius: 8px; }
+.dictation-thumb .dictation-grid { stroke-width: 4; }
+.dictation-thumb-pic { stroke: var(--ink); stroke-width: 12; stroke-linejoin: round; }
+.dictation-thumb-q { font-size: 380px; font-weight: 900; fill: var(--grape); text-anchor: middle; dominant-baseline: central; }
+
+/* Upright iPad: the sheet on top, commands and arrows side by side below it. */
+@media (orientation: portrait) {
+  .dictation-main { flex-direction: column; }
+  .dictation-stage { flex: none; height: calc((100vw - 28px) * 5 / 7 + 6px); max-height: 60%; }
+  .dictation-panel { flex: 1; width: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); column-gap: 12px; }
+  .dictation-panel .speaker { grid-column: 1 / -1; height: 64px; }
+  .dictation-panel .bubble { font-size: 16px; }
+  .dictation-list { --cols: var(--cp); --rows: var(--rp); }
+  .dictation-pad { align-content: center; grid-template-columns: repeat(3, 68px); }
+  .dictation-key { width: 68px; height: 68px; }
+  .dictation-count { font-size: 16px; padding: 0 10px; }
+  .dictation-cards { gap: 10px; }
+  .dictation-chip.big { flex-basis: calc((100% - 30px) / 4); height: 72px; }
+}
