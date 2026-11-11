@@ -125,3 +125,11 @@ returns a value, which is printed as JSON along with every page error. Helpers:
 Look at the screenshots with the Read tool. A test that only checks that nothing
 threw is not enough: play every level to the end with the helpers, check the
 stars, and look at the pictures.
+
+## Releases
+
+`./deploy.sh` publishes the committed app and stamps the commit into the
+offline cache name in `sw.js`. An installed copy downloads the new files in the
+background (about 20 seconds) and then reloads by itself once she rests on the
+home screen (`planUpdate` in `js/main.js`). Any new file under `js/` or `css/`
+must be added to the list in `sw.js`, or it will be missing offline.
