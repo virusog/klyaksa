@@ -460,23 +460,32 @@ function play(root, index) {
     }
   }
 
+  let penAt = -Infinity;
   board.addEventListener('pointerdown', e => {
     if (phase !== 'play') return;
     e.preventDefault();
+    // The hand that holds the Pencil also touches the glass: ignore it.
+    const pen = e.pointerType === 'pen';
+    if (pen) penAt = e.timeStamp; else if (e.timeStamp - penAt < 1500) return;
     if (hold) {
       // A second finger never disturbs a drag. If the first finger only rests,
       // the new one takes over: a fresh touch counts as a tap right away, so two
       // quick hands swap two tiles, and a thumb left lying on the board is forgotten.
-      if (hold.moved) return;
-      const { p, t } = hold;
+      // A palm under the Pencil is dropped without a tap, and so is a touch whose
+      // end the system never reported.
+      const palm = pen && hold.type !== 'pen';
+      const gone = e.isPrimary && e.pointerType === hold.type;
+      if (hold.moved && !palm && !gone) return;
+      const { p, t, moved } = hold;
       drop();
-      if (e.timeStamp - t < REST) tap(p);
+      render();
+      if (!palm && !moved && e.timeStamp - t < REST) tap(p);
       if (phase !== 'play') return;
     }
     const p = slotAt(e);
     if (p < 0) return;
     if (fixed.has(p)) { refuse(p); return; }
-    hold = { p, id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, moved: false, over: -1 };
+    hold = { p, id: e.pointerId, type: e.pointerType, x: e.clientX, y: e.clientY, t: e.timeStamp, moved: false, over: -1 };
     try { board.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
   });
   board.addEventListener('pointermove', e => {

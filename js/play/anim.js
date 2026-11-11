@@ -165,7 +165,7 @@ const LESSONS = [
       1: 'Веко пошло вниз. Закрась им верх глаза: фломастер перекроет рисунок.',
       2: 'Глаз почти закрыт: из-под века выглядывает только краешек.',
       3: 'Закрыт совсем: одна дуга и реснички.',
-      4: 'Глаз открывается. Это медленнее, чем закрываться!',
+      4: 'Глаз открывается. Открывается он медленнее, чем закрывается!',
       5: 'Почти открыт. Дорисуй и нажми «Смотреть»!',
     },
     pose: i => `${oval(400, 295, 80)}${oval(400, 295, 34)}`
@@ -192,7 +192,7 @@ const LESSONS = [
     tips: {
       0: 'Маятник отвели в сторону. Здесь он на миг замирает.',
       2: 'Середина пути: тут маятник летит быстрее всего.',
-      4: 'Другой край. Точки снова тесно — маятник тормозит.',
+      4: 'Другой край. Точки снова стоят тесно — маятник тормозит.',
     },
     scene: `<path d="M300 70H500"/>${oval(400, 70, 9)}<path d="M${pt(...bob(4))}A360 360 0 0 0 ${pt(...bob(0))}"/>`,
     spot: bob,
@@ -304,8 +304,9 @@ async function loadFrame(blob, drawn) {
     f.c.getContext('2d').drawImage(img, 0, 0);
     URL.revokeObjectURL(img.src);
     paintThumb(f, f.c);
-    f.blob = blob;
     f.drawn = !!drawn;
+    // Safari deletes a stored blob's file when its record is rewritten, so keep the bytes.
+    f.blob = new Blob([await blob.arrayBuffer()], { type: 'image/png' });
   } catch { /* a damaged frame opens empty */ }
   return f;
 }
@@ -534,6 +535,9 @@ async function studio(root, arg) {
     x.clearRect(0, 0, W, H);
     x.drawImage(layer.c, 0, 0);
     f.stale = false;
+    // A PNG made while the frame was stale shows the old picture.
+    f.blob = null;
+    f.ver++;
   }
 
   function show(i) {
@@ -542,6 +546,8 @@ async function studio(root, arg) {
     layer.ctx.clearRect(0, 0, W, H);
     layer.ctx.drawImage(frames[i].c, 0, 0);
     // Undo belongs to one frame: it must never reach back into another.
+    // Emptying the snapshots frees their memory at once on an iPad.
+    for (const e of [...p.undoStack, ...p.redoStack]) e.snap.width = 0;
     p.undoStack.length = 0;
     p.redoStack.length = 0;
     p.undoArea = 0;
@@ -748,14 +754,15 @@ async function studio(root, arg) {
     stopPlay();
     const done = frames.filter(counts).length;
     if (!done) { toast('Сначала нарисуй хотя бы один кадр!'); return; }
-    // From here on the cartoon lives in the gallery, not in the draft.
-    const fresh = !artId;
-    if (fresh) artId = newId('art');
-    changed = true;
     const n = frames.length;
     const stars = done === n ? 3 : done * 3 >= n * 2 ? 2 : 1;
     const copies = frames.some(f => f.ink && !f.drawn);
     const missing = frames.findIndex(f => !counts(f));
+    // Only a complete lesson moves to the gallery; an unfinished one stays a draft she can go on with.
+    const full = missing < 0;
+    const fresh = full && !artId;
+    if (fresh) artId = newId('art');
+    changed = true;
     owed = stars;
     try {
       await safeSave(saver.flush);
@@ -764,7 +771,7 @@ async function studio(root, arg) {
       if (fresh) artId = null;
       return;
     }
-    db.del('kv', draftId).catch(() => {});
+    if (full) db.del('kv', draftId).catch(() => {});
     if (closed) return;
     owed = 0;
     finishLevel({

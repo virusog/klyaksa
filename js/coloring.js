@@ -491,7 +491,8 @@ function exprFor(n, rnd) {
   const pairs = [];
   for (let a = 2; a * a <= n; a++) if (n % a === 0) pairs.push([a, n / a]);
   if (pairs.length) kinds.push(() => { const [a, b] = pairs[Math.floor(rnd() * pairs.length)]; return rnd() < 0.5 ? `${a}×${b}` : `${b}×${a}`; });
-  kinds.push(() => { const d = 2 + Math.floor(rnd() * 4); return `${n * d}:${d}`; });
+  // Division only inside the times table she knows.
+  if (n <= 10) kinds.push(() => { const d = 2 + Math.floor(rnd() * 4); return `${n * d}:${d}`; });
   return kinds[Math.floor(rnd() * kinds.length)]();
 }
 
@@ -523,7 +524,8 @@ function playNumbers(root, page, an, math = false) {
   const labels = new Map();
   if (math) {
     const rnd = mulberry([...page.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7));
-    for (const r of regions) labels.set(r.id, r.best >= 13 ? exprFor(r.num, rnd) : String(r.num));
+    // A sum needs room to stay readable, so small areas keep a plain number.
+    for (const r of regions) labels.set(r.id, r.best >= 24 ? exprFor(r.num, rnd) : String(r.num));
   }
 
   const hi = canvas(W, H);
@@ -569,7 +571,7 @@ function playNumbers(root, page, an, math = false) {
     for (const r of regions) {
       if (filled.has(r.id)) continue;
       const text = labels.get(r.id) || String(r.num);
-      const fs = text.length > 2 ? clamp(r.best * (text.length > 4 ? 0.52 : 0.62), 11, 30) : clamp(r.best * 1.1, 13, 40);
+      const fs = text.length > 2 ? clamp(r.best * (text.length > 4 ? 0.52 : 0.62), 15, 30) : clamp(r.best * 1.1, 13, 40);
       x.font = `800 ${fs}px ui-rounded, system-ui, sans-serif`;
       x.fillText(text, r.px, r.py);
     }

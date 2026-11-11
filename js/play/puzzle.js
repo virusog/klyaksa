@@ -309,10 +309,16 @@ function game(root, cfg) {
     hold = null;
   }
 
+  let penAt = -Infinity;
   board.addEventListener('pointerdown', e => {
     if (phase !== 'play' || peekT) return;
+    // The hand that holds the Pencil also touches the glass: ignore it.
+    if (e.pointerType === 'pen') penAt = e.timeStamp;
+    else if (e.timeStamp - penAt < 1500) return;
+    // A finger that only rests gives way to the next touch, and the Pencil outranks a finger.
     // Two first fingers of one kind are never down together: the earlier one left without a word.
-    if (hold?.first && e.isPrimary && e.pointerType === hold.type) { drop(); render(); }
+    if (hold && (!hold.moved || (e.pointerType === 'pen' && hold.type !== 'pen')
+      || (hold.first && e.isPrimary && e.pointerType === hold.type))) { drop(); render(); }
     if (hold) return;
     e.preventDefault();
     const p = slotAt(e);

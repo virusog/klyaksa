@@ -259,9 +259,10 @@ export class Painter {
         }
         return;
       }
-      if ((this.mode === 'sticker' || this.mode === 'shape') && now - this.lastPen < 1500) return;
-      if (this._penRecent() && this.mode === 'draw') {
-        if (!this.stroke) this._panStart();
+      if (this.mode === 'sticker' && now - this.lastPen < 1500) return;
+      // While she works with the Pencil a finger only moves the sheet, in shape mode too.
+      if (this._penRecent() && (this.mode === 'draw' || this.mode === 'shape')) {
+        if (!this.stroke && !this.drag) this._panStart();
         return;
       }
     }
@@ -419,7 +420,7 @@ export class Painter {
     } else if (this.view.s < this.fitS * 1.03) {
       this.fit();
     }
-    if (this.touches.size === 1 && this._penRecent() && this.mode === 'draw') this._panStart();
+    if (this.touches.size === 1 && this._penRecent() && (this.mode === 'draw' || this.mode === 'shape')) this._panStart();
   }
 
   _panStart() {

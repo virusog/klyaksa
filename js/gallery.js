@@ -6,7 +6,7 @@ import { topbar, btn, icon, iconBtn, confirmBox, shareBlob, mascot, toast } from
 import { HABITATS, makeCreature } from './world.js';
 
 export async function gallery(root) {
-  const items = (await db.all('art')).sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  const items = (await db.all('art')).filter(it => it.thumb).sort((a, b) => (b.updated || 0) - (a.updated || 0));
   const grid = h('div', { class: 'wall' });
   items.forEach((it, i) => {
     grid.append(h('a', { class: 'frame', href: it.kind === 'anim' ? `#/game/anim/${it.id}` : `#/art/${it.id}`, style: { '--r': `${((i * 37) % 7) - 3}deg` } },

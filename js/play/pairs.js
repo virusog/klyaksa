@@ -121,7 +121,8 @@ function deal(L) {
   let theme = null, pics = [];
   for (let tries = 0; tries < 30 && pics.length < L.pairs; tries++) {
     theme = L.theme && fits.length ? pick(fits) : null;
-    const lists = theme ? theme.lists : packs.map(p => p.list);
+    // Shadows of 12 and 16 cell pictures cannot be compared, so shadow levels use one size.
+    const lists = theme ? theme.lists : packs.filter(p => !(shadows && p.big)).map(p => p.list);
     const shady = draw(lists, shadows, [], (o, t) => differ(o, t, true) < gap);
     if (shady.length < shadows) continue;
     // Plain pairs must stay clear of every shadow; without a theme they must

@@ -280,7 +280,7 @@ function half(root) {
     await sleep(900);
     if (closed) return;
     celebrate({
-      title: stars === 3 ? 'Как в зеркале!' : stars === 2 ? 'Очень похоже!' : 'Симметрия дело хитрое. Попробуем ещё?',
+      title: stars === 3 ? 'Как в зеркале!' : stars === 2 ? 'Очень похоже!' : 'Симметрия — дело хитрое. Попробуем ещё?',
       stars, unlocked: res.unlocked,
       actions: [
         { label: 'Ещё половинку', primary: true, fn: () => { root.textContent = ''; cleanup(); cleanup = half(root); } },
@@ -447,9 +447,23 @@ function pixels(root, tpl) {
     if (grid[x + y * N] !== v) { grid[x + y * N] = v; paint(); }
   };
   let down = false;
-  cv.addEventListener('pointerdown', e => { e.preventDefault(); down = true; try { cv.setPointerCapture(e.pointerId); } catch { /* ignore */ } setAt(e); });
-  cv.addEventListener('pointermove', e => { if (down) for (const ev of e.getCoalescedEvents?.() || [e]) setAt(ev); });
-  cv.addEventListener('pointerup', () => { down = false; });
+  // The hand that holds the Pencil also touches the glass: it must not paint cells.
+  let penAt = -Infinity, pid = -1;
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (e.pointerType === 'pen') penAt = e.timeStamp;
+    else if (e.timeStamp - penAt < 1500) return;
+    // A second finger is ignored; a new first finger takes over if a lift was never reported.
+    if (down && e.pointerType !== 'pen' && !e.isPrimary) return;
+    down = true;
+    pid = e.pointerId;
+    try { cv.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    setAt(e);
+  });
+  cv.addEventListener('pointermove', e => { if (down && e.pointerId === pid) for (const ev of e.getCoalescedEvents?.() || [e]) setAt(ev); });
+  const lift = e => { if (e.pointerId === pid) down = false; };
+  cv.addEventListener('pointerup', lift);
+  cv.addEventListener('pointercancel', lift);
   cv.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
 
   const eraseBtn = iconBtn('eraser', 'Ластик', () => { tool = tool === 'erase' ? 'pen' : 'erase'; eraseBtn.classList.toggle('on', tool === 'erase'); });
@@ -649,7 +663,24 @@ function guess(root) {
 
 export function gameRoute(root, id, arg, ...rest) {
   const extra = PLAY.find(x => x.id === id);
-  if (extra) return extra.load().then(m => m.default(root, arg, ...rest));
+  if (extra) {
+    // She may leave while the game is still loading.
+    const here = location.hash;
+    return extra.load().then(
+      m => {
+        sessionStorage.removeItem('reloadedFor');
+        return location.hash === here ? m.default(root, arg, ...rest) : undefined;
+      },
+      () => {
+        // Right after an update the new game file can clash with old code still
+        // in memory. One reload brings everything from the same version.
+        if (sessionStorage.getItem('reloadedFor') === id) { location.hash = '#/games'; return undefined; }
+        sessionStorage.setItem('reloadedFor', id);
+        location.reload();
+        return undefined;
+      },
+    );
+  }
   if (id === 'squiggle') return squiggle(root);
   if (id === 'dice') return dice(root);
   if (id === 'half') return half(root);
