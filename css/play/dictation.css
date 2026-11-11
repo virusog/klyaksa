@@ -62,7 +62,7 @@
    size as a share of the column: two digits need a smaller share. */
 .dictation-list .dictation-chip {
   --tall: clamp(24px, (100cqh - 4px - (var(--rows) - 1) * var(--gap)) / var(--rows), 60px);
-  --fit: .44; height: var(--tall); font-size: min(var(--tall) * .52, 100cqw / var(--cols) * var(--fit)); border-radius: min(12px, var(--tall) * .3);
+  --fit: .44; height: var(--tall); font-size: min(var(--tall) * .6, 100cqw / var(--cols) * var(--fit)); border-radius: min(12px, var(--tall) * .3);
 }
 .dictation-list .dictation-chip.wide { --fit: .33; }
 
@@ -100,6 +100,9 @@
 
 /* The card's small line is "N команд", a line break, then the kind of level. */
 .level-card:has(.dictation-thumb) small { white-space: pre-line; }
+/* Pictures and stars stay in line along a row when one name takes two lines. */
+.level-card:has(.dictation-thumb) { justify-content: flex-start; }
+.level-card:has(.dictation-thumb) :is(.level-stars, .level-lock) { margin-top: auto; }
 .dictation-thumb { background: #fff; border: 2px solid var(--ink); border-radius: 8px; }
 .dictation-thumb .dictation-grid { stroke-width: 4; }
 .dictation-thumb-pic { stroke: var(--ink); stroke-width: 12; stroke-linejoin: round; }

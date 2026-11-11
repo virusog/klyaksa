@@ -10,7 +10,7 @@
 //   Nothing marks them; only the hint does, and it caps the level at 2 stars.
 //   The first figure gives them away with a loose end; later ones hide them
 //   among ordinary corners.
-import { h, svgEl, lerp } from '../util.js';
+import { h, svgEl, lerp, clamp } from '../util.js';
 import { topbar, btn, icon, speaker } from '../ui.js';
 import { sfx } from '../audio.js';
 import { award, db } from '../store.js';
@@ -64,6 +64,7 @@ function play(root, levels, index) {
   let restarts = 0;
   let hinted = false;
   let hintAt = -1;     // the point the hint ring marks; always a good one to start from
+  let lost = '';       // the hint's verdict that this route cannot be finished; it stands until it can
   let done = false;
   let drag = null;     // { id, p, over, pen } while a finger or the pencil is down
   let finishTimer = 0;
@@ -139,6 +140,7 @@ function play(root, levels, index) {
     steps = [];
     used.fill(false);
     cur = -1;
+    lost = '';
     ink.textContent = '';
     hideBand();
   }
@@ -146,6 +148,7 @@ function play(root, levels, index) {
   function start(n) {
     cur = n;
     hintAt = -1;
+    lost = '';
     sfx.drop();
     tell('Отсюда и начнём. Веди к соседней точке!');
     update();
@@ -166,13 +169,14 @@ function play(root, levels, index) {
 
   function draw(e, to) {
     mark(e, to);
-    hintAt = -1;
+    // A ring that shows where to start again stays while the route is lost.
+    if (!lost) hintAt = -1;
     if (steps.length === edges.length) return win();
     sfx.pop();
     update();
     keep();
     if (isStuck()) sayStuck();
-    else tell('Хорошо! Веди дальше, пока не обведёшь всю фигуру.');
+    else tell(lost || 'Хорошо! Веди дальше, пока не обведёшь всю фигуру.');
   }
 
   function sayStuck() {
@@ -225,7 +229,13 @@ function play(root, levels, index) {
       cur = last.from;
       undos++;
       ink.lastChild.remove();
-      if (wasStuck) tell('Шаг назад. Попробуй другой путь.');
+      // The hint promised to say when the way opens again, so every step back is checked.
+      if (lost) {
+        if (canFinish()) lost = '';
+        tell(lost || 'Путь снова открыт! Попробуй пойти по-другому.');
+      } else if (wasStuck) {
+        tell('Шаг назад. Попробуй другой путь.');
+      }
     } else {
       cur = -1;
     }
@@ -272,9 +282,11 @@ function play(root, levels, index) {
       tell('Пока всё верно: отсюда фигуру ещё можно дорисовать.');
     } else if (!info.starts.includes(steps[0].from)) {
       hintAt = info.starts[0];
-      tell('С той точки фигура не получится. Начни сначала вот отсюда.');
+      lost = 'С той точки фигура не получится. Начни сначала вот отсюда.';
+      tell(lost);
     } else {
-      tell('Так уже не дорисовать. Шагай назад, пока путь снова не откроется.');
+      lost = 'Так уже не дорисовать. Шагай назад, пока путь снова не откроется.';
+      tell(lost);
     }
     update();
     keep();
@@ -330,6 +342,16 @@ function play(root, levels, index) {
     });
     return best;
   };
+  const offLine = ([x, y], e) => {
+    const [[x1, y1], [x2, y2]] = edges[e].map(n => nodes[n]);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const t = clamp(((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy), 0, 1);
+    return Math.hypot(x - x1 - t * dx, y - y1 - t * dy);
+  };
+  // A finger sliding along one line may brush a point beside it. That is not a
+  // turn: the point counts once the finger is nearer to it than to that line.
+  const brushed = (p, n) => cur >= 0 && freeFrom(cur).some(x => x.to !== n && offLine(p, x.e) < dist(p, n));
 
   function showBand([x, y]) {
     band.classList.toggle('on', cur >= 0 && !done);
@@ -363,7 +385,7 @@ function play(root, levels, index) {
       const q = [lerp(drag.p[0], p[0], i / n), lerp(drag.p[1], p[1], i / n)];
       // She stays "on" a point until she clearly leaves it, so a wobble does not count as coming back.
       const over = drag.over >= 0 && dist(q, drag.over) <= TAP_R ? drag.over : nodeNear(q, DRAG_R);
-      if (over === drag.over) continue;
+      if (over === drag.over || (over >= 0 && brushed(q, over))) continue;
       drag.over = over;
       if (over >= 0) arrive(over, false);
     }

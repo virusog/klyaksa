@@ -1,8 +1,8 @@
 // «Диктант по клеточкам»: squared paper, a start point and a list of commands
 // such as "3 →". Following them cell by cell draws a closed picture.
 //
-// The ladder. Pictures are sorted by number of commands (about 10 at the start,
-// up to 64 at the end), and the help shrinks by position in that list:
+// The ladder. Pictures are sorted by number of commands (11 at the start, 46 at
+// the end), and the help shrinks by position in that list:
 //   first third   the current command is large and highlighted, with the cells
 //                 left in it counted down;
 //   middle third  the whole list is visible but nothing is ticked off: she
@@ -37,7 +37,10 @@ const SURE = 0.25;
 // One broken picture must not take the whole game down, so it is left out.
 const PICS = [...BASE, ...MORE_A, ...MORE_B].flatMap(p => {
   try { return [{ ...p, cmds: parseMoves(p.moves) }]; } catch { return []; }
-}).sort((a, b) => a.cmds.length - b.cmds.length);
+});
+// Diagonal steps are harder to follow than straight ones, so they weigh half a command more.
+const weight = p => p.cmds.length + p.cmds.filter(c => c[0] && c[1]).length / 2;
+PICS.sort((a, b) => weight(a) - weight(b));
 
 const tierOf = i => Math.min(2, Math.floor(i * 3 / PICS.length));
 const TIER_NAME = ['с подсказкой', 'следи сама', 'по памяти'];
@@ -56,6 +59,13 @@ const HELP = [
   'Смотри на жёлтую карточку: там число и стрелка.',
   'Смотри, я подсветила, где ты сейчас.',
   'Забыла? Можно подсмотреть, это не страшно.',
+];
+
+// Said when a half-drawn sheet is opened again.
+const RESUME = [
+  'Продолжаем с того места, где ты остановилась.',
+  'Продолжаем! Я подсветила, где ты остановилась.',
+  'Продолжаем! Вот команды ещё раз.',
 ];
 
 const KEYS = [
@@ -152,6 +162,7 @@ function play(root, list, index) {
   let done = 0;             // cells drawn so far
   let mistakes = 0;
   let missRun = 0;          // wrong tries in a row
+  let back = false;         // just returned to a half-drawn sheet
   let peeked = false;
   let shown = tier === 2;   // memory levels: the commands are on screen, the pencil waits
   let ready = false;        // until the saved progress has been read
@@ -216,8 +227,9 @@ function play(root, list, index) {
     return {
       el,
       // Her place is shown only as a rescue, and only until the next right step.
+      // After a break it is one too: nobody finds their place in thirty commands.
       update() {
-        const lost = missRun >= 3;
+        const lost = missRun >= 3 || back;
         chips.forEach((c, i) => c.classList.toggle('cur', lost && i === cmdAt()));
         if (lost) el.scrollTop = chips[cmdAt()].offsetTop - el.clientHeight / 2;
       },
@@ -294,6 +306,7 @@ function play(root, list, index) {
     const was = cmdAt();
     done++;
     missRun = 0;
+    back = false;
     if (drag) { drag.missed = false; drag.used = true; }
     if (done === total) { finish(); return; }
     const ci = cmdAt();
@@ -332,7 +345,7 @@ function play(root, list, index) {
   function restart() {
     endDrag();
     forget();
-    done = 0; mistakes = 0; missRun = 0; peeked = false; over = false;
+    done = 0; mistakes = 0; missRun = 0; back = false; peeked = false; over = false;
     shown = tier === 2;
     board.classList.remove('done');
     cmdsBox.replaceChildren(view.el);
@@ -449,7 +462,8 @@ function play(root, list, index) {
         done = first[cmdAt() - cmdAt() % GROUP];
         shown = true;
       }
-      if (done) say(tier === 2 ? 'Продолжаем! Вот команды ещё раз.' : 'Продолжаем с того места, где ты остановилась.');
+      back = done > 0;
+      if (back) say(RESUME[tier]);
     }
     ready = true;
     paint();
