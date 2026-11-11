@@ -35,7 +35,8 @@
   paint-order: stroke; stroke: #fff; stroke-width: 6px; stroke-linejoin: round;
 }
 .dots-dot.done circle { fill: var(--mint); }
-.dots-dot.done text { opacity: .35; }
+/* No halo once joined: a faded number must not bite into a line that crosses it. */
+.dots-dot.done text { opacity: .35; stroke: none; }
 .dots-dot.first circle { fill: var(--sun); stroke: var(--ink); stroke-width: 4; }
 .dots-dot.here circle { fill: var(--sky); }
 .dots-dot.no { animation: dots-no .32s; }

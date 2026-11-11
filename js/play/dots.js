@@ -31,6 +31,16 @@ const WRONG = 22;
 // close to the straight way to the right one are forgiven: fingers wobble.
 const CORE = 14;
 const PASS = 50;
+// Numbers: type sizes from the first choice down, gaps between a dot and its
+// number, how far around a dot to look, and how much room counts as plenty
+// (ROOMY) and as enough to keep a type size (CLEAR). All in sheet units.
+const SIZES = [26, 22, 19];
+const GAPS = [4, 9, 15];
+const NEAR = 130;
+const ROOMY = 8;
+const CLEAR = 4;
+const ROUNDS = 3;
+const RAYS = Array.from({ length: 24 }, (_, k) => [Math.cos(k * Math.PI / 12), Math.sin(k * Math.PI / 12)]);
 
 const PICS = [...base, ...moreA, ...moreB].sort((a, b) => a.pts.length - b.pts.length);
 const LEVELS = PICS.map(p => ({ key: `dots:${p.id}`, href: `${MENU}/${p.id}` }));
@@ -69,55 +79,122 @@ function segDist([px, py], [ax, ay], [bx, by]) {
   return Math.hypot(px - ax - dx * t, py - ay - dy * t);
 }
 
-// Finds a spot for every number: beside its dot, and clear of the outline,
-// of the other dots and of the numbers placed before it.
-function placeLabels(P, texts) {
+// Sheet distance between two segments.
+function segGap(a, b, c, d) {
+  const side = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  if (side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0) return 0;
+  return Math.min(segDist(a, c, d), segDist(b, c, d), segDist(c, a, b), segDist(d, a, b));
+}
+
+// Finds a spot for every number at one type size: beside its own dot, clearly
+// farther from every other dot, and clear of the outline and of the other
+// numbers. Returns the spots and the room of the tightest one (below zero
+// something touches, from ROOMY up nothing is even close).
+function layout(P, texts, fs) {
   const n = P.length;
+  const hh = fs * 0.4;
+  const hws = texts.map(t => t.length * fs * 0.3 + 1);
   const cx = P.reduce((s, p) => s + p[0], 0) / n;
   const cy = P.reduce((s, p) => s + p[1], 0) / n;
-  const placed = [];
-  // One size for the whole picture; three-digit numbers need a smaller one.
-  const fs = texts.some(t => t.length > 2) ? 22 : 26;
-  return P.map(([x, y], i) => {
-    const hw = texts[i].length * fs * 0.3 + 2;
-    const hh = fs * 0.42;
+  // Only what lies near a dot can get in the way of its number.
+  const all = P.map((_, i) => i);
+  const dotsBy = P.map((p, i) => all.filter(j => j !== i && far(p, P[j]) < NEAR));
+  const linesBy = P.map(p => all.filter(j => segDist(p, P[j], P[(j + 1) % n]) < NEAR));
+  const spots = new Array(n).fill(null);
+
+  // A number is measured as a lying capsule: a and b are the ends of its core.
+  // Below `floor` the spot has lost already and the exact figure is not needed.
+  const roomAt = (i, x, y, own, floor = -Infinity) => {
+    const hw = hws[i];
+    const a = [x - hw + hh, y];
+    const b = [x + hw - hh, y];
+    let room = Math.min(x - hw, W - x - hw, y - hh, H - y - hh) - 6;
+    for (const j of linesBy[i]) {
+      const clear = segGap(a, b, P[j], P[(j + 1) % n]) - hh - 3;
+      // A line drawn only after this dot is joined meets a number that has
+      // already faded, so lying across one is a fair last resort. The dot's
+      // own two lines never count as such.
+      const later = j > i && (j + 1) % n !== i;
+      room = Math.min(room, later ? Math.max(clear, CLEAR - 2) : clear);
+      if (room < floor) return room;
+    }
+    for (const j of dotsBy[i]) {
+      if (room < floor) return room;
+      // The gap to another dot against the gap to its own: this is what
+      // tells her whose number it is.
+      room = Math.min(room, (segDist(P[j], a, b) - hh - own) * 0.7);
+      const o = spots[j];
+      // Side by side two numbers read as one long number, so that way they
+      // keep a wider gap than one above the other.
+      if (o) room = Math.min(room, Math.max((Math.abs(o.x - x) - o.hw - hw) * 0.5, Math.abs(o.y - y) - 2 * hh));
+    }
+    return room;
+  };
+
+  const place = i => {
+    const [x, y] = P[i];
+    const hw = hws[i];
+    const reach = hw - hh;
     // Pointing away from both neighbours leaves the most room beside the
     // outline. On a straight run that is no direction at all, so there the
     // number moves away from the middle of the shape.
-    const a = P[(i + n - 1) % n];
-    const b = P[(i + 1) % n];
-    let px = (x - a[0]) / far(P[i], a) + (x - b[0]) / far(P[i], b);
-    let py = (y - a[1]) / far(P[i], a) + (y - b[1]) / far(P[i], b);
+    const p = P[(i + n - 1) % n];
+    const q = P[(i + 1) % n];
+    let px = (x - p[0]) / far(P[i], p) + (x - q[0]) / far(P[i], q);
+    let py = (y - p[1]) / far(P[i], p) + (y - q[1]) / far(P[i], q);
     if (Math.hypot(px, py) < 0.3) { px = x - cx; py = y - cy; }
     const pl = Math.hypot(px, py) || 1;
-    // The number is wider than tall, so it is measured at three points.
-    const reach = Math.max(0, hw - hh);
     let best = null;
-    for (let k = 0; k < 16; k++) {
-      const dx = Math.cos(k * Math.PI / 8);
-      const dy = Math.sin(k * Math.PI / 8);
-      const r = DOT_R + 5 + Math.abs(dx) * hw + Math.abs(dy) * hh;
-      const qx = x + dx * r;
-      const qy = y + dy * r;
-      let room = Math.min(qx - hw, W - qx - hw, qy - hh, H - qy - hh);
-      for (const sx of [qx - reach, qx, qx + reach]) {
-        for (let j = 0; j < n; j++) {
-          room = Math.min(room, segDist([sx, qy], P[j], P[(j + 1) % n]) - hh);
-          if (j !== i) room = Math.min(room, far([sx, qy], P[j]) - hh - DOT_R);
-        }
+    for (const gap of GAPS) {
+      // A number that sits well right beside its dot need not look farther.
+      if (best && best.room >= ROOMY) break;
+      // The start dot is drawn bigger than the rest.
+      const own = DOT_R + (i ? 0 : 6) + gap;
+      for (const [dx, dy] of RAYS) {
+        // How far along this ray the capsule sits exactly `own` from the dot.
+        const d = own + hh;
+        const t = d * Math.abs(dx) <= reach * Math.abs(dy) ? d / Math.abs(dy)
+          : Math.abs(dx) * reach + Math.sqrt(d * d - reach * reach * dy * dy);
+        // Past a comfortable gap more room is worth nothing: then the side
+        // decides, and the nearer of two equal spots wins.
+        const side = (dx * px + dy * py) / pl - gap * 0.2;
+        const room = roomAt(i, x + dx * t, y + dy * t, own, best ? best.score - side : -Infinity);
+        const score = Math.min(room, ROOMY) + side;
+        if (!best || score > best.score) best = { x: x + dx * t, y: y + dy * t, hw, fs, own, room, score };
       }
-      // A number must sit clearly nearer to its own dot than to any other.
-      for (let j = 0; j < n; j++) if (j !== i) room = Math.min(room, (far([qx, qy], P[j]) - r) / 2);
-      for (const o of placed) {
-        room = Math.min(room, Math.max(Math.abs(o.x - qx) - o.hw - hw, Math.abs(o.y - qy) - o.hh - hh));
-      }
-      // Past a comfortable gap more room is worth nothing, and the side decides.
-      const score = Math.min(room, 12) + 4 * (dx * px + dy * py) / pl;
-      if (!best || score > best.score) best = { x: qx, y: qy, hw, hh, fs, score };
     }
-    placed.push(best);
-    return best;
-  });
+    spots[i] = best;
+  };
+
+  // The most crowded dots choose first, then everyone looks again, now
+  // seeing where the others have settled. The next round starts afresh with
+  // the numbers that came out tightest choosing first; the best round wins.
+  const crowd = P.map((p, i) => Math.min(...dotsBy[i].map(j => far(p, P[j])), NEAR));
+  let order = all.slice().sort((i, j) => crowd[i] - crowd[j]);
+  let best = null;
+  for (let round = 0; round < ROUNDS; round++) {
+    spots.fill(null);
+    order.forEach(place);
+    order.forEach(place);
+    const rooms = spots.map((s, i) => roomAt(i, s.x, s.y, s.own));
+    const room = Math.min(...rooms);
+    const sum = rooms.reduce((t, r) => t + Math.min(r, ROOMY), 0);
+    if (!best || room > best.room || (room === best.room && sum > best.sum)) best = { spots: spots.slice(), room, sum };
+    if (room >= ROOMY) break;
+    order = all.slice().sort((i, j) => rooms[i] - rooms[j]);
+  }
+  return best;
+}
+
+// The biggest type that leaves every number easy to tell from its neighbours.
+function placeLabels(P, texts) {
+  let best = null;
+  for (const fs of SIZES) {
+    const got = layout(P, texts, fs);
+    if (!best || got.room > best.room) best = got;
+    if (got.room >= CLEAR) break;
+  }
+  return best.spots;
 }
 
 function thumb(pic) {
