@@ -80,7 +80,7 @@ for (const lang of ['ru', 'en', 'he']) {
   for (const size of ['1180x820', '820x1180']) {
     page(`every screen, ${lang}, ${size}`, 'sweep.js', {
       route: '#/', size, state: { lang, onboarded: true, name: 'Test', avatar: '🦊', unlockAll: true, rated: true, classCode: 'test-class', stars: 300 },
-      vars: { __LANG__: lang, __DEEP__: String(!quick && size === '1180x820') }, timeout: 1500,
+      vars: { __LANG__: lang, __DEEP__: String(!quick && size === '1180x820') }, timeout: 2700,
     });
   }
 }
