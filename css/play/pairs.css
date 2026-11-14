@@ -1,0 +1,55 @@
+/* «Пары»: the memory game */
+.pairs-screen > .speaker { flex: none; }
+
+.pairs-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
+  height: 52px; padding: 0 14px; background: var(--card); border: var(--line); border-radius: 18px;
+  box-shadow: 0 4px 0 var(--ink); font-size: 18px; font-weight: 850; line-height: 1.15; white-space: nowrap;
+}
+.pairs-chip small { font-size: 13px; }
+.pairs-chip i { font-style: normal; color: #f5a800; }
+
+/* The table takes what is left of the screen; the script sizes the board in it. */
+.pairs-table { flex: 1 1 0; min-height: 0; display: grid; place-items: center; touch-action: none; }
+.pairs-board { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px 10px; padding-bottom: 5px; }
+
+/* The button keeps still and its body turns, so a tap lands on the card even
+   in the middle of a turn. */
+.pairs-card {
+  position: relative; flex: none; width: var(--s); height: var(--s); padding: 0;
+  border: 0; background: none; cursor: pointer; touch-action: none;
+}
+.pairs-body {
+  position: absolute; inset: 0; overflow: hidden;
+  border: var(--line); border-radius: calc(var(--s) * .14); box-shadow: 0 4px 0 var(--ink);
+  /* The back: a white blot with two drops on striped paper. */
+  background:
+    radial-gradient(circle at 50% 52%, #fff 0 18%, transparent 19.5%),
+    radial-gradient(circle at 71% 31%, #fff 0 6.5%, transparent 8%),
+    radial-gradient(circle at 30% 70%, #fff 0 4.5%, transparent 6%),
+    repeating-linear-gradient(45deg, #9d75fa 0 10px, var(--grape) 10px 20px);
+}
+.pairs-face {
+  position: absolute; inset: 0; display: grid; place-items: center; background: #dcefe6;
+  /* Appears halfway through the flip, when the card is edge-on. */
+  visibility: hidden; transition: visibility 0s .12s;
+}
+.pairs-face canvas { display: block; image-rendering: pixelated; }
+.pairs-card.open .pairs-face { visibility: visible; }
+
+/* A flat squeeze instead of a 3D turn: it looks the same in every Safari.
+   Two names for one motion, so that each change of class restarts it. */
+.pairs-card.open .pairs-body { animation: pairs-open .24s; }
+.pairs-card.shut .pairs-body { animation: pairs-shut .24s; }
+.pairs-card.done .pairs-body { animation: pairs-open .24s, pairs-found .4s .24s; transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.pairs-card.done .pairs-face { background: #fff3c4; transition: visibility 0s .12s, background-color .3s .24s; }
+@keyframes pairs-open { 50% { transform: scaleX(0); } }
+@keyframes pairs-shut { 50% { transform: scaleX(0); } }
+@keyframes pairs-found { 0%, 100% { transform: translateY(3px); } 45% { transform: translateY(0) scale(1.08); } }
+
+/* The two little cards on a level card */
+.level-thumb > .pairs-thumb { display: flex; gap: 6px; justify-content: center; }
+.pairs-thumb canvas {
+  width: 48px; height: 48px; padding: 4px; background: #dcefe6; border: 2px solid var(--ink); border-radius: 9px;
+  image-rendering: pixelated;
+}

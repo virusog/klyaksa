@@ -1,0 +1,56 @@
+/* Пазл: level list */
+.puzzle-thumb { width: 110px; background: #fff; border: 2px solid var(--ink); border-radius: 8px; }
+.puzzle-own {
+  display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 10px 18px;
+  background: #ffe3a6; border: var(--line); border-radius: 20px; box-shadow: 0 5px 0 var(--ink);
+}
+.puzzle-own:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.puzzle-own b { display: block; font-size: 21px; font-weight: 900; line-height: 1.15; }
+.puzzle-own small { font-size: 15px; opacity: .78; }
+/* Same reason as .level-card names in app.css: a heavy face for English too. */
+html:not([lang=ru]) .puzzle-own :is(b, small) { font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; }
+
+/* Пазл: the board */
+.puzzle-play > .speaker { flex: none; }
+.puzzle-score {
+  flex: none; min-height: 52px; padding: 3px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--card); border: var(--line); border-radius: 18px; line-height: 1.15; white-space: nowrap;
+}
+.puzzle-score b { font-size: 17px; font-weight: 850; }
+.puzzle-score small { font-size: 14px; color: #a56f00; }
+.puzzle-stage { flex: 1; min-height: 0; position: relative; }
+.puzzle-board {
+  position: absolute; background: #b5a88d; border-radius: 3px; touch-action: none;
+  box-shadow: 0 0 0 4px var(--ink), 0 6px 0 4px var(--ink);
+}
+.puzzle-board.done { animation: puzzle-done .7s; }
+@keyframes puzzle-done { 40% { transform: scale(1.025); } }
+.puzzle-tile {
+  position: absolute; left: 0; top: 0; width: var(--w); height: var(--h);
+  transform: translate(var(--x), var(--y)) rotate(var(--a)) scale(var(--s, 1));
+  transition: transform .24s cubic-bezier(.3, 1.2, .5, 1);
+}
+/* A loose tile shows a gap around it; a tile that is home closes the gap. */
+.puzzle-face { display: block; width: 100%; height: 100%; clip-path: inset(3px round 9px); transition: clip-path .2s; pointer-events: none; }
+.puzzle-tile.ok .puzzle-face { clip-path: inset(0 round 0); }
+.puzzle-tile::after { content: ''; position: absolute; inset: 1px; border-radius: 11px; pointer-events: none; }
+.puzzle-tile.fly { z-index: 2; }
+.puzzle-tile.sel { z-index: 3; --s: 1.05; }
+.puzzle-tile.sel::after { border: 5px solid var(--sun); box-shadow: 0 0 0 3px var(--ink), 0 6px 0 3px var(--ink); }
+.puzzle-tile.over::after { border: 5px dashed var(--mint); background: rgba(39, 196, 168, .25); }
+.puzzle-tile.drag { z-index: 5; --s: 1.07; transition: none; filter: drop-shadow(0 8px 0 rgba(42, 33, 64, .35)); }
+.puzzle-peek { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 9; border-radius: 3px; animation: puzzle-peek .25s; }
+@keyframes puzzle-peek { 0% { opacity: 0; transform: scale(.96); } }
+
+/* Пазл: her own pictures */
+.puzzle-sizes { align-items: center; }
+.puzzle-sizes .tab { min-height: 52px; }
+.puzzle-flip { margin-inline-start: 14px; }
+.puzzle-pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; padding-bottom: 20px; }
+.puzzle-pic {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #fff; border: var(--line); border-radius: 14px;
+  box-shadow: 0 5px 0 var(--ink); font: inherit; color: inherit; cursor: pointer; min-width: 0;
+}
+.puzzle-pic:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.puzzle-pic img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #fff; border: 2px solid var(--ink); border-radius: 6px; }
+.puzzle-pic span { font-size: 16px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
