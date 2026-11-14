@@ -1,6 +1,7 @@
 // Shared pieces for the newer games: the level list, the finish dialog, and
 // two small parsers that both a game and the content checker use.
 import { h } from '../util.js';
+import { t } from '../i18n.js';
 import { state, award } from '../store.js';
 import { topbar, starBadge, celebrate, speaker, toast, icon } from '../ui.js';
 import { sfx } from '../audio.js';
@@ -12,6 +13,7 @@ export const isOpen = (levels, i) =>
   i === 0 || state.unlockAll || starsOf(levels[i].key) > 0 || starsOf(levels[i - 1].key) > 0;
 
 // levels: [{ key, name, sub?, href, thumb? }]. thumb is a ready DOM node.
+// title, hint, name and sub arrive already translated: the game calls t() on them.
 export function levelScreen(root, { title, back = '#/games', hint, levels, extra }) {
   const grid = h('div', { class: 'level-grid' }, levels.map((L, i) => {
     const open = isOpen(levels, i);
@@ -28,7 +30,7 @@ export function levelScreen(root, { title, back = '#/games', hint, levels, extra
     if (open) return h('a', { class: `level-card ${stars ? 'done' : ''}`, href: L.href }, body);
     return h('button', {
       class: 'level-card locked',
-      onclick: () => { sfx.soft(); toast(`Сначала пройди уровень ${i}`); },
+      onclick: () => { sfx.soft(); toast(t('Сначала пройди уровень {n}', { n: i })); },
     }, body);
   }));
   root.append(h('div', { class: 'screen scroll hub levels' },
@@ -42,18 +44,19 @@ export function levelScreen(root, { title, back = '#/games', hint, levels, extra
 }
 
 // Pays the stars and shows the finish dialog with the usual three buttons.
+// title and text arrive already translated.
 export function finishLevel({ levels, index, stars, title, text, menu, again }) {
   const res = award(levels[index].key, stars);
   const next = levels[index + 1];
   return celebrate({
-    title: title || (stars === 3 ? 'Блестяще!' : stars === 2 ? 'Хорошо!' : 'Получилось!'),
+    title: title || (stars === 3 ? t('Блестяще!') : stars === 2 ? t('Хорошо!') : t('Получилось!')),
     text,
     stars,
     unlocked: res.unlocked,
     actions: [
-      again && { label: 'Ещё раз', fn: again },
-      { label: 'К уровням', primary: !next, fn: () => { location.hash = menu; } },
-      next && { label: 'Дальше', primary: true, fn: () => { location.hash = next.href; } },
+      again && { label: t('Ещё раз'), fn: again },
+      { label: t('К уровням'), primary: !next, fn: () => { location.hash = menu; } },
+      next && { label: t('Дальше'), primary: true, fn: () => { location.hash = next.href; } },
     ].filter(Boolean),
   });
 }

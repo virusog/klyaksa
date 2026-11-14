@@ -57,7 +57,7 @@ export function rating(root) {
     else {
       const ahead = list.filter(r => score(r) > score(mine)).pop();
       headline = t('Ты на {place} месте. Ещё {gap} ★ — и ты догонишь {name}!',
-        { place: mine.place, gap: score(ahead) - score(mine), name: ahead.name });
+        { place: mine.place, gap: score(ahead) - score(mine), name: `⁨${ahead.name}⁩` });  // isolated, so a Latin name keeps Hebrew punctuation in place
     }
     body.append(
       speaker(headline, mine?.place === 1 ? 'joy' : 'happy'),

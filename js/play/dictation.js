@@ -14,6 +14,7 @@ import { topbar, btn, speaker, confirmBox } from '../ui.js';
 import { db } from '../store.js';
 import { sfx } from '../audio.js';
 import { levelScreen, finishLevel, starsOf, isOpen, parseMoves } from './kit.js';
+import { t, N, plural } from '../i18n.js';
 import BASE from '../content/dictation.js';
 import MORE_A from '../content/dictation-a.js';
 import MORE_B from '../content/dictation-b.js';
@@ -43,42 +44,36 @@ const weight = p => p.cmds.length + p.cmds.filter(c => c[0] && c[1]).length / 2;
 PICS.sort((a, b) => weight(a) - weight(b));
 
 const tierOf = i => Math.min(2, Math.floor(i * 3 / PICS.length));
-const TIER_NAME = ['с подсказкой', 'следи сама', 'по памяти'];
+const TIER_NAME = [N('с подсказкой'), N('следи сама'), N('по памяти')];
 const INTRO = [
-  'Веди линию от красной точки. Число — сколько клеточек, стрелка — куда.',
-  'Теперь я не подсвечиваю. Следи сама, какая команда на очереди!',
-  'Запомни четыре команды, нажми «Запомнила» и рисуй по памяти.',
+  N('Веди линию от красной точки. Число — сколько клеточек, стрелка — куда.'),
+  N('Теперь я не подсвечиваю. Следи сама, какая команда на очереди!'),
+  N('Запомни четыре команды, нажми «Запомнила» и рисуй по памяти.'),
 ];
 const OOPS = [
-  ['Не туда. Посмотри на жёлтую команду.', 'Не спеши, посчитай клеточки.'],
-  ['Не туда. Найди в списке свою команду.', 'Не спеши, посчитай клеточки.'],
-  ['Не туда. Вспомни, что было дальше.', 'Не спеши, посчитай клеточки.'],
+  [N('Не туда. Посмотри на жёлтую команду.'), N('Не спеши, посчитай клеточки.')],
+  [N('Не туда. Найди в списке свою команду.'), N('Не спеши, посчитай клеточки.')],
+  [N('Не туда. Вспомни, что было дальше.'), N('Не спеши, посчитай клеточки.')],
 ];
 // Said after three wrong tries in a row, so she is never stuck.
 const HELP = [
-  'Смотри на жёлтую карточку: там число и стрелка.',
-  'Смотри, я подсветила, где ты сейчас.',
-  'Забыла? Можно подсмотреть, это не страшно.',
+  N('Смотри на жёлтую карточку: там число и стрелка.'),
+  N('Смотри, я подсветила, где ты сейчас.'),
+  N('Забыла? Можно подсмотреть, это не страшно.'),
 ];
 
 // Said when a half-drawn sheet is opened again.
 const RESUME = [
-  'Продолжаем с того места, где ты остановилась.',
-  'Продолжаем! Я подсветила, где ты остановилась.',
-  'Продолжаем! Вот команды ещё раз.',
+  N('Продолжаем с того места, где ты остановилась.'),
+  N('Продолжаем! Я подсветила, где ты остановилась.'),
+  N('Продолжаем! Вот команды ещё раз.'),
 ];
 
 const KEYS = [
-  [-1, -1, 'Влево вверх'], [0, -1, 'Вверх'], [1, -1, 'Вправо вверх'],
-  [-1, 0, 'Влево'], null, [1, 0, 'Вправо'],
-  [-1, 1, 'Влево вниз'], [0, 1, 'Вниз'], [1, 1, 'Вправо вниз'],
+  [-1, -1, N('Влево вверх')], [0, -1, N('Вверх')], [1, -1, N('Вправо вверх')],
+  [-1, 0, N('Влево')], null, [1, 0, N('Вправо')],
+  [-1, 1, N('Влево вниз')], [0, 1, N('Вниз')], [1, 1, N('Вправо вниз')],
 ];
-
-const plural = (n, one, few, many) => {
-  const d = n % 10;
-  const t = n % 100;
-  return d === 1 && t !== 11 ? one : d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many;
-};
 
 // Drawn, not typed: iPad shows some arrow characters as emoji.
 const arrow = (dx, dy) => h('span', {
@@ -87,16 +82,19 @@ const arrow = (dx, dy) => h('span', {
 });
 
 // Two digits get the class 'wide' and smaller type, so one digit can be large.
-const chip = ([dx, dy, n], cls = '') => h('span', { class: `dictation-chip ${n > 9 ? 'wide' : ''} ${cls}` }, String(n), arrow(dx, dy));
+// Left to right in every language: "3 →" must not turn into "→ 3".
+const chip = ([dx, dy, n], cls = '') => h('span', { class: `dictation-chip ${n > 9 ? 'wide' : ''} ${cls}`, dir: 'ltr' }, String(n), arrow(dx, dy));
 
 // Every command at once. More commands get more columns, so that the list
 // never has to scroll: she could not keep her place in a list that moves.
+// The commands read left to right in every language, like the picture is drawn.
 function chipList(chips) {
   const n = chips.length;
   const across = n <= 24 ? 4 : n <= 40 ? 5 : 6;
   const upright = n <= 24 ? 6 : n <= 40 ? 8 : 10;
   return h('div', {
     class: 'dictation-list',
+    dir: 'ltr',
     style: `--cl:${across};--rl:${Math.ceil(n / across)};--cp:${upright};--rp:${Math.ceil(n / upright)}`,
   }, chips);
 }
@@ -144,8 +142,8 @@ const levels = () => PICS.map((p, i) => {
   const n = p.cmds.length;
   return {
     key,
-    name: solved ? p.name : 'Загадка',
-    sub: `${n} ${plural(n, 'команда', 'команды', 'команд')}\n${TIER_NAME[tierOf(i)]}`,
+    name: solved ? t(p.name) : t('Загадка'),
+    sub: plural(n, '{n} команда|{n} команды|{n} команд') + '\n' + t(TIER_NAME[tierOf(i)]),
     href: `${MENU}/${p.id}`,
     thumb: thumb(p, solved),
   };
@@ -174,9 +172,10 @@ function play(root, list, index) {
   const cmdAt = () => steps[done];
   const isNext = (dx, dy) => pic.cmds[cmdAt()][0] === dx && pic.cmds[cmdAt()][1] === dy;
 
-  const voice = speaker(INTRO[tier]);
+  const intro = t(INTRO[tier]);
+  const voice = speaker(intro);
   // The same remark is not repeated: with the voice on, it would nag.
-  let said = INTRO[tier];
+  let said = intro;
   const say = text => { if (text !== said) voice.say(said = text); };
   // A failed save only costs her the resume, so it must not interrupt the game.
   const save = () => db.put('kv', { id: saveId, done, mistakes, peeked }).catch(() => {});
@@ -197,7 +196,8 @@ function play(root, list, index) {
     // On top of the pencil point, so the start stays red while she stands on it.
     svgEl('circle', { cx: pic.start[0] * Z, cy: pic.start[1] * Z, r: 7, class: 'dictation-start' }),
   );
-  const board = h('div', { class: 'dictation-board' }, svg);
+  // A play surface: pointer positions are measured left to right.
+  const board = h('div', { class: 'dictation-board', dir: 'ltr' }, svg);
 
   // ---- the commands, one view per kind of level ------------------------------
   function guidedView() {
@@ -212,9 +212,9 @@ function play(root, list, index) {
         const left = n - (done - first[ci]);
         chips.forEach((c, i) => { c.classList.toggle('done', i < ci); c.classList.toggle('cur', i === ci); });
         now.replaceChildren(
-          h('b', {}, String(n), arrow(dx, dy)),
+          h('b', { dir: 'ltr' }, String(n), arrow(dx, dy)),
           h('span', { class: 'dictation-dots' }, Array.from({ length: n }, (_, i) => h('i', { class: i < n - left ? 'on' : '' }))),
-          h('small', {}, `ещё ${left} ${plural(left, 'клеточка', 'клеточки', 'клеточек')}`),
+          h('small', {}, plural(left, 'ещё {n} клеточка|ещё {n} клеточки|ещё {n} клеточек')),
         );
         all.scrollTop = chips[ci].offsetTop - all.clientHeight / 2;
       },
@@ -238,7 +238,7 @@ function play(root, list, index) {
 
   function memoryView() {
     const el = h('div', { class: 'dictation-mem' });
-    const hide = () => { shown = false; say('Теперь рисуй по памяти.'); paint(); };
+    const hide = () => { shown = false; say(t('Теперь рисуй по памяти.')); paint(); };
     const peek = () => { shown = true; peeked = true; save(); paint(); };
     return {
       el,
@@ -248,14 +248,16 @@ function play(root, list, index) {
         const part = pic.cmds.slice(from, from + GROUP);
         const to = from + part.length;
         el.replaceChildren(
-          h('small', {}, to - from > 1 ? `Команды ${from + 1}–${to} из ${pic.cmds.length}` : `Команда ${to} из ${pic.cmds.length}`),
-          h('div', { class: 'dictation-cards' }, part.map((c, i) => {
+          h('small', {}, to - from > 1
+            ? t('Команды {from}–{to} из {all}', { from: from + 1, to, all: pic.cmds.length })
+            : t('Команда {to} из {all}', { to, all: pic.cmds.length })),
+          h('div', { class: 'dictation-cards', dir: 'ltr' }, part.map((c, i) => {
             const passed = from + i < ci ? 'done' : '';
             return shown ? chip(c, `big ${passed}`) : h('span', { class: `dictation-chip big hid ${passed}` }, passed ? '✓' : '?');
           })),
-          shown ? btn('primary', 'Запомнила', hide) : btn('ghost', 'Подсмотреть', peek),
-          h('small', {}, shown ? 'Читай слева направо.'
-            : peeked ? 'В этот раз будет не больше двух звёзд.' : 'Подсмотришь — будет не больше двух звёзд.'),
+          shown ? btn('primary', t('Запомнила'), hide) : btn('ghost', t('Подсмотреть'), peek),
+          h('small', {}, shown ? t('Читай слева направо.')
+            : peeked ? t('В этот раз будет не больше двух звёзд.') : t('Подсмотришь — будет не больше двух звёзд.')),
         );
       },
     };
@@ -269,7 +271,7 @@ function play(root, list, index) {
     line.setAttribute('points', pts.slice(0, done + 1).map(at).join(' '));
     cursor.setAttribute('transform', `translate(${at(pts[done])})`);
     board.classList.toggle('wait', shown);
-    missChip.textContent = `Ошибок: ${mistakes}`;
+    missChip.textContent = t('Ошибок: {n}', { n: mistakes });
     if (!over) view.update();
   }
 
@@ -283,22 +285,22 @@ function play(root, list, index) {
     over = true;
     endDrag();
     board.classList.add('done');
-    bar.querySelector('h1').textContent = pic.name;
-    cmdsBox.replaceChildren(h('div', { class: 'dictation-reveal' }, h('small', {}, 'Получилось:'), h('b', {}, pic.name)));
+    bar.querySelector('h1').textContent = t(pic.name);
+    cmdsBox.replaceChildren(h('div', { class: 'dictation-reveal' }, h('small', {}, t('Получилось:')), h('b', {}, t(pic.name))));
     sfx.fill();
-    say('Линия замкнулась!');
+    say(t('Линия замкнулась!'));
     paint();
     const stars = Math.min(peeked ? 2 : 3, mistakes <= 1 ? 3 : mistakes <= 4 ? 2 : 1);
-    const text = (mistakes === 0 ? 'Ни одной ошибки!'
-      : mistakes === 1 ? 'Всего одна ошибка!'
-      : `${mistakes} ${plural(mistakes, 'ошибка', 'ошибки', 'ошибок')}. Чем их меньше, тем больше звёзд.`)
-      + (peeked && mistakes <= 1 ? ' Без подсмотра будет три звезды.' : '');
+    const verdict = mistakes === 0 ? t('Ни одной ошибки!')
+      : mistakes === 1 ? t('Всего одна ошибка!')
+      : plural(mistakes, '{n} ошибка. Чем их меньше, тем больше звёзд.|{n} ошибки. Чем их меньше, тем больше звёзд.|{n} ошибок. Чем их меньше, тем больше звёзд.');
+    const text = peeked && mistakes <= 1 ? verdict + ' ' + t('Без подсмотра будет три звезды.') : verdict;
     // A pause, so she sees the picture fill before the dialog covers it. The
     // saved progress goes only with the stars: if she leaves during the pause,
     // one last cell is left to draw, not the whole picture.
     endTimer = setTimeout(() => {
       forget();
-      finishLevel({ levels: list, index, stars, title: `${pic.name}!`, text, menu: MENU, again: restart });
+      finishLevel({ levels: list, index, stars, title: `${t(pic.name)}!`, text, menu: MENU, again: restart });
     }, 1400);
   }
 
@@ -314,7 +316,7 @@ function play(root, list, index) {
     if (nextGroup) {
       shown = true;
       endDrag();
-      say('Есть! Вот следующие команды.');
+      say(t('Есть! Вот следующие команды.'));
     }
     // Only the guided levels may tell her that a command has ended.
     if (nextGroup || (tier === 0 && ci !== was)) sfx.ding(); else sfx.pop();
@@ -330,7 +332,7 @@ function play(root, list, index) {
     const ghost = svgEl('line', { x1: x * Z, y1: y * Z, x2: (x + dx) * Z, y2: (y + dy) * Z, class: 'dictation-miss' });
     ghost.addEventListener('animationend', () => ghost.remove());
     svg.insertBefore(ghost, band);
-    say(missRun >= 3 ? HELP[tier] : OOPS[tier][mistakes % 2]);
+    say(t(missRun >= 3 ? HELP[tier] : OOPS[tier][mistakes % 2]));
     save();
     paint();
   }
@@ -338,7 +340,7 @@ function play(root, list, index) {
   // False while the pencil must not move; says why when it is her turn to read.
   function canDraw() {
     if (!ready || over) return false;
-    if (shown) say('Сначала запомни команды и нажми «Запомнила».');
+    if (shown) say(t('Сначала запомни команды и нажми «Запомнила».'));
     return !shown;
   }
 
@@ -349,7 +351,7 @@ function play(root, list, index) {
     shown = tier === 2;
     board.classList.remove('done');
     cmdsBox.replaceChildren(view.el);
-    say(INTRO[tier]);
+    say(intro);
     paint();
   }
 
@@ -397,7 +399,7 @@ function play(root, list, index) {
     const slip = [p[0] - pts[done][0], p[1] - pts[done][1]];
     const far = Math.hypot(...slip);
     if (far > GRAB) {
-      if (!drag) say('Карандаш ждёт на большой точке. Веди линию от неё.');
+      if (!drag) say(t('Карандаш ждёт на большой точке. Веди линию от неё.'));
       return;
     }
     // A finger rarely lands exactly on the point. Where it lands must neither
@@ -415,15 +417,16 @@ function play(root, list, index) {
   board.addEventListener('pointerup', e => {
     if (drag?.id !== e.pointerId) return;
     // A tap draws nothing, so she is told what to do instead.
-    if (!drag.used) say('Нажми на большую точку и веди, не отрывая.');
+    if (!drag.used) say(t('Нажми на большую точку и веди, не отрывая.'));
     endDrag();
   });
   board.addEventListener('pointercancel', e => { if (drag?.id === e.pointerId) endDrag(); });
 
   // ---- arrows, for small fingers -------------------------------------------
-  const pad = h('div', { class: 'dictation-pad' }, KEYS.map(k => (k
+  // dir ltr: the left arrow stays on the left in Hebrew too.
+  const pad = h('div', { class: 'dictation-pad', dir: 'ltr' }, KEYS.map(k => (k
     ? h('button', {
-      class: 'dictation-key', 'aria-label': k[2],
+      class: 'dictation-key', 'aria-label': t(k[2]),
       onclick: () => {
         if (!canDraw()) return;
         // A finger still resting on the sheet lets go, or it would seem to pull back.
@@ -433,12 +436,12 @@ function play(root, list, index) {
     }, arrow(k[0], k[1]))
     : h('span', { class: 'dictation-key-mid' }))));
 
-  const bar = topbar(starsOf(list[index].key) ? pic.name : `Диктант ${index + 1}`, {
+  const bar = topbar(starsOf(list[index].key) ? t(pic.name) : t('Диктант {n}', { n: index + 1 }), {
     back: MENU,
-    right: [missChip, btn('ghost', 'Заново', async () => {
+    right: [missChip, btn('ghost', t('Заново'), async () => {
       // Not in the pause after the last cell: it would throw the stars away.
       if (over) return;
-      if (!done || (await confirmBox('Стереть линию и начать заново?', 'Заново', 'Нет') && alive)) restart();
+      if (!done || (await confirmBox(t('Стереть линию и начать заново?'), t('Заново'), t('Нет')) && alive)) restart();
     })],
   });
   root.append(h('div', { class: 'screen dictation' },
@@ -463,7 +466,7 @@ function play(root, list, index) {
         shown = true;
       }
       back = done > 0;
-      if (back) say(RESUME[tier]);
+      if (back) say(t(RESUME[tier]));
     }
     ready = true;
     paint();
@@ -479,8 +482,8 @@ export default function run(root, arg) {
   const list = levels();
   if (!arg) {
     levelScreen(root, {
-      title: 'Диктант по клеточкам',
-      hint: 'Читай команды и веди линию по клеточкам. Что получится — секрет!',
+      title: t('Диктант по клеточкам'),
+      hint: t('Читай команды и веди линию по клеточкам. Что получится — секрет!'),
       levels: list,
     });
     return undefined;

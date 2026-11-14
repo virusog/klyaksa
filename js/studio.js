@@ -3,6 +3,7 @@ import { h, blobOf, svgEl } from './util.js';
 import { Painter, PAPERS, SYMMETRY } from './painter.js';
 import { db, newId, state, awardOnce, hasReward } from './store.js';
 import { STICKERS } from './art.js';
+import { t, N } from './i18n.js';
 import {
   brushRail, paletteBar, sizeSlider, iconBtn, btn, topbar, popover, closePop, toast, confirmBox, celebrate, autosaver, safeSave,
 } from './ui.js';
@@ -22,7 +23,7 @@ export async function saveArt(p, meta) {
     await db.put('art', {
       created: old?.created || Date.now(),
       ...meta,
-      title: meta.title || old?.title || 'Мой рисунок',
+      title: meta.title || old?.title || N('Мой рисунок'),
       id, updated: Date.now(), thumb, full, data, w: p.w, h: p.h,
     });
   } catch (e) {
@@ -38,8 +39,8 @@ export function studio(root, editId) {
   sessionStorage.removeItem('prompt');
 
   const stageEl = h('div', { class: 'stage-host' });
-  const undoBtn = iconBtn('undo', 'Отменить', () => { p.undo(); sync(); });
-  const redoBtn = iconBtn('redo', 'Вернуть', () => { p.redo(); sync(); });
+  const undoBtn = iconBtn('undo', t('Отменить'), () => { p.undo(); sync(); });
+  const redoBtn = iconBtn('redo', t('Вернуть'), () => { p.redo(); sync(); });
 
   const symGuide = svgEl('svg', { class: 'sym-guide', viewBox: '0 0 1600 1200' });
 
@@ -56,7 +57,7 @@ export function studio(root, editId) {
 
   const p = new Painter(stageEl, {
     w: 1600, h: 1200, layers: 3, onChange: () => sync(),
-    onPick: c => { pal.set(c); sync(); toast('Цвет взят!'); },
+    onPick: c => { pal.set(c); sync(); toast(t('Цвет взят!')); },
   });
   p.active = 1;
   p.over.append(symGuide);
@@ -80,9 +81,9 @@ export function studio(root, editId) {
     }
   };
 
-  const fillBtn = iconBtn('fill', 'Заливка', () => { p.mode = p.mode === 'fill' ? 'draw' : 'fill'; sync(); });
-  const pickBtn = iconBtn('pick', 'Пипетка', () => { p.mode = p.mode === 'pick' ? 'draw' : 'pick'; sync(); });
-  const stickerBtn = iconBtn('sticker', 'Наклейки', e => stickerPop(e.currentTarget));
+  const fillBtn = iconBtn('fill', t('Заливка'), () => { p.mode = p.mode === 'fill' ? 'draw' : 'fill'; sync(); });
+  const pickBtn = iconBtn('pick', t('Пипетка'), () => { p.mode = p.mode === 'pick' ? 'draw' : 'pick'; sync(); });
+  const stickerBtn = iconBtn('sticker', t('Наклейки'), e => stickerPop(e.currentTarget));
 
   function stickerPop(a) {
     const grid = h('div', { class: 'sticker-grid' });
@@ -98,7 +99,7 @@ export function studio(root, editId) {
             p.stickerSize = Math.max(90, p.size * 3);
             closePop();
             sync();
-            toast('Коснись холста, потащи и отпусти');
+            toast(t('Коснись холста, потащи и отпусти'));
           },
         }, s));
       }
@@ -108,8 +109,8 @@ export function studio(root, editId) {
       const open = !v.prize || hasReward(k);
       tabs.append(h('button', {
         class: `tab ${open ? '' : 'dim'}`, 'data-k': k,
-        onclick: () => (open ? show(k) : toast('Эти наклейки — подарок за звёзды ★')),
-      }, v.name));
+        onclick: () => (open ? show(k) : toast(t('Эти наклейки — подарок за звёзды ★'))),
+      }, t(v.name)));
     }
     popover(a, h('div', { class: 'pop-stickers' }, tabs, grid));
     show('animals');
@@ -120,7 +121,7 @@ export function studio(root, editId) {
       h('button', {
         class: `pick ${p.sym === k ? 'on' : ''}`,
         onclick: () => { p.sym = k; drawSym(); closePop(); symBtn.classList.toggle('on', k !== 'none'); },
-      }, v.name))));
+      }, t(v.name)))));
   }
 
   function paperPop(a) {
@@ -134,11 +135,11 @@ export function studio(root, editId) {
           closePop();
           if (k === 'night' && p.color === '#2a2140') { pal.set('#ffffff'); rail.redraw(); }
         },
-      }, h('span', { style: { color: k === 'night' ? '#fff' : '#2a2140' } }, v.name)))));
+      }, h('span', { style: { color: k === 'night' ? '#fff' : '#2a2140' } }, t(v.name))))));
   }
 
   function layersPop(a) {
-    const names = ['Фон', 'Рисунок', 'Верх'];
+    const names = [N('Фон'), N('Рисунок'), N('Верх')];
     const box = h('div', { class: 'pop-list wide' });
     const build = () => {
       box.textContent = '';
@@ -148,14 +149,14 @@ export function studio(root, editId) {
         th.width = 96; th.height = 72;
         th.getContext('2d').drawImage(L.c, 0, 0, 96, 72);
         box.append(h('div', { class: `layer-row ${p.active === i ? 'on' : ''}` },
-          h('button', { class: 'layer-pick', onclick: () => { p.active = i; build(); } }, th, h('b', {}, names[i])),
-          iconBtn(L.visible ? 'eye' : 'eyeoff', 'Показать', () => {
+          h('button', { class: 'layer-pick', onclick: () => { p.active = i; build(); } }, th, h('b', {}, t(names[i]))),
+          iconBtn(L.visible ? 'eye' : 'eyeoff', t('Показать'), () => {
             L.visible = !L.visible;
             L.c.style.visibility = L.visible ? 'visible' : 'hidden';
             build();
           }),
-          iconBtn('trash', 'Очистить слой', async () => {
-            if (await confirmBox(`Очистить слой «${names[i]}»?`)) { p.clearLayer(i); build(); }
+          iconBtn('trash', t('Очистить слой'), async () => {
+            if (await confirmBox(t('Очистить слой «{name}»?', { name: t(names[i]) }))) { p.clearLayer(i); build(); }
           }),
         ));
       }
@@ -164,22 +165,22 @@ export function studio(root, editId) {
     popover(a, box);
   }
 
-  const symBtn = iconBtn('sym', 'Симметрия', e => symPop(e.currentTarget));
+  const symBtn = iconBtn('sym', t('Симметрия'), e => symPop(e.currentTarget));
 
   // Even shapes drawn with the current brush: drag from corner to corner.
-  const SHAPES = [['', 'Рисую рукой'], ['line', 'Ровная линия'], ['rect', 'Прямоугольник'], ['oval', 'Овал и круг'], ['tri', 'Треугольник']];
+  const SHAPES = [['', N('Рисую рукой')], ['line', N('Ровная линия')], ['rect', N('Прямоугольник')], ['oval', N('Овал и круг')], ['tri', N('Треугольник')]];
   function shapePop(a) {
     popover(a, h('div', { class: 'pop-list' }, SHAPES.map(([k, name]) =>
       h('button', {
         class: `pick ${(p.mode === 'shape' ? p.shape : '') === k ? 'on' : ''}`,
         onclick: () => {
-          if (k) { p.shape = k; p.mode = 'shape'; toast('Проведи по холсту от угла до угла'); } else p.mode = 'draw';
+          if (k) { p.shape = k; p.mode = 'shape'; toast(t('Проведи по холсту от угла до угла')); } else p.mode = 'draw';
           closePop();
           sync();
         },
-      }, name))));
+      }, t(name)))));
   }
-  const shapeBtn = iconBtn('shape', 'Фигуры', e => shapePop(e.currentTarget));
+  const shapeBtn = iconBtn('shape', t('Фигуры'), e => shapePop(e.currentTarget));
 
   let closed = false;
   async function persist() {
@@ -188,26 +189,26 @@ export function studio(root, editId) {
   }
   const saver = autosaver(() => p.dirty && p.log.length > 0, persist, () => p.isBusy());
 
-  const done = btn('primary', 'Готово', async () => {
-    if (!p.log.length) { toast('Сначала что-нибудь нарисуй!'); return; }
+  const done = btn('primary', t('Готово'), async () => {
+    if (!p.log.length) { toast(t('Сначала что-нибудь нарисуй!')); return; }
     await safeSave(saver.flush);
     const r = awardOnce('studio');
     celebrate({
-      title: `Красота, ${state.name}!`,
-      text: r.gain ? 'Рисунок в галерее. Держи звезду за сегодняшнее творчество.' : 'Рисунок в галерее.',
+      title: t('Красота, {name}!', { name: state.name }),
+      text: r.gain ? t('Рисунок в галерее. Держи звезду за сегодняшнее творчество.') : t('Рисунок в галерее.'),
       unlocked: r.unlocked,
       actions: [
-        { label: 'Рисовать дальше' },
-        { label: 'В галерею', primary: true, fn: () => { location.hash = `#/art/${artId}`; } },
+        { label: t('Рисовать дальше') },
+        { label: t('В галерею'), primary: true, fn: () => { location.hash = `#/art/${artId}`; } },
       ],
     });
   });
 
   root.append(h('div', { class: 'screen studio' },
-    topbar(prompt ? `Тема: ${prompt}` : 'Мастерская', {
+    topbar(prompt ? t('Тема: {theme}', { theme: t(prompt) }) : t('Мастерская'), {
       right: [undoBtn, redoBtn, fillBtn, pickBtn, shapeBtn, stickerBtn, symBtn,
-        iconBtn('layers', 'Слои', e => layersPop(e.currentTarget)),
-        iconBtn('paper', 'Бумага', e => paperPop(e.currentTarget)),
+        iconBtn('layers', t('Слои'), e => layersPop(e.currentTarget)),
+        iconBtn('paper', t('Бумага'), e => paperPop(e.currentTarget)),
         done],
     }),
     h('div', { class: 'studio-main' }, rail, stageEl),

@@ -6,6 +6,7 @@ import { Painter } from './painter.js';
 import { db, state, award, awardOnce, newId } from './store.js';
 import { topbar, btn, iconBtn, starBadge, brushRail, paletteBar, sizeSlider, celebrate, toast, mascot, autosaver, safeSave } from './ui.js';
 import { sfx } from './audio.js';
+import { t, N } from './i18n.js';
 
 const W = 1200, H = 900;
 const INK = '#2a2140';
@@ -45,9 +46,9 @@ export function analyze(page) {
   }
   const img = lx.getImageData(0, 0, W, H);
   const d = img.data;
-  const N = W * H;
-  const lab = new Int32Array(N);
-  for (let i = 0; i < N; i++) {
+  const PX = W * H;
+  const lab = new Int32Array(PX);
+  for (let i = 0; i < PX; i++) {
     const v = d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11;
     lab[i] = v < 150 ? -1 : 0;
     d[i * 4 + 3] = clamp((255 - v) * 1.35, 0, 255);
@@ -57,7 +58,7 @@ export function analyze(page) {
 
   const regions = [null];
   const stack = [];
-  for (let s = 0; s < N; s++) {
+  for (let s = 0; s < PX; s++) {
     if (lab[s] !== 0) continue;
     const id = regions.length;
     const r = { id, n: 0, x0: W, y0: H, x1: 0, y1: 0, best: 0, px: 0, py: 0 };
@@ -80,15 +81,15 @@ export function analyze(page) {
   }
 
   // Distance to the nearest line: the farthest point is where a number fits best.
-  const dist = new Int16Array(N);
-  for (let i = 0; i < N; i++) dist[i] = lab[i] < 0 ? 0 : 3000;
-  for (let i = 0; i < N; i++) {
+  const dist = new Int16Array(PX);
+  for (let i = 0; i < PX; i++) dist[i] = lab[i] < 0 ? 0 : 3000;
+  for (let i = 0; i < PX; i++) {
     if (i % W > 0) dist[i] = Math.min(dist[i], dist[i - 1] + 1);
     if (i >= W) dist[i] = Math.min(dist[i], dist[i - W] + 1);
   }
-  for (let i = N - 1; i >= 0; i--) {
+  for (let i = PX - 1; i >= 0; i--) {
     if (i % W < W - 1) dist[i] = Math.min(dist[i], dist[i + 1] + 1);
-    if (i < N - W) dist[i] = Math.min(dist[i], dist[i + W] + 1);
+    if (i < PX - W) dist[i] = Math.min(dist[i], dist[i + W] + 1);
     const l = lab[i];
     if (l <= 0) continue;
     // The sheet's edge counts as a line too, so a number never sits half off the page.
@@ -122,13 +123,13 @@ export function analyze(page) {
   // Grow each region under the ink so colour tucks neatly beneath the lines.
   for (let pass = 0; pass < 5; pass++) {
     const prev = lab.slice();
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < PX; i++) {
       if (prev[i] !== -1) continue;
       const x = i % W;
       const n = (x > 0 && prev[i - 1] > 0 && prev[i - 1])
         || (x < W - 1 && prev[i + 1] > 0 && prev[i + 1])
         || (i >= W && prev[i - W] > 0 && prev[i - W])
-        || (i < N - W && prev[i + W] > 0 && prev[i + W]);
+        || (i < PX - W && prev[i + W] > 0 && prev[i + W]);
       if (n) lab[i] = n;
     }
   }
@@ -191,6 +192,16 @@ function sourceFor(ctx, kind, color, r) {
 
 const pageCache = new Map();
 
+// The name of a page as she sees it. A mandala is named by its number.
+function pageTitle(page) {
+  if (page.mandala) return t('Мандала №{n}', { n: page.id.slice(7) });
+  return t(page.title);
+}
+
+// Pictures keep the Russian name, so the gallery shows it in whatever language is on.
+// A mandala's name has a number in it, so it is kept as it reads now.
+const savedTitle = page => (page.mandala ? pageTitle(page) : page.title);
+
 async function getPage(id) {
   if (id.startsWith('mandala')) return mandala(+id.slice(7));
   if (id.startsWith('photo_')) {
@@ -199,7 +210,7 @@ async function getPage(id) {
     const img = await loadImg(rec.lines);
     const c = canvas(W, H);
     c.getContext('2d').drawImage(img, 0, 0);
-    return { id, title: 'Моё фото', lineCanvas: c, photo: true };
+    return { id, title: N('Моё фото'), lineCanvas: c, photo: true };
   }
   return PAGES.find(p => p.id === id);
 }
@@ -245,12 +256,12 @@ function photoToLines(img) {
 
 export function coloringHub(root, tabName = 'pages') {
   const grid = h('div', { class: 'pages-grid' });
-  const tabs = [['pages', 'Раскраски'], ['num', 'По номерам'], ['math', 'По примерам'], ['mandala', 'Мандалы'], ['photo', 'Из фото']];
-  const tabBar = h('div', { class: 'tabs' }, tabs.map(([k, v]) => h('a', { class: `tab ${k === tabName ? 'on' : ''}`, href: `#/coloring/${k}` }, v)));
+  const tabs = [['pages', N('Раскраски')], ['num', N('По номерам')], ['math', N('По примерам')], ['mandala', N('Мандалы')], ['photo', N('Из фото')]];
+  const tabBar = h('div', { class: 'tabs' }, tabs.map(([k, v]) => h('a', { class: `tab ${k === tabName ? 'on' : ''}`, href: `#/coloring/${k}` }, t(v))));
 
   const card = (page, mode) => h('a', { class: 'page-card', href: `#/color/${page.id}/${mode}` },
     thumbOf(page, mode !== 'free'),
-    h('b', {}, page.title),
+    h('b', {}, pageTitle(page)),
     state.best[`col:${page.id}:${mode}`] && h('em', { class: 'done-mark' }, '✓'),
   );
 
@@ -265,7 +276,7 @@ export function coloringHub(root, tabName = 'pages') {
       grid.append(h('button', {
         class: 'page-card more',
         onclick: () => { seed += 12; sessionStorage.setItem('mandalaSeed', seed); fill(); },
-      }, mascot('wow'), h('b', {}, 'Ещё мандалы!')));
+      }, mascot('wow'), h('b', {}, t('Ещё мандалы!'))));
     };
     fill();
   }
@@ -274,25 +285,25 @@ export function coloringHub(root, tabName = 'pages') {
     input.addEventListener('change', async () => {
       const f = input.files[0];
       if (!f) return;
-      toast('Превращаю фото в раскраску…');
+      toast(t('Превращаю фото в раскраску…'));
       const img = await loadImg(f);
       const lines = photoToLines(img);
       const id = newId('photo');
       await db.put('kv', { id, lines: await blobOf(lines) });
       location.hash = `#/color/${id}/free`;
     });
-    grid.append(h('label', { class: 'page-card more photo-card' }, input, mascot('joy'), h('b', {}, 'Выбрать фото или снять новое'),
-      h('small', {}, 'Кот, мама, любимая игрушка: что угодно станет раскраской')));
+    grid.append(h('label', { class: 'page-card more photo-card' }, input, mascot('joy'), h('b', {}, t('Выбрать фото или снять новое')),
+      h('small', {}, t('Кот, мама, любимая игрушка: что угодно станет раскраской'))));
     db.all('kv').then(list => {
       for (const r of list.filter(x => x.id.startsWith('photo_')).reverse()) {
-        const c = h('a', { class: 'page-card', href: `#/color/${r.id}/free` }, h('img', { src: URL.createObjectURL(r.lines) }), h('b', {}, 'Моё фото'));
+        const c = h('a', { class: 'page-card', href: `#/color/${r.id}/free` }, h('img', { src: URL.createObjectURL(r.lines) }), h('b', {}, t('Моё фото')));
         grid.append(c);
       }
     });
   }
 
   root.append(h('div', { class: 'screen scroll hub' },
-    topbar('Раскраски', { right: [starBadge()] }),
+    topbar(t('Раскраски'), { right: [starBadge()] }),
     tabBar, grid,
   ));
 }
@@ -329,8 +340,8 @@ function spreadFill(p, an, id, x, y, src) {
   p.pendingFill?.();
   const r = an.regions[id];
   const w = r.x1 - r.x0 + 1, ht = r.y1 - r.y0 + 1;
-  const t = canvas(w, ht);
-  const c = t.getContext('2d');
+  const tc = canvas(w, ht);
+  const c = tc.getContext('2d');
   c.translate(-r.x0, -r.y0);
   c.fillStyle = src(c, r);
   c.fillRect(r.x0, r.y0, w, ht);
@@ -346,7 +357,7 @@ function spreadFill(p, an, id, x, y, src) {
   // Undo and saving can arrive mid-animation: this lands the fill at once.
   const finish = () => {
     cancelAnimationFrame(raf);
-    L.drawImage(t, r.x0, r.y0);
+    L.drawImage(tc, r.x0, r.y0);
     p.pendingFill = null;
   };
   const step = now => {
@@ -356,7 +367,7 @@ function spreadFill(p, an, id, x, y, src) {
     L.beginPath();
     L.arc(x, y, reach * (1 - Math.pow(1 - k, 2.4)) + 2, 0, 6.3);
     L.clip();
-    L.drawImage(t, r.x0, r.y0);
+    L.drawImage(tc, r.x0, r.y0);
     L.restore();
     raf = requestAnimationFrame(step);
   };
@@ -392,11 +403,11 @@ function playFree(root, page, an) {
   p.size = 26;
   let magic = true;
 
-  const undoBtn = iconBtn('undo', 'Отменить', () => { p.undo(); sync(); });
-  const redoBtn = iconBtn('redo', 'Вернуть', () => { p.redo(); sync(); });
-  const fillBtn = btn('tool', 'Заливка', () => { p.mode = 'tap'; sync(); });
-  const magicBtn = btn('tool', 'Не вылезать', () => { magic = !magic; sync(); });
-  const kinds = [['solid', 'Цвет'], ['grad', 'Градиент'], ['stripes', 'Полоски'], ['dots', 'Горох'], ['hearts', 'Сердца'], ['stars', 'Звёзды']];
+  const undoBtn = iconBtn('undo', t('Отменить'), () => { p.undo(); sync(); });
+  const redoBtn = iconBtn('redo', t('Вернуть'), () => { p.redo(); sync(); });
+  const fillBtn = btn('tool', t('Заливка'), () => { p.mode = 'tap'; sync(); });
+  const magicBtn = btn('tool', t('Не вылезать'), () => { magic = !magic; sync(); });
+  const kinds = [['solid', N('Цвет')], ['grad', N('Градиент')], ['stripes', N('Полоски')], ['dots', N('Горох')], ['hearts', N('Сердца')], ['stars', N('Звёзды')]];
   const kindRow = h('div', { class: 'tabs small kinds' }, kinds.map(([k, v]) => h('button', {
     class: `tab ${k === fillKind ? 'on' : ''}`,
     onclick: e => {
@@ -405,7 +416,7 @@ function playFree(root, page, an) {
       [...kindRow.children].forEach(c => c.classList.toggle('on', c === e.currentTarget));
       sync();
     },
-  }, v)));
+  }, t(v))));
 
   const rail = brushRail(p, ['marker', 'pencil', 'crayon', 'watercolor', 'chalk', 'spray', 'glitter', 'rainbow', 'eraser'], { onPick: () => sync() });
   const size = sizeSlider(p);
@@ -443,12 +454,12 @@ function playFree(root, page, an) {
   }
   const saver = autosaver(() => p.dirty, persist, () => p.isBusy());
 
-  const done = btn('primary', 'Готово', async () => {
+  const done = btn('primary', t('Готово'), async () => {
     try {
       await safeSave(async () => {
         await saver.flush();
         await db.put('art', {
-          id: artId, kind: 'coloring', title: page.title, created: Date.now(), updated: Date.now(),
+          id: artId, kind: 'coloring', title: savedTitle(page), created: Date.now(), updated: Date.now(),
           thumb: await blobOf(p.thumb()), full: await blobOf(p.flatten()),
         });
         await db.put('kv', { id: kvId, artId, finished: true });
@@ -457,18 +468,18 @@ function playFree(root, page, an) {
     const r = award(`col:${page.id}:free`, 1);
     const day = r.gain ? r : awardOnce('color');
     celebrate({
-      title: 'Какая раскраска!',
-      text: 'Сохранена в галерее.',
+      title: t('Какая раскраска!'),
+      text: t('Сохранена в галерее.'),
       unlocked: day.unlocked,
       actions: [
-        { label: 'Ещё покрашу' },
-        { label: 'Другие раскраски', primary: true, fn: () => { location.hash = '#/coloring'; } },
+        { label: t('Ещё покрашу') },
+        { label: t('Другие раскраски'), primary: true, fn: () => { location.hash = '#/coloring'; } },
       ],
     });
   });
 
   root.append(h('div', { class: 'screen studio' },
-    topbar(page.title, { back: page.mandala ? '#/coloring/mandala' : page.photo ? '#/coloring/photo' : '#/coloring', right: [undoBtn, redoBtn, magicBtn, done] }),
+    topbar(pageTitle(page), { back: page.mandala ? '#/coloring/mandala' : page.photo ? '#/coloring/photo' : '#/coloring', right: [undoBtn, redoBtn, magicBtn, done] }),
     h('div', { class: 'studio-main' }, rail, stageEl),
     h('footer', { class: 'tools-foot col' },
       h('div', { class: 'row-tools' }, fillBtn, kindRow, size),
@@ -505,7 +516,7 @@ function playNumbers(root, page, an, math = false) {
       if (!r.num || filled.has(id)) return;
       if (r.num - 1 !== cur) {
         sfx.soft();
-        toast(math ? 'Посчитай ещё раз!' : `Здесь номер ${r.num}`);
+        toast(math ? t('Посчитай ещё раз!') : t('Здесь номер {n}', { n: r.num }));
         return;
       }
       fillNum(id, x, y, true);
@@ -638,7 +649,7 @@ function playNumbers(root, page, an, math = false) {
     try {
       await safeSave(async () => {
         await db.put('art', {
-          id: `art_${kv}`, kind: 'coloring', title: page.title, created: Date.now(), updated: Date.now(),
+          id: `art_${kv}`, kind: 'coloring', title: savedTitle(page), created: Date.now(), updated: Date.now(),
           thumb: await blobOf(p.thumb()), full: await blobOf(p.flatten()),
         });
       });
@@ -647,16 +658,16 @@ function playNumbers(root, page, an, math = false) {
     } catch { return; }
     const res = award(`col:${page.id}:${math ? 'math' : 'num'}`, 3);
     celebrate({
-      title: 'Картина готова!',
-      text: 'Ты закрасила всё до последней клеточки.',
+      title: t('Картина готова!'),
+      text: t('Ты закрасила всё до последней клеточки.'),
       stars: 3,
       unlocked: res.unlocked,
-      actions: [{ label: 'Другие картины', primary: true, fn: () => { location.hash = `#/coloring/${math ? 'math' : 'num'}`; } }],
+      actions: [{ label: t('Другие картины'), primary: true, fn: () => { location.hash = `#/coloring/${math ? 'math' : 'num'}`; } }],
     });
   }
 
   root.append(h('div', { class: 'screen num' },
-    topbar(page.title, { back: `#/coloring/${math ? 'math' : 'num'}` }),
+    topbar(pageTitle(page), { back: `#/coloring/${math ? 'math' : 'num'}` }),
     h('div', { class: 'num-main' }, stageEl),
     paletteEl,
   ));

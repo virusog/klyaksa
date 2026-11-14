@@ -12,59 +12,55 @@ import { db } from '../store.js';
 import { sfx } from '../audio.js';
 import { PIX, PIX_KEY, PIX_PACKS } from '../pix.js';
 import { levelScreen, finishLevel, isOpen } from './kit.js';
+import { t, N, plural } from '../i18n.js';
 
 const MENU = '#/game/pairs';
 const INK = '#2a2140';
-const CLOSED = 'Закрытая карточка';
+const CLOSED = N('Закрытая карточка');
 
 // shadows: how many pairs are picture + silhouette. theme: 1 takes one pack,
 // 2 takes a pair of related packs. thumb: what the level card shows.
 const LEVELS = [
-  { pairs: 3, title: 'Картинки', thumb: ['heart', 'heart'],
-    hint: () => 'Открой две карточки. Одинаковые картинки — это пара!' },
-  { pairs: 6, title: 'Картинки', thumb: ['cat', 'cat'],
-    hint: () => 'Карточек стало больше. Запоминай, где какая лежит.' },
-  { pairs: 8, title: 'Картинки', thumb: ['star', 'star'],
-    hint: () => 'Не открывай наугад то, что уже видела: вспоминай.' },
-  { pairs: 10, title: 'Картинки', thumb: ['butterfly', 'butterfly'],
-    hint: () => 'Двадцать карточек. Попробуй запоминать по рядам.' },
-  { pairs: 12, title: 'Картинки', thumb: ['panda', 'panda'],
-    hint: () => 'Двенадцать пар. Называй картинки про себя — так легче помнить.' },
-  { pairs: 15, title: 'Картинки', thumb: ['rocket', 'rocket'],
-    hint: () => 'Пятнадцать пар из разных наборов. Нужна отличная память!' },
-  { pairs: 8, shadows: 8, title: 'Тени', thumb: ['cat', '#cat'],
-    hint: () => 'Тени! Пара — это картинка и её тёмная тень.' },
-  { pairs: 10, shadows: 10, title: 'Тени', thumb: ['sea-whale', '#sea-whale'],
-    hint: () => 'Теней стало больше. Смотри на форму, а не на цвет.' },
-  { pairs: 10, theme: 1, title: 'Похожие', thumb: ['holidays-smile', 'holidays-smile-wink'],
-    hint: t => `Все картинки из набора «${t}». Они похожи — смотри внимательно!` },
-  { pairs: 12, theme: 2, title: 'Похожие', thumb: ['fruit-apple', 'fruit-tomato'],
-    hint: t => `Все картинки на одну тему: ${t}. Не перепутай похожие!` },
-  { pairs: 15, shadows: 15, theme: 2, title: 'Похожие тени', thumb: ['#fruit-pear', '#fruit-lemon'],
-    hint: t => `Тени на одну тему: ${t}. Различай их по форме.` },
-  { pairs: 18, shadows: 9, theme: 2, title: 'Всё сразу', thumb: ['magic-crown', '#magic-crown'],
-    hint: () => 'Всё сразу! У одних картинок пара — тень, у других — такая же картинка.' },
+  { pairs: 3, title: N('Картинки'), thumb: ['heart', 'heart'],
+    hint: () => t('Открой две карточки. Одинаковые картинки — это пара!') },
+  { pairs: 6, title: N('Картинки'), thumb: ['cat', 'cat'],
+    hint: () => t('Карточек стало больше. Запоминай, где какая лежит.') },
+  { pairs: 8, title: N('Картинки'), thumb: ['star', 'star'],
+    hint: () => t('Не открывай наугад то, что уже видела: вспоминай.') },
+  { pairs: 10, title: N('Картинки'), thumb: ['butterfly', 'butterfly'],
+    hint: () => t('Двадцать карточек. Попробуй запоминать по рядам.') },
+  { pairs: 12, title: N('Картинки'), thumb: ['panda', 'panda'],
+    hint: () => t('Двенадцать пар. Называй картинки про себя — так легче помнить.') },
+  { pairs: 15, title: N('Картинки'), thumb: ['rocket', 'rocket'],
+    hint: () => t('Пятнадцать пар из разных наборов. Нужна отличная память!') },
+  { pairs: 8, shadows: 8, title: N('Тени'), thumb: ['cat', '#cat'],
+    hint: () => t('Тени! Пара — это картинка и её тёмная тень.') },
+  { pairs: 10, shadows: 10, title: N('Тени'), thumb: ['sea-whale', '#sea-whale'],
+    hint: () => t('Теней стало больше. Смотри на форму, а не на цвет.') },
+  { pairs: 10, theme: 1, title: N('Похожие'), thumb: ['holidays-smile', 'holidays-smile-wink'],
+    hint: a => t('Все картинки из набора «{theme}». Они похожи — смотри внимательно!', { theme: t(a) }) },
+  { pairs: 12, theme: 2, title: N('Похожие'), thumb: ['fruit-apple', 'fruit-tomato'],
+    hint: a => t('Все картинки на одну тему: {theme}. Не перепутай похожие!', { theme: t(a) }) },
+  { pairs: 15, shadows: 15, theme: 2, title: N('Похожие тени'), thumb: ['#fruit-pear', '#fruit-lemon'],
+    hint: a => t('Тени на одну тему: {theme}. Различай их по форме.', { theme: t(a) }) },
+  { pairs: 18, shadows: 9, theme: 2, title: N('Всё сразу'), thumb: ['magic-crown', '#magic-crown'],
+    hint: () => t('Всё сразу! У одних картинок пара — тень, у других — такая же картинка.') },
 ];
 
 // One pack holds 11 pictures, so the big look-alike levels take two packs
 // that belong together.
 const THEMES = [
-  { packs: ['pets', 'wild'], name: 'звери' },
-  { packs: ['food', 'fruit'], name: 'еда' },
-  { packs: ['sea', 'nature'], name: 'море и природа' },
-  { packs: ['magic', 'holidays'], name: 'сказка и праздники' },
-  { packs: ['space', 'things'], name: 'машины и вещи' },
+  { packs: ['pets', 'wild'], name: N('звери') },
+  { packs: ['food', 'fruit'], name: N('еда') },
+  { packs: ['sea', 'nature'], name: N('море и природа') },
+  { packs: ['magic', 'holidays'], name: N('сказка и праздники') },
+  { packs: ['space', 'things'], name: N('машины и вещи') },
 ];
-
-const plural = (n, one, few, many) => {
-  const d = n % 10, t = n % 100;
-  return d === 1 && t !== 11 ? one : d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many;
-};
 
 const LIST = LEVELS.map((L, i) => ({
   key: `pairs:${i + 1}`,
-  name: `${L.pairs} ${plural(L.pairs, 'пара', 'пары', 'пар')}`,
-  sub: L.title,
+  name: plural(L.pairs, '{n} пара|{n} пары|{n} пар'),
+  sub: t(L.title),
   href: `${MENU}/${i + 1}`,
 }));
 
@@ -133,7 +129,7 @@ function deal(L) {
   // Only if the picture sets change a lot: any different pictures will do.
   if (pics.length < L.pairs) { theme = null; pics = draw([PIX], L.pairs, [], () => false); }
   const deck = pics.flatMap((p, i) => [[p, false], [p, i < shadows]]);
-  return { deck: shuffle(deck), about: theme ? theme.name : 'всякая всячина' };
+  return { deck: shuffle(deck), about: theme ? theme.name : N('всякая всячина') };
 }
 
 // Draws a picture with `z` canvas pixels per cell.
@@ -159,8 +155,8 @@ function thumb(L) {
 
 function menu(root) {
   levelScreen(root, {
-    title: 'Пары',
-    hint: 'Найди все пары. Чем меньше ходов, тем больше звёзд!',
+    title: t('Пары'),
+    hint: t('Найди все пары. Чем меньше ходов, тем больше звёзд!'),
     levels: LIST.map((x, i) => ({ ...x, thumb: thumb(LEVELS[i]) })),
   });
 }
@@ -205,17 +201,19 @@ function play(root, n) {
   let penAt = -Infinity;       // when the Pencil last landed
 
   const movesEl = h('b', {}, '0');
+  // The move count sits inside the phrase, wherever the language puts it.
+  const movesLabel = [...t('Ходы: {n}').split('{n}'), ''];
   const say = speaker('…');
   const board = h('div', { class: 'pairs-board' });
   const table = h('div', { class: 'pairs-table' }, board);
   root.append(h('div', { class: 'screen pairs-screen' },
-    topbar(`Пары · уровень ${n}`, {
+    topbar(t('Пары · уровень {n}', { n }), {
       back: MENU,
       right: [
         h('div', { class: 'pairs-chip' },
-          h('span', {}, 'Ходы: ', movesEl),
-          h('small', {}, h('i', {}, '★★★'), ` не больше ${goal.three}`)),
-        btn('ghost', 'Заново', restart),
+          h('span', {}, movesLabel[0], movesEl, movesLabel[1]),
+          h('small', {}, h('i', {}, '★★★'), ' ', t('не больше {n}', { n: goal.three }))),
+        btn('ghost', t('Заново'), restart),
       ],
     }),
     say,
@@ -257,7 +255,8 @@ function play(root, n) {
     card.open = open;
     card.el.classList.toggle('open', open);
     card.el.classList.toggle('shut', !open);
-    card.el.setAttribute('aria-label', open ? (card.shadow ? 'Тень: ' : '') + card.pic.name : CLOSED);
+    card.el.setAttribute('aria-label', !open ? t(CLOSED)
+      : card.shadow ? t('Тень: {name}', { name: t(card.pic.name) }) : t(card.pic.name));
   }
 
   function settle() {
@@ -298,8 +297,8 @@ function play(root, n) {
     const stars = moves <= goal.three ? 3 : moves <= goal.two ? 2 : 1;
     finishLevel({
       levels: LIST, index, stars, menu: MENU,
-      text: `Все пары за ${moves} ${plural(moves, 'ход', 'хода', 'ходов')}. `
-        + (stars === 3 ? 'Вот это память!' : `Для трёх звёзд нужно не больше ${goal.three}.`),
+      text: plural(moves, 'Все пары за {n} ход.|Все пары за {n} хода.|Все пары за {n} ходов.')
+        + ' ' + (stars === 3 ? t('Вот это память!') : t('Для трёх звёзд нужно не больше {n}.', { n: goal.three })),
       again: () => start(),
     });
   }
@@ -328,18 +327,18 @@ function play(root, n) {
       const el = h('button', { class: 'pairs-card' },
         h('span', { class: 'pairs-body' }, h('span', { class: 'pairs-face' }, face)));
       const card = { pic, shadow, el, face, open: false, done: game.found.has(pic.id) };
-      if (card.done) { turn(card, true); el.classList.add('done'); } else el.setAttribute('aria-label', CLOSED);
+      if (card.done) { turn(card, true); el.classList.add('done'); } else el.setAttribute('aria-label', t(CLOSED));
       return card;
     });
     board.replaceChildren(...cards.map(c => c.el));
     layout();
-    say.say(game.found.size ? 'Продолжаем! Найденные пары уже открыты.' : L.hint(about));
+    say.say(game.found.size ? t('Продолжаем! Найденные пары уже открыты.') : L.hint(about));
   }
 
   async function restart() {
     // With the last pair found the finish dialog is on its way; it has «Ещё раз».
     if (!left) return;
-    if (moves && !(await confirmBox('Начать уровень заново? Ходы обнулятся.', 'Заново', 'Нет'))) return;
+    if (moves && !(await confirmBox(t('Начать уровень заново? Ходы обнулятся.'), t('Заново'), t('Нет')))) return;
     if (!alive) return;
     forget();
     start();

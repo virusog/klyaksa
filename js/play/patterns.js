@@ -18,6 +18,7 @@ import { topbar, speaker } from '../ui.js';
 import { db } from '../store.js';
 import { sfx } from '../audio.js';
 import { levelScreen, finishLevel, isOpen } from './kit.js';
+import { t, N } from '../i18n.js';
 
 const MENU = '#/game/patterns';
 const ASKS = 5;   // rows in one level
@@ -213,32 +214,32 @@ const inner = (rnd, n, k) =>
 const LEVELS = [
   // 1–4: one property, a short repeat, one blank at the end.
   {
-    name: 'Раз-два', sub: 'чередование', picks: 4,
-    hint: 'Фигурки идут по правилу. Какая будет дальше? Нажми на неё внизу.',
+    name: N('Раз-два'), sub: N('чередование'), picks: 4,
+    hint: N('Фигурки идут по правилу. Какая будет дальше? Нажми на неё внизу.'),
     make: (r, q) => {
       const n = 6 + (q % 2);
       return { rule: { [q % 2 ? 'color' : 'shape']: 'AB' }, n, holes: tail(n, 1) };
     },
   },
   {
-    name: 'По кругу', sub: 'три по очереди', picks: 4,
-    hint: 'Теперь по кругу идут три фигурки. Кто следующий?',
+    name: N('По кругу'), sub: N('три по очереди'), picks: 4,
+    hint: N('Теперь по кругу идут три фигурки. Кто следующий?'),
     make: (r, q) => {
       const n = any(r, [7, 8, 9]);
       return { rule: { [q % 2 ? 'shape' : 'color']: 'ABC' }, n, holes: tail(n, 1) };
     },
   },
   {
-    name: 'Двойняшки', sub: 'двое подряд', picks: 4,
-    hint: 'Смотри внимательно: кое-кто стоит два раза подряд.',
+    name: N('Двойняшки'), sub: N('двое подряд'), picks: 4,
+    hint: N('Смотри внимательно: кое-кто стоит два раза подряд.'),
     make: (r, q) => {
       const n = any(r, [7, 8, 9]);
       return { rule: { [['shape', 'color', 'size'][q % 3]]: any(r, ['AAB', 'ABB']) }, n, holes: tail(n, 1) };
     },
   },
   {
-    name: 'Новые признаки', sub: 'размер, поворот, счёт', picks: 4,
-    hint: 'Меняться может не только форма: ещё размер, поворот и число фигурок.',
+    name: N('Новые признаки'), sub: N('размер, поворот, счёт'), picks: 4,
+    hint: N('Меняться может не только форма: ещё размер, поворот и число фигурок.'),
     make: (r, q) => {
       const n = any(r, [7, 8, 9]);
       return { rule: { [STEP[q % 3]]: any(r, ['AB', ...P3]) }, n, holes: tail(n, 1) };
@@ -247,32 +248,32 @@ const LEVELS = [
 
   // 5–8: a repeat of four, two blanks at the end.
   {
-    name: 'Парами', sub: 'два пропуска', picks: 4,
-    hint: 'Правило стало длиннее, а пропусков два. Заполняй их по порядку.',
+    name: N('Парами'), sub: N('два пропуска'), picks: 4,
+    hint: N('Правило стало длиннее, а пропусков два. Заполняй их по порядку.'),
     make: (r, q) => {
       const n = any(r, [8, 9, 10]);
       return { rule: { [q % 2 ? 'color' : 'shape']: 'AABB' }, n, holes: tail(n, 2) };
     },
   },
   {
-    name: 'Зеркало', sub: 'туда и обратно', picks: 4,
-    hint: 'Узор как в зеркале: туда и обратно.',
+    name: N('Зеркало'), sub: N('туда и обратно'), picks: 4,
+    hint: N('Узор как в зеркале: туда и обратно.'),
     make: (r, q) => {
       const n = any(r, [8, 9, 10]);
       return { rule: { [q % 2 ? 'shape' : 'color']: 'ABBA' }, n, holes: tail(n, 2) };
     },
   },
   {
-    name: 'С возвратом', sub: 'правило из четырёх', picks: 4,
-    hint: 'В правиле четыре шага, и кто-то в нём встречается дважды.',
+    name: N('С возвратом'), sub: N('правило из четырёх'), picks: 4,
+    hint: N('В правиле четыре шага, и кто-то в нём встречается дважды.'),
     make: (r, q) => {
       const n = any(r, [8, 9, 10]);
       return { rule: { [q % 2 ? 'color' : 'shape']: any(r, ['ABCB', 'AABC']) }, n, holes: tail(n, 2) };
     },
   },
   {
-    name: 'Длинный узор', sub: 'хитрые признаки', picks: 4,
-    hint: 'Длинное правило, а меняется размер, поворот или число. Не спеши.',
+    name: N('Длинный узор'), sub: N('хитрые признаки'), picks: 4,
+    hint: N('Длинное правило, а меняется размер, поворот или число. Не спеши.'),
     make: (r, q) => {
       const n = any(r, [8, 9, 10]);
       const prop = ['size', 'count', 'turn', 'color', 'shape'][q];
@@ -282,39 +283,39 @@ const LEVELS = [
 
   // 9–12: two properties with different repeats; six choices from here on.
   {
-    name: 'Форма и цвет', sub: 'два правила сразу', picks: 6,
-    hint: 'Теперь меняются и форма, и цвет — каждый по своему правилу.',
+    name: N('Форма и цвет'), sub: N('два правила сразу'), picks: 6,
+    hint: N('Теперь меняются и форма, и цвет — каждый по своему правилу.'),
     make: (r, q) => {
       const n = 8 + (q % 2);
       return { rule: { shape: 'AB', color: 'ABC' }, n, holes: tail(n, 1) };
     },
   },
   {
-    name: 'Два правила', sub: 'разные признаки', picks: 6,
-    hint: 'Два правила сразу. Разгадай сначала одно, потом другое.',
+    name: N('Два правила'), sub: N('разные признаки'), picks: 6,
+    hint: N('Два правила сразу. Разгадай сначала одно, потом другое.'),
     make: (r, q) => {
       const n = any(r, [8, 9]);
       return { rule: { [DUOS[q][0]]: 'AB', [DUOS[q][1]]: any(r, P3) }, n, holes: tail(n, 1) };
     },
   },
   {
-    name: 'Два и два', sub: 'по два пропуска', picks: 6,
-    hint: 'Два правила и два пропуска. Проверь оба правила для каждого.',
+    name: N('Два и два'), sub: N('по два пропуска'), picks: 6,
+    hint: N('Два правила и два пропуска. Проверь оба правила для каждого.'),
     make: (r, q) => {
       const n = any(r, [9, 10]);
       return { rule: { [DUOS[q][0]]: 'AB', [DUOS[q][1]]: any(r, P3) }, n, holes: tail(n, 2) };
     },
   },
   {
-    name: 'Три и четыре', sub: 'длинные правила', picks: 6,
-    hint: 'Одно правило из трёх шагов, другое из четырёх. Следи за каждым отдельно.',
+    name: N('Три и четыре'), sub: N('длинные правила'), picks: 6,
+    hint: N('Одно правило из трёх шагов, другое из четырёх. Следи за каждым отдельно.'),
     make: (r, q) => ({ rule: { [DUOS[q][0]]: any(r, P3), [DUOS[q][1]]: any(r, P4) }, n: 10, holes: tail(10, 2) }),
   },
 
   // 13–16: rules that go by steps: more, bigger, a quarter turn.
   {
-    name: 'Шаг за шагом', sub: 'растёт и вертится', picks: 6,
-    hint: 'Фигурки растут, множатся или вертятся шаг за шагом. Что будет дальше?',
+    name: N('Шаг за шагом'), sub: N('растёт и вертится'), picks: 6,
+    hint: N('Фигурки растут, множатся или вертятся шаг за шагом. Что будет дальше?'),
     make: (r, q) => {
       const p = STEP[q % 3];
       // The first three rows start from the beginning: one, small, upright.
@@ -324,8 +325,8 @@ const LEVELS = [
     },
   },
   {
-    name: 'Шаг и цвет', sub: 'рост и цветной круг', picks: 6,
-    hint: 'Фигурки меняются по шагам, а цвет идёт по своему кругу.',
+    name: N('Шаг и цвет'), sub: N('рост и цветной круг'), picks: 6,
+    hint: N('Фигурки меняются по шагам, а цвет идёт по своему кругу.'),
     make: (r, q) => {
       const p = STEP[q % 3];
       const n = any(r, [8, 9]);
@@ -333,16 +334,16 @@ const LEVELS = [
     },
   },
   {
-    name: 'Задом наперёд', sub: 'убывает и вертится', picks: 6,
-    hint: 'А теперь наоборот: фигурки убывают и крутятся в другую сторону.',
+    name: N('Задом наперёд'), sub: N('убывает и вертится'), picks: 6,
+    hint: N('А теперь наоборот: фигурки убывают и крутятся в другую сторону.'),
     make: (r, q) => {
       const p = STEP[q % 3];
       return { rule: { [p]: spin(r, BACK[p]), color: any(r, ['ABC', 'AAB']) }, n: 9, holes: tail(9, 2) };
     },
   },
   {
-    name: 'Туда-сюда', sub: 'дошли и назад', picks: 6,
-    hint: 'Туда и обратно: дошли до края — и назад.',
+    name: N('Туда-сюда'), sub: N('дошли и назад'), picks: 6,
+    hint: N('Туда и обратно: дошли до края — и назад.'),
     make: (r, q) => {
       const p = STEP[q % 3];
       // The fourth row counts all the way to four and back: a repeat of six.
@@ -353,21 +354,21 @@ const LEVELS = [
 
   // 17–20: blanks inside the row, then three properties, then three blanks.
   {
-    name: 'Дырки в ряду', sub: 'пропуски в середине', picks: 6,
-    hint: 'Пропуски теперь в середине, а правил два, и оба длинные. Смотри и влево, и вправо.',
+    name: N('Дырки в ряду'), sub: N('пропуски в середине'), picks: 6,
+    hint: N('Пропуски теперь в середине, а правил два, и оба длинные. Смотри и влево, и вправо.'),
     make: (r, q) => ({ rule: { [DUOS[q][0]]: any(r, P3), [DUOS[q][1]]: any(r, P4) }, n: 10, holes: inner(r, 10, 2) }),
   },
   {
-    name: 'Три правила', sub: 'форма, цвет и ещё', picks: 6,
-    hint: 'Три правила сразу: форма, цвет и ещё размер или число.',
+    name: N('Три правила'), sub: N('форма, цвет и ещё'), picks: 6,
+    hint: N('Три правила сразу: форма, цвет и ещё размер или число.'),
     make: (r, q) => {
       const rule = { shape: 'AB', color: any(r, ['ABC', 'AAB']), [q % 2 ? 'count' : 'size']: any(r, ['ABB', 'AABB', 'ABBA']) };
       return { rule, n: 10, holes: [...inner(r, 10, 1), 9] };
     },
   },
   {
-    name: 'Три с шагом', sub: 'рост или поворот', picks: 6,
-    hint: 'Три правила, и одно из них идёт по шагам: растёт или вертится.',
+    name: N('Три с шагом'), sub: N('рост или поворот'), picks: 6,
+    hint: N('Три правила, и одно из них идёт по шагам: растёт или вертится.'),
     make: (r, q) => {
       const p = STEP[q % 3];
       // Sizes repeat after three, so the colours there get a repeat of four.
@@ -376,8 +377,8 @@ const LEVELS = [
     },
   },
   {
-    name: 'Мастер рядов', sub: 'три пропуска', picks: 6,
-    hint: 'Самые хитрые ряды: три правила и три пропуска. Проверяй каждое правило отдельно.',
+    name: N('Мастер рядов'), sub: N('три пропуска'), picks: 6,
+    hint: N('Самые хитрые ряды: три правила и три пропуска. Проверяй каждое правило отдельно.'),
     make: (r, q) => {
       const p = STEP[q % 3];
       const rule = { shape: any(r, ['AAB', 'ABBA']), color: any(r, ['ABC', 'ABCB']), [p]: spin(r, q % 2 ? SWING[p] : BACK[p]) };
@@ -388,20 +389,20 @@ const LEVELS = [
 
   // 21–24: the square.
   {
-    name: 'Квадрат', sub: 'одна пустая клетка', picks: 6, square: ['shape', 'color'], gaps: 1,
-    hint: 'В каждом ряду и в каждом столбике каждая форма и каждый цвет — по одному разу. Чего не хватает?',
+    name: N('Квадрат'), sub: N('одна пустая клетка'), picks: 6, square: ['shape', 'color'], gaps: 1,
+    hint: N('В каждом ряду и в каждом столбике каждая форма и каждый цвет — по одному разу. Чего не хватает?'),
   },
   {
-    name: 'Ещё и размер', sub: 'три признака', picks: 6, square: ['shape', 'color', 'size'], gaps: 1,
-    hint: 'Теперь и размеры: большая, средняя и маленькая — по одной в каждом ряду и столбике.',
+    name: N('Ещё и размер'), sub: N('три признака'), picks: 6, square: ['shape', 'color', 'size'], gaps: 1,
+    hint: N('Теперь и размеры: большая, средняя и маленькая — по одной в каждом ряду и столбике.'),
   },
   {
-    name: 'Две клетки', sub: 'обе на одной линии', picks: 6, square: ['shape', 'color'], gaps: 2,
-    hint: 'Пустых клеток две, и обе на одной линии. Одной линии мало: проверяй и ряд, и столбик!',
+    name: N('Две клетки'), sub: N('обе на одной линии'), picks: 6, square: ['shape', 'color'], gaps: 2,
+    hint: N('Пустых клеток две, и обе на одной линии. Одной линии мало: проверяй и ряд, и столбик!'),
   },
   {
-    name: 'Суперквадрат', sub: 'всё сразу', picks: 6, square: ['shape', 'color', 'size'], gaps: 2,
-    hint: 'Две пустые клетки, а признаков три: форма, цвет и размер. Проверяй и ряд, и столбик!',
+    name: N('Суперквадрат'), sub: N('всё сразу'), picks: 6, square: ['shape', 'color', 'size'], gaps: 2,
+    hint: N('Две пустые клетки, а признаков три: форма, цвет и размер. Проверяй и ряд, и столбик!'),
   },
 ];
 
@@ -440,33 +441,33 @@ export function makeQuiz(n, seed) {
 function thumb(n) {
   const made = question(LEVELS[n - 1], mulberry(n), 0);
   const gap = () => h('i', {}, '?');
-  if (!made.square) return h('span', { class: 'patterns-thumb' }, made.cells.slice(0, 3).map(figure), gap());
-  return h('span', { class: 'patterns-thumb patterns-thumb-sq' },
+  if (!made.square) return h('span', { class: 'patterns-thumb', dir: 'ltr' }, made.cells.slice(0, 3).map(figure), gap());
+  return h('span', { class: 'patterns-thumb patterns-thumb-sq', dir: 'ltr' },
     made.cells.map((f, i) => (made.holes.includes(i) ? gap() : figure(f))));
 }
 
 function menu(root) {
   levelScreen(root, {
-    title: 'Продолжи узор',
-    hint: 'Разгадай правило и заполни пропуски. Без ошибок — три звезды!',
-    levels: LIST.map((x, i) => ({ ...x, thumb: thumb(i + 1) })),
+    title: t('Продолжи узор'),
+    hint: t('Разгадай правило и заполни пропуски. Без ошибок — три звезды!'),
+    levels: LIST.map((x, i) => ({ ...x, name: t(x.name), sub: t(x.sub), thumb: thumb(i + 1) })),
   });
 }
 
 // What to look at again, by the first property she got wrong.
 const WHY = {
-  shape: 'Не совсем. Присмотрись к форме.',
-  color: 'Не совсем. Проследи за цветом.',
-  size: 'Не совсем. Сравни размеры.',
-  turn: 'Не совсем. Посмотри, куда повёрнута фигурка.',
-  count: 'Не совсем. Сосчитай фигурки.',
+  shape: N('Не совсем. Присмотрись к форме.'),
+  color: N('Не совсем. Проследи за цветом.'),
+  size: N('Не совсем. Сравни размеры.'),
+  turn: N('Не совсем. Посмотри, куда повёрнута фигурка.'),
+  count: N('Не совсем. Сосчитай фигурки.'),
 };
 const WHY_SQUARE = {
-  shape: 'Не совсем. Проверь формы и в ряду, и в столбике.',
-  color: 'Не совсем. Проверь цвета и в ряду, и в столбике.',
-  size: 'Не совсем. Проверь размеры и в ряду, и в столбике.',
+  shape: N('Не совсем. Проверь формы и в ряду, и в столбике.'),
+  color: N('Не совсем. Проверь цвета и в ряду, и в столбике.'),
+  size: N('Не совсем. Проверь размеры и в ряду, и в столбике.'),
 };
-const PRAISE = ['Верно!', 'Точно!', 'Так и есть!', 'Отлично!', 'Умница!'];
+const PRAISE = [N('Верно!'), N('Точно!'), N('Так и есть!'), N('Отлично!'), N('Умница!')];
 
 function play(root, n) {
   const index = n - 1;
@@ -489,11 +490,12 @@ function play(root, n) {
   const board = h('div', { class: L.square ? 'patterns-square' : 'patterns-row' });
   const tray = h('div', { class: 'patterns-tray' });
   // The desk sizes a cell from the number of cells in a line (--n) and the
-  // number of choices (--k), and the choices take the very same size.
-  const desk = h('div', { class: `patterns-desk ${L.square ? 'patterns-desk-sq' : ''}` }, board, tray);
+  // number of choices (--k), and the choices take the very same size. Rows
+  // read left to right in every language.
+  const desk = h('div', { class: `patterns-desk ${L.square ? 'patterns-desk-sq' : ''}`, dir: 'ltr' }, board, tray);
   desk.style.setProperty('--k', L.picks);
   root.append(h('div', { class: 'screen patterns-screen' },
-    topbar(`Узор · уровень ${n}`, { back: MENU, right: [dots] }),
+    topbar(t('Узор · уровень {n}', { n }), { back: MENU, right: [dots] }),
     say, h('div', { class: 'patterns-stage' }, desk),
   ));
 
@@ -515,7 +517,7 @@ function play(root, n) {
     calm = performance.now() + 450;
     cellEls[Q.holes[filled]].classList.add('patterns-now');
     tray.replaceChildren(...Q.sets[filled].map((f, i) => {
-      const b = h('button', { class: 'patterns-pick', 'aria-label': `Вариант ${i + 1}` }, figure(f));
+      const b = h('button', { class: 'patterns-pick', 'aria-label': t('Вариант {n}', { n: i + 1 }) }, figure(f));
       b.onclick = () => pick(i, b);
       if (dead.has(i)) { b.disabled = true; b.classList.add('patterns-off'); }
       return b;
@@ -548,7 +550,7 @@ function play(root, n) {
       b.disabled = true;
       b.classList.add('patterns-off', 'patterns-no');
       sfx.soft();
-      say.say((L.square ? WHY_SQUARE : WHY)[PROPS.find(p => f[p] !== right[p])]);
+      say.say(t((L.square ? WHY_SQUARE : WHY)[PROPS.find(p => f[p] !== right[p])]));
       store();
       return;
     }
@@ -559,7 +561,7 @@ function play(root, n) {
     filled++;
     dead = new Set();
     if (filled < Q.holes.length) {
-      say.say('Верно! Теперь следующий пропуск.');
+      say.say(t('Верно! Теперь следующий пропуск.'));
       offer();
       store();
       return;
@@ -567,7 +569,7 @@ function play(root, n) {
     waiting = true;
     b.classList.add('patterns-yes');
     for (const x of tray.children) x.disabled = true;
-    say.say(PRAISE[at]);
+    say.say(t(PRAISE[at]));
     if (at === quiz.length - 1) {
       // The last blank is not stored: if she leaves during this pause, she
       // comes back to one blank left instead of losing the level.
@@ -579,8 +581,8 @@ function play(root, n) {
     store();
     timer = setTimeout(() => {
       say.say(L.square
-        ? 'Следующий квадрат. В каждом ряду и столбике всё по одному разу.'
-        : 'Следующий ряд. Какое тут правило?');
+        ? t('Следующий квадрат. В каждом ряду и столбике всё по одному разу.')
+        : t('Следующий ряд. Какое тут правило?'));
       show();
     }, 1000);
   }
@@ -591,8 +593,8 @@ function play(root, n) {
     finishLevel({
       levels: LIST, index, stars, menu: MENU,
       text: mistakes === 0
-        ? 'Все правила разгаданы без единой ошибки!'
-        : `Все узоры собраны. Ошибок: ${mistakes}. Три звезды дают за игру без ошибок.`,
+        ? t('Все правила разгаданы без единой ошибки!')
+        : t('Все узоры собраны. Ошибок: {n}. Три звезды дают за игру без ошибок.', { n: mistakes }),
       again: () => start(),
     });
   }
@@ -611,7 +613,7 @@ function play(root, n) {
     dead = new Set(ok && Array.isArray(saved.dead)
       ? saved.dead.filter(i => Q.sets[filled][i] && !isRight(Q, Q.sets[filled][i]))
       : []);
-    say.say(at || filled || mistakes ? `Продолжаем! Узор ${at + 1} из ${ASKS}.` : L.hint);
+    say.say(at || filled || mistakes ? t('Продолжаем! Узор {a} из {b}.', { a: at + 1, b: ASKS }) : t(L.hint));
     show();
   }
 

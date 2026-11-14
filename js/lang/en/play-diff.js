@@ -1,1 +1,26 @@
-export default {};
+export default {
+  "Нажимай на любую из картинок.": "You can tap on either picture.",
+  "Что-то могло и пропасть!": "Something might be missing, too!",
+  "Теперь они мельче.": "Now they're smaller.",
+  "Цвет мог измениться совсем чуть-чуть.": "A colour might have changed just a tiny bit.",
+  "Они крошечные. Не спеши!": "They're tiny. Take your time!",
+  "{n} отличие|{n} отличия|{n} отличий": "{n} difference|{n} differences",
+  "Готовлю картинки…": "Getting the pictures ready…",
+  "Найдено {a} из {b}": "Found {a} of {b}",
+  "Промахи: {n}": "Misses: {n}",
+  "Все отличия найдены!": "You found all the differences!",
+  "С подсказкой выходит две звезды. В следующий раз попробуй сама!": "With a hint, you get two stars. Next time, try it on your own!",
+  "Ни одного промаха. Вот это глаз!": "Not a single miss. What sharp eyes!",
+  "Все отличия найдены. Промахов: {n}. Чем их меньше, тем больше звёзд.": "You found them all! Misses: {n}. Fewer misses means more stars.",
+  "Найди {n} отличие ещё раз!|Найди {n} отличия ещё раз!|Найди {n} отличий ещё раз!": "Find the {n} difference again!|Find the {n} differences again!",
+  "Верно! Осталось одно.": "Right! Just one more to go.",
+  "Верно! Осталось {n}.": "Right! {n} more to go.",
+  "Здесь всё одинаково. Сравни внимательнее.": "That spot is the same in both. Look more closely.",
+  "Показать одно отличие? Тогда за уровень будет не больше двух звёзд.": "Show one difference? Then you can get two stars at most for this level.",
+  "Сама найду": "I'll find it myself",
+  "Смотри, где мигает!": "Look at the blinking spot!",
+  "Найди отличия: уровень {n}": "Spot the Difference: level {n}",
+  "Продолжаем! Осталось найти: {n}.": "Let's keep going! {n} more to find.",
+  "Найди {n} отличие. {tip}|Найди {n} отличия. {tip}|Найди {n} отличий. {tip}": "Find {n} difference. {tip}|Find {n} differences. {tip}",
+  "Две картинки почти одинаковые. Найди всё, чем они отличаются!": "The two pictures are almost the same. Find everything that's different!"
+};

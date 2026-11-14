@@ -4,20 +4,21 @@ import { Painter, replay } from './painter.js';
 import { db } from './store.js';
 import { topbar, btn, icon, iconBtn, confirmBox, shareBlob, mascot, toast } from './ui.js';
 import { HABITATS, makeCreature } from './world.js';
+import { t } from './i18n.js';
 
 export async function gallery(root) {
   const items = (await db.all('art')).filter(it => it.thumb).sort((a, b) => (b.updated || 0) - (a.updated || 0));
   const grid = h('div', { class: 'wall' });
   items.forEach((it, i) => {
     grid.append(h('a', { class: 'frame', href: it.kind === 'anim' ? `#/game/anim/${it.id}` : `#/art/${it.id}`, style: { '--r': `${((i * 37) % 7) - 3}deg` } },
-      h('img', { src: URL.createObjectURL(it.thumb), alt: it.title }),
-      h('span', {}, it.title),
+      h('img', { src: URL.createObjectURL(it.thumb), alt: t(it.title) }),
+      h('span', {}, t(it.title)),
     ));
   });
   root.append(h('div', { class: 'screen scroll gallery' },
-    topbar('Моя галерея'),
-    items.length ? grid : h('div', { class: 'empty' }, mascot('wow'), h('p', {}, 'Тут будут висеть твои картины. Начнём с первой?'),
-      h('a', { class: 'btn primary', href: '#/studio/new' }, 'Рисовать')),
+    topbar(t('Моя галерея')),
+    items.length ? grid : h('div', { class: 'empty' }, mascot('wow'), h('p', {}, t('Тут будут висеть твои картины. Начнём с первой?')),
+      h('a', { class: 'btn primary', href: '#/studio/new' }, t('Рисовать'))),
   ));
 }
 
@@ -34,16 +35,16 @@ function worldChooser(rec) {
   const o = h('div', { class: 'modal-back' },
     h('div', { class: 'modal' },
       mascot('joy'),
-      h('p', {}, 'Куда выпустить?'),
+      h('p', {}, t('Куда выпустить?')),
       h('div', { class: 'row wrap' },
-        Object.entries(HABITATS).map(([k, v]) => btn('primary', v.name, async () => {
+        Object.entries(HABITATS).map(([k, v]) => btn('primary', t(v.name), async () => {
           o.remove();
           const c = await flatLayers(rec);
           const made = await makeCreature(c, k);
           if (made) location.hash = `#/world/${k}`;
-          else toast('Тут пока нечего оживлять');
+          else toast(t('Тут пока нечего оживлять'));
         })),
-        btn('ghost', 'Отмена', () => o.remove()),
+        btn('ghost', t('Отмена'), () => o.remove()),
       ),
     ),
   );
@@ -62,7 +63,7 @@ export async function artView(root, id, action) {
   const showStill = () => {
     stageEl.textContent = '';
     stageEl.classList.remove('stage');
-    stageEl.append(h('img', { src: URL.createObjectURL(rec.full), class: 'art-full', alt: rec.title }));
+    stageEl.append(h('img', { src: URL.createObjectURL(rec.full), class: 'art-full', alt: t(rec.title) }));
   };
 
   function play() {
@@ -75,12 +76,12 @@ export async function artView(root, id, action) {
   }
 
   const actions = [
-    hasLog && btn('accent', [icon('film', 22), ' Как я рисовала'], play),
-    rec.data && rec.kind === 'studio' && h('a', { class: 'btn ghost', href: `#/studio/${rec.id}` }, icon('brush', 22), ' Дорисовать'),
-    rec.data && h('button', { class: 'btn ghost', onclick: () => worldChooser(rec) }, icon('fish', 22), ' Оживить'),
-    btn('ghost', [icon('share', 22), ' В Фото'], () => shareBlob(rec.full, `${rec.title}.png`)),
-    iconBtn('trash', 'Удалить', async () => {
-      if (await confirmBox('Удалить эту картину навсегда?', 'Удалить', 'Оставить')) {
+    hasLog && btn('accent', [icon('film', 22), ' ', t('Как я рисовала')], play),
+    rec.data && rec.kind === 'studio' && h('a', { class: 'btn ghost', href: `#/studio/${rec.id}` }, icon('brush', 22), ' ', t('Дорисовать')),
+    rec.data && h('button', { class: 'btn ghost', onclick: () => worldChooser(rec) }, icon('fish', 22), ' ', t('Оживить')),
+    btn('ghost', [icon('share', 22), ' ', t('В Фото')], () => shareBlob(rec.full, `${t(rec.title)}.png`)),
+    iconBtn('trash', t('Удалить'), async () => {
+      if (await confirmBox(t('Удалить эту картину навсегда?'), t('Удалить'), t('Оставить'))) {
         await db.del('art', id);
         location.hash = '#/gallery';
       }
@@ -88,7 +89,7 @@ export async function artView(root, id, action) {
   ];
 
   root.append(h('div', { class: 'screen art-view' },
-    topbar(rec.title, { back: '#/gallery' }),
+    topbar(t(rec.title), { back: '#/gallery' }),
     stageEl,
     h('footer', { class: 'art-actions' }, actions),
   ));

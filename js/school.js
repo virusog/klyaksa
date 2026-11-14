@@ -6,11 +6,12 @@ import { state, award, db } from './store.js';
 import { topbar, btn, iconBtn, starBadge, celebrate, speaker, brushRail, paletteBar, sizeSlider, autosaver, safeSave, confirmBox } from './ui.js';
 import { saveArt } from './studio.js';
 import { sfx } from './audio.js';
+import { t, N } from './i18n.js';
 
 const MODES = [
-  { id: 'trace', name: 'Обведи', hint: 'Рисуй по подсказке' },
-  { id: 'copy', name: 'Повтори', hint: 'Смотри и рисуй рядом' },
-  { id: 'memory', name: 'Сама', hint: 'Запомни и нарисуй' },
+  { id: 'trace', name: N('Обведи'), hint: N('Рисуй по подсказке') },
+  { id: 'copy', name: N('Повтори'), hint: N('Смотри и рисуй рядом') },
+  { id: 'memory', name: N('Сама'), hint: N('Запомни и нарисуй') },
 ];
 
 const key = (id, m) => `lesson:${id}:${m}`;
@@ -19,19 +20,19 @@ const modeStars = (id, m) => state.best[key(id, m)] || 0;
 export function school(root) {
   const nextId = CHAPTERS.flatMap(c => c.lessons).find(l => !modeStars(l.id, 'trace'))?.id;
   root.append(h('div', { class: 'screen scroll school' },
-    topbar('Школа рисования', { right: [starBadge()] }),
+    topbar(t('Школа рисования'), { right: [starBadge()] }),
     CHAPTERS.map((ch, n) => h('section', { class: 'chapter', style: { '--ch': ch.color } },
       h('div', { class: 'chapter-head' },
         h('span', { class: 'chapter-n' }, String(n + 1)),
-        h('div', {}, h('h2', {}, ch.title), h('p', {}, ch.about)),
+        h('div', {}, h('h2', {}, t(ch.title)), h('p', {}, t(ch.about))),
       ),
       h('div', { class: 'lesson-grid' }, ch.lessons.map(l => {
         const done = MODES.reduce((s, m) => s + modeStars(l.id, m.id), 0);
         return h('a', { class: `lesson-card ${l.id === nextId ? 'next' : ''}`, href: `#/lesson/${l.id}` },
           outlineSvg(allPaths(l), { sw: 11 }),
-          h('b', {}, l.title),
-          h('span', { class: 'mini-stars' }, `${done > 0 ? '★'.repeat(Math.min(done, 9)) : 'Начать'}`),
-          l.id === nextId && h('em', { class: 'tag' }, 'Сюда!'),
+          h('b', {}, t(l.title)),
+          h('span', { class: 'mini-stars' }, done > 0 ? '★'.repeat(Math.min(done, 9)) : t('Начать')),
+          l.id === nextId && h('em', { class: 'tag' }, t('Сюда!')),
         );
       })),
     )),
@@ -41,15 +42,15 @@ export function school(root) {
 export function lessonIntro(root, id) {
   const L = lessonById(id);
   root.append(h('div', { class: 'screen scroll intro' },
-    topbar(L.title, { back: '#/school', right: [starBadge()] }),
+    topbar(t(L.title), { back: '#/school', right: [starBadge()] }),
     h('div', { class: 'intro-body' },
       h('div', { class: 'intro-art' }, outlineSvg(allPaths(L))),
       h('div', { class: 'mode-list' },
-        h('p', { class: 'lead' }, 'Один рисунок, три шага. С каждым разом подсказок меньше, а рука умнее.'),
+        h('p', { class: 'lead' }, t('Один рисунок, три шага. С каждым разом подсказок меньше, а рука умнее.')),
         MODES.filter(m => !(L.noCopy && m.id !== 'trace')).map((m, i) =>
           h('a', { class: `mode-card m${i}`, href: `#/lesson/${id}/${m.id}` },
             h('span', { class: 'mode-n' }, String(i + 1)),
-            h('div', {}, h('b', {}, m.name), h('small', {}, m.hint)),
+            h('div', {}, h('b', {}, t(m.name)), h('small', {}, t(m.hint))),
             h('span', { class: 'mode-stars' }, '★'.repeat(modeStars(id, m.id)) + '☆'.repeat(3 - modeStars(id, m.id))),
           )),
       ),
@@ -84,7 +85,7 @@ function animatePaths(svg, indices, { speed = 0.9 } = {}) {
 export function lessonPlay(root, id, mode) {
   const L = lessonById(id);
   const steps = mode === 'memory'
-    ? [{ t: 'Рисуй по памяти! Если совсем забыла, нажми «Подсмотреть».', p: allPaths(L) }]
+    ? [{ t: N('Рисуй по памяти! Если совсем забыла, нажми «Подсмотреть».'), p: allPaths(L) }]
     : L.steps;
   const SCALE = 1.2;
   let i = 0;
@@ -110,18 +111,18 @@ export function lessonPlay(root, id, mode) {
   const refCard = h('div', { class: 'ref-card' });
   const voice = speaker('');
   const dots = h('div', { class: 'step-dots' }, steps.map(() => h('i')));
-  const undoBtn = iconBtn('undo', 'Отменить', () => p.undo());
-  const eraserBtn = iconBtn('eraser', 'Ластик', () => {
+  const undoBtn = iconBtn('undo', t('Отменить'), () => p.undo());
+  const eraserBtn = iconBtn('eraser', t('Ластик'), () => {
     const on = p.brushId !== 'eraser';
     p.setBrush(on ? 'eraser' : 'pencil');
     p.size = on ? 40 : 9;
     eraserBtn.classList.toggle('on', on);
   });
-  const showBtn = iconBtn('play', 'Показать ещё раз', () => showStep(true));
-  const peekBtn = btn('ghost', 'Подсмотреть', peek);
-  const nextBtn = btn('primary', 'Дальше', next);
-  const restartBtn = iconBtn('trash', 'Начать заново', async () => {
-    if (!(await confirmBox('Начать этот рисунок заново?', 'Заново', 'Нет'))) return;
+  const showBtn = iconBtn('play', t('Показать ещё раз'), () => showStep(true));
+  const peekBtn = btn('ghost', t('Подсмотреть'), peek);
+  const nextBtn = btn('primary', t('Дальше'), next);
+  const restartBtn = iconBtn('trash', t('Начать заново'), async () => {
+    if (!(await confirmBox(t('Начать этот рисунок заново?'), t('Заново'), t('Нет')))) return;
     saver.stop();
     await saver.flush().catch(() => {});
     finished = true;
@@ -134,7 +135,7 @@ export function lessonPlay(root, id, mode) {
 
   const bodyEl = h('div', { class: 'lesson-body' }, mode !== 'trace' && refCard, stageEl);
   root.append(h('div', { class: `screen lesson mode-${mode}` },
-    topbar(L.title, { back: `#/lesson/${id}`, right: [restartBtn, dots] }),
+    topbar(t(L.title), { back: `#/lesson/${id}`, right: [restartBtn, dots] }),
     bodyEl,
     colorTools,
     foot,
@@ -148,7 +149,7 @@ export function lessonPlay(root, id, mode) {
       d.classList.toggle('on', n === i);
       d.classList.toggle('done', n < i);
     });
-    if (!replayAnim) { voice.say(s.t); stepLog = p.log.length; }
+    if (!replayAnim) { voice.say(t(s.t)); stepLog = p.log.length; }
 
     if (mode === 'trace') {
       guide.textContent = '';
@@ -176,7 +177,7 @@ export function lessonPlay(root, id, mode) {
     p.enabled = false;
     nextBtn.disabled = true;
     peekBtn.disabled = true;
-    voice.say('Смотри внимательно! Запоминай формы, потом картинка спрячется.');
+    voice.say(t('Смотри внимательно! Запоминай формы, потом картинка спрячется.'));
     for (let n = 8; n > 0; n--) {
       if (closed) return;
       ring.textContent = String(n);
@@ -184,11 +185,11 @@ export function lessonPlay(root, id, mode) {
     }
     if (closed) return;
     refCard.textContent = '';
-    refCard.append(h('div', { class: 'ref-hidden' }, 'Спряталось!'));
+    refCard.append(h('div', { class: 'ref-hidden' }, t('Спряталось!')));
     p.enabled = true;
     nextBtn.disabled = false;
     peekBtn.disabled = false;
-    voice.say(steps[0].t);
+    voice.say(t(steps[0].t));
     stepLog = p.log.length;
   }
 
@@ -198,7 +199,7 @@ export function lessonPlay(root, id, mode) {
     await sleep(2000);
     if (closed) return;
     refCard.textContent = '';
-    refCard.append(h('div', { class: 'ref-hidden' }, 'Спряталось!'));
+    refCard.append(h('div', { class: 'ref-hidden' }, t('Спряталось!')));
   }
 
   function next() {
@@ -206,7 +207,7 @@ export function lessonPlay(root, id, mode) {
     const ink = inkPoints(p.log, stepLog, SCALE);
     if (!ink.length && !warned) {
       warned = true;
-      voice.say('Попробуй хотя бы линию! Ошибиться тут нельзя.');
+      voice.say(t('Попробуй хотя бы линию! Ошибиться тут нельзя.'));
       sfx.soft();
       return;
     }
@@ -235,7 +236,7 @@ export function lessonPlay(root, id, mode) {
     guide.style.display = 'none';
     refCard.remove();
     [...dots.children].forEach(d => d.classList.add('done'));
-    voice.say('Рисунок готов! Теперь раскрась. Цвет ложится под линии.');
+    voice.say(t('Рисунок готов! Теперь раскрась. Цвет ложится под линии.'));
     p.active = 0;
     p.setBrush('marker');
     p.size = 30;
@@ -243,11 +244,11 @@ export function lessonPlay(root, id, mode) {
     eraserBtn.style.display = 'none';
     showBtn.style.display = 'none';
     peekBtn.style.display = 'none';
-    nextBtn.textContent = 'Готово';
+    nextBtn.textContent = t('Готово');
     const rail = brushRail(p, ['marker', 'crayon', 'watercolor', 'chalk', 'glitter', 'rainbow'], { onPick: () => { sz.sync(); fillBtn.classList.remove('on'); } });
     const sz = sizeSlider(p);
     const pal = paletteBar(p, { onPick: () => { rail.redraw(); sz.sync(); } });
-    const fillBtn = iconBtn('fill', 'Заливка', () => {
+    const fillBtn = iconBtn('fill', t('Заливка'), () => {
       p.mode = p.mode === 'fill' ? 'draw' : 'fill';
       fillBtn.classList.toggle('on', p.mode === 'fill');
       rail.mark();
@@ -260,7 +261,7 @@ export function lessonPlay(root, id, mode) {
 
   async function finish() {
     if (!p.log.length) {
-      voice.say('Тут пока пусто. Нарисуй хоть что-нибудь!');
+      voice.say(t('Тут пока пусто. Нарисуй хоть что-нибудь!'));
       sfx.soft();
       return;
     }
@@ -276,17 +277,17 @@ export function lessonPlay(root, id, mode) {
     db.del('kv', draftId).catch(() => {});
     if (closed) return;
     const nextMode = MODES[MODES.findIndex(m => m.id === mode) + 1];
-    const praise = stars === 3 ? 'Точная рука!' : stars === 2 ? 'Очень похоже!' : 'Хорошее начало, с каждым разом будет легче.';
+    const praise = stars === 3 ? t('Точная рука!') : stars === 2 ? t('Очень похоже!') : t('Хорошее начало, с каждым разом будет легче.');
     celebrate({
       title: praise,
-      text: res.gain ? `+${res.gain} ★` : 'Рисунок сохранён в галерее.',
+      text: res.gain ? `+${res.gain} ★` : t('Рисунок сохранён в галерее.'),
       stars,
       unlocked: res.unlocked,
       actions: [
-        { label: 'Как я рисовала', fn: () => { location.hash = `#/art/${artId}/replay`; } },
+        { label: t('Как я рисовала'), fn: () => { location.hash = `#/art/${artId}/replay`; } },
         !L.noCopy && nextMode
-          ? { label: `Дальше: ${nextMode.name}`, primary: true, fn: () => { location.hash = `#/lesson/${id}/${nextMode.id}`; } }
-          : { label: 'К урокам', primary: true, fn: () => { location.hash = '#/school'; } },
+          ? { label: t('Дальше: {mode}', { mode: t(nextMode.name) }), primary: true, fn: () => { location.hash = `#/lesson/${id}/${nextMode.id}`; } }
+          : { label: t('К урокам'), primary: true, fn: () => { location.hash = '#/school'; } },
       ],
     });
   }
@@ -314,8 +315,8 @@ export function lessonPlay(root, id, mode) {
     if (mode === 'memory') {
       // She has already seen the picture, so there is no second countdown.
       dots.children[0].classList.add('on');
-      refCard.append(h('div', { class: 'ref-hidden' }, 'Спряталось!'));
-      voice.say(steps[0].t);
+      refCard.append(h('div', { class: 'ref-hidden' }, t('Спряталось!')));
+      voice.say(t(steps[0].t));
     } else {
       showStep(false);
     }

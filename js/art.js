@@ -1,6 +1,7 @@
 // Original line art. Coloring pages are 1200×900: each shape is [path, fill].
 // A fill of null means a detail line with no colour of its own.
 import { mulberry } from './util.js';
+import { t, N } from './i18n.js';
 import moreStickers from './content/stickers.js';
 import moreStickers2 from './content/stickers2.js';
 
@@ -80,7 +81,7 @@ export const bg = c => [R(-10, -10, 1220, 920), c];
 
 export const PAGES = [
   {
-    id: 'whale', title: 'Кит и кораблик',
+    id: 'whale', title: N('Кит и кораблик'),
     shapes: [
       bg(SKY),
       [O(1050, 130, 80), '#ffd447'],
@@ -106,7 +107,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'cat', title: 'Кот в корзинке',
+    id: 'cat', title: N('Кот в корзинке'),
     shapes: [
       bg('#ffe7b8'),
       [R(120, 90, 330, 300, 10), '#bfe6ff'],
@@ -139,7 +140,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'unicorn', title: 'Единорог и радуга',
+    id: 'unicorn', title: N('Единорог и радуга'),
     shapes: [
       bg('#d9efff'),
       [`M60 620A540 540 0 0 1 1140 620H1070A470 470 0 0 0 130 620Z`, '#ff6b6b'],
@@ -180,7 +181,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'castle', title: 'Сказочный замок',
+    id: 'castle', title: N('Сказочный замок'),
     shapes: [
       bg('#cdeaff'),
       [O(170, 140, 80), '#ffd447'],
@@ -212,7 +213,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'space', title: 'Полёт в космос',
+    id: 'space', title: N('Полёт в космос'),
     shapes: [
       bg('#2b2f77'),
       [O(190, 180, 110), '#ffb340'],
@@ -245,7 +246,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'sea', title: 'Подводный мир',
+    id: 'sea', title: N('Подводный мир'),
     shapes: [
       bg('#65c4ef'),
       [wave(190, 18, 8, 1200, 900), '#46abe0'],
@@ -267,7 +268,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'sweets', title: 'Страна сладостей',
+    id: 'sweets', title: N('Страна сладостей'),
     shapes: [
       bg('#ffe0ee'),
       [cloudD(180, 150, 100), '#ffffff'],
@@ -299,7 +300,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'butterfly', title: 'Бабочка на лугу',
+    id: 'butterfly', title: N('Бабочка на лугу'),
     shapes: [
       bg(SKY),
       [O(1060, 130, 76), '#ffd447'],
@@ -330,7 +331,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'owl', title: 'Совёнок ночью',
+    id: 'owl', title: N('Совёнок ночью'),
     shapes: [
       bg('#2d2a6e'),
       [O(960, 170, 110), '#ffe98a'],
@@ -365,7 +366,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'dragon', title: 'Дракончик',
+    id: 'dragon', title: N('Дракончик'),
     shapes: [
       bg('#ffeec4'),
       [cloudD(190, 150, 100), '#ffffff'],
@@ -404,7 +405,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'mushroom', title: 'Домик-грибок',
+    id: 'mushroom', title: N('Домик-грибок'),
     shapes: [
       bg('#c9f0e0'),
       [O(180, 140, 76), '#ffd447'],
@@ -436,7 +437,7 @@ export const PAGES = [
     ],
   },
   {
-    id: 'balloon', title: 'Воздушный шар',
+    id: 'balloon', title: N('Воздушный шар'),
     shapes: [
       bg('#bde6ff'),
       [O(1050, 160, 80), '#ffd447'],
@@ -509,17 +510,17 @@ export function mandala(seed) {
   shapes.push([O(cx, cy, 86), cols[1]]);
   for (let i = 0; i < 8; i++) shapes.push([petal(cx, cy, 80, 22, (i / 8) * 6.2832), cols[0]]);
   shapes.push([O(cx, cy, 24), cols[2]]);
-  return { id: `mandala${seed}`, title: `Мандала №${seed}`, shapes, mandala: true };
+  return { id: `mandala${seed}`, title: t('Мандала №{n}', { n: seed }), shapes, mandala: true };
 }
 
 export const STICKERS = {
-  animals: { name: 'Звери', list: '🐱🐶🐰🦊🐻🐼🐨🐯🦁🐮🐷🐸🐵🦄🐔🐧🦉🦋🐝🐞🐢🐙🐠🐬🐳🦕🐿️🦔'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
-  nature: { name: 'Природа', list: '🌸🌼🌻🌷🌹🍀🌿🌵🌲🍄🌈☀️⛅🌙⭐❄️🔥💧🌊🍁'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
-  food: { name: 'Вкусности', list: '🍓🍒🍎🍉🍌🍇🍍🥑🍕🍔🍟🌮🍩🍪🎂🍰🧁🍭🍬🍫🍦🥤'.match(/\p{Emoji_Presentation}/gu) },
-  things: { name: 'Разное', list: '🎀👑💎🎈🎁🧸🎨🖍️📚🚲🚗🚂⛵🏠🏰🎵'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
-  magic: { name: 'Волшебство', prize: true, list: '✨💫🌟🪄🔮🧚🧜🧞🦸🐉🦚🪐🫧💖💝'.match(/\p{Emoji_Presentation}/gu) },
-  space: { name: 'Космос', prize: true, list: '🚀🛸👽🤖🌍🌎🌕🌖🌗🌘🌑☄️🛰️👩‍🚀'.match(/\p{Emoji_Presentation}(?:‍\p{Emoji_Presentation})?|\p{Emoji}️/gu) },
-  party: { name: 'Праздник', prize: true, list: '🎉🎊🥳🎆🎇🎃🎄🎅🤶🕯️🏆🥇🎤🎸🎹💃'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
+  animals: { name: N('Звери'), list: '🐱🐶🐰🦊🐻🐼🐨🐯🦁🐮🐷🐸🐵🦄🐔🐧🦉🦋🐝🐞🐢🐙🐠🐬🐳🦕🐿️🦔'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
+  nature: { name: N('Природа'), list: '🌸🌼🌻🌷🌹🍀🌿🌵🌲🍄🌈☀️⛅🌙⭐❄️🔥💧🌊🍁'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
+  food: { name: N('Вкусности'), list: '🍓🍒🍎🍉🍌🍇🍍🥑🍕🍔🍟🌮🍩🍪🎂🍰🧁🍭🍬🍫🍦🥤'.match(/\p{Emoji_Presentation}/gu) },
+  things: { name: N('Разное'), list: '🎀👑💎🎈🎁🧸🎨🖍️📚🚲🚗🚂⛵🏠🏰🎵'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
+  magic: { name: N('Волшебство'), prize: true, list: '✨💫🌟🪄🔮🧚🧜🧞🦸🐉🦚🪐🫧💖💝'.match(/\p{Emoji_Presentation}/gu) },
+  space: { name: N('Космос'), prize: true, list: '🚀🛸👽🤖🌍🌎🌕🌖🌗🌘🌑☄️🛰️👩‍🚀'.match(/\p{Emoji_Presentation}(?:‍\p{Emoji_Presentation})?|\p{Emoji}️/gu) },
+  party: { name: N('Праздник'), prize: true, list: '🎉🎊🥳🎆🎇🎃🎄🎅🤶🕯️🏆🥇🎤🎸🎹💃'.match(/\p{Emoji_Presentation}|\p{Emoji}️/gu) },
 };
 
 // Extra stickers from content/stickers.js, as plain strings of emoji.

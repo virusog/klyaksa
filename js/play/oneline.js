@@ -13,6 +13,7 @@
 import { h, svgEl, lerp, clamp } from '../util.js';
 import { topbar, btn, icon, speaker } from '../ui.js';
 import { sfx } from '../audio.js';
+import { t, plural } from '../i18n.js';
 import { award, db } from '../store.js';
 import { levelScreen, finishLevel, isOpen, eulerInfo } from './kit.js';
 import base from '../content/oneline.js';
@@ -36,11 +37,7 @@ const PUZZLES = (() => {
     .sort((a, b) => a.edges.length - b.edges.length);
 })();
 
-const lineWord = n => {
-  const d = n % 10;
-  const teen = n % 100 > 10 && n % 100 < 15;
-  return `${n} ${d === 1 && !teen ? 'линия' : d > 1 && d < 5 && !teen ? 'линии' : 'линий'}`;
-};
+const lineWord = n => plural(n, '{n} линия|{n} линии|{n} линий');
 
 function thumb({ nodes, edges }) {
   const s = svgEl('svg', { viewBox: '0 0 1000 750', width: 92, height: 69, class: 'oneline-thumb' });
@@ -85,10 +82,10 @@ function play(root, levels, index) {
   }
 
   const intro = index === 0
-    ? 'Нажми на точку и веди по линиям. По каждой можно пройти только раз!'
+    ? t('Нажми на точку и веди по линиям. По каждой можно пройти только раз!')
     : glow
-      ? 'Обведи фигуру одним росчерком. Жёлтые линии — куда можно пойти.'
-      : 'Подсветки нет. Подумай, с какой точки начать и где закончить.';
+      ? t('Обведи фигуру одним росчерком. Жёлтые линии — куда можно пойти.')
+      : t('Подсветки нет. Подумай, с какой точки начать и где закончить.');
 
   const lineEls = edges.map(([a, b]) => svgEl('line', { class: 'oneline-edge', x1: nodes[a][0], y1: nodes[a][1], x2: nodes[b][0], y2: nodes[b][1] }));
   const nodeEls = nodes.map(([x, y]) => svgEl('circle', { class: 'oneline-node', cx: x, cy: y, r: 24 }));
@@ -107,9 +104,9 @@ function play(root, levels, index) {
     said = text;
     talk.say(text);
   };
-  const undoBtn = btn('ghost', [icon('undo', 22), 'Шаг назад'], undo);
-  const againBtn = btn('ghost', 'Сначала', restart);
-  const hintBtn = btn('accent', 'Подсказка', showHint);
+  const undoBtn = btn('ghost', [icon('undo', 22), t('Шаг назад')], undo);
+  const againBtn = btn('ghost', t('Сначала'), restart);
+  const hintBtn = btn('accent', t('Подсказка'), showHint);
   const tools = h('div', { class: 'oneline-tools' }, undoBtn, againBtn, hintBtn);
 
   function update() {
@@ -125,7 +122,7 @@ function play(root, levels, index) {
       ring.setAttribute('cx', nodes[hintAt][0]);
       ring.setAttribute('cy', nodes[hintAt][1]);
     }
-    count.textContent = `${steps.length} из ${edges.length}`;
+    count.textContent = t('{a} из {b}', { a: steps.length, b: edges.length });
     undoBtn.disabled = cur < 0 || done;
     againBtn.disabled = cur < 0 || done;
     hintBtn.disabled = done;
@@ -150,7 +147,7 @@ function play(root, levels, index) {
     hintAt = -1;
     lost = '';
     sfx.drop();
-    tell('Отсюда и начнём. Веди к соседней точке!');
+    tell(t('Отсюда и начнём. Веди к соседней точке!'));
     update();
   }
 
@@ -176,14 +173,14 @@ function play(root, levels, index) {
     update();
     keep();
     if (isStuck()) sayStuck();
-    else tell(lost || 'Хорошо! Веди дальше, пока не обведёшь всю фигуру.');
+    else tell(lost || t('Хорошо! Веди дальше, пока не обведёшь всю фигуру.'));
   }
 
   function sayStuck() {
     sfx.soft();
     tell(glow && !info.starts.includes(steps[0].from)
-      ? 'Тупик! Идти некуда. Начни сначала — может, с другой точки?'
-      : 'Тупик! Отсюда идти некуда. Шагни назад или начни сначала.');
+      ? t('Тупик! Идти некуда. Начни сначала — может, с другой точки?')
+      : t('Тупик! Отсюда идти некуда. Шагни назад или начни сначала.'));
   }
 
   function refuse(e) {
@@ -193,7 +190,7 @@ function play(root, levels, index) {
     el.getBoundingClientRect();
     el.classList.add('no');
     sfx.soft();
-    tell('По этой линии ты уже прошла. Выбери другую.');
+    tell(t('По этой линии ты уже прошла. Выбери другую.'));
   }
 
   // The pencil reached point n: by a tap (tapped) or by sliding over it.
@@ -216,7 +213,7 @@ function play(root, levels, index) {
     if (link) return refuse(link.e);
     if (tapped) {
       sfx.soft();
-      tell('Отсюда туда нет линии. Иди к соседней точке.');
+      tell(t('Отсюда туда нет линии. Иди к соседней точке.'));
     }
   }
 
@@ -232,9 +229,9 @@ function play(root, levels, index) {
       // The hint promised to say when the way opens again, so every step back is checked.
       if (lost) {
         if (canFinish()) lost = '';
-        tell(lost || 'Путь снова открыт! Попробуй пойти по-другому.');
+        tell(lost || t('Путь снова открыт! Попробуй пойти по-другому.'));
       } else if (wasStuck) {
-        tell('Шаг назад. Попробуй другой путь.');
+        tell(t('Шаг назад. Попробуй другой путь.'));
       }
     } else {
       cur = -1;
@@ -247,7 +244,7 @@ function play(root, levels, index) {
     if (done) return;
     if (steps.length) restarts++;
     clear();
-    tell('Начинаем сначала. Выбери точку.');
+    tell(t('Начинаем сначала. Выбери точку.'));
     update();
     keep();
   }
@@ -269,23 +266,23 @@ function play(root, levels, index) {
     if (!steps.length) {
       if (info.starts.includes(cur)) {
         hintAt = cur;
-        tell('Эта точка подходит. Смело начинай отсюда!');
+        tell(t('Эта точка подходит. Смело начинай отсюда!'));
       } else {
         // The point she picked is let go, so the ring is the only thing calling her.
         cur = -1;
         hintAt = info.starts[0];
         tell(info.odd.length
-          ? 'Начни вот с этой точки: отсюда фигура получится.'
-          : 'Здесь подойдёт любая точка. Например, вот эта.');
+          ? t('Начни вот с этой точки: отсюда фигура получится.')
+          : t('Здесь подойдёт любая точка. Например, вот эта.'));
       }
     } else if (canFinish()) {
-      tell('Пока всё верно: отсюда фигуру ещё можно дорисовать.');
+      tell(t('Пока всё верно: отсюда фигуру ещё можно дорисовать.'));
     } else if (!info.starts.includes(steps[0].from)) {
       hintAt = info.starts[0];
-      lost = 'С той точки фигура не получится. Начни сначала вот отсюда.';
+      lost = t('С той точки фигура не получится. Начни сначала вот отсюда.');
       tell(lost);
     } else {
-      lost = 'Так уже не дорисовать. Шагай назад, пока путь снова не откроется.';
+      lost = t('Так уже не дорисовать. Шагай назад, пока путь снова не откроется.');
       tell(lost);
     }
     update();
@@ -297,7 +294,7 @@ function play(root, levels, index) {
     update();
     keep();
     sfx.ding();
-    tell('Готово! Вся фигура обведена.');
+    tell(t('Готово! Вся фигура обведена.'));
     // Three stars for a planned route: no hint, no restart, one slip at most.
     const clean = restarts === 0 && undos <= 1;
     const stars = clean && !hinted ? 3 : restarts <= 1 && undos <= 4 ? 2 : 1;
@@ -308,10 +305,10 @@ function play(root, levels, index) {
       finishLevel({
         levels, index, stars, menu: MENU,
         text: stars === 3
-          ? `${lineWord(edges.length)} одним росчерком!`
+          ? plural(edges.length, '{n} линия одним росчерком!|{n} линии одним росчерком!|{n} линий одним росчерком!')
           : stars === 2
-            ? 'Фигура готова! Получится без подсказки и с первого раза?'
-            : 'Фигура готова! Теперь ты знаешь путь — попробуй пройти его чисто.',
+            ? t('Фигура готова! Получится без подсказки и с первого раза?')
+            : t('Фигура готова! Теперь ты знаешь путь — попробуй пройти его чисто.'),
         again() {
           undos = 0;
           restarts = 0;
@@ -346,8 +343,8 @@ function play(root, levels, index) {
     const [[x1, y1], [x2, y2]] = edges[e].map(n => nodes[n]);
     const dx = x2 - x1;
     const dy = y2 - y1;
-    const t = clamp(((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy), 0, 1);
-    return Math.hypot(x - x1 - t * dx, y - y1 - t * dy);
+    const along = clamp(((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy), 0, 1);
+    return Math.hypot(x - x1 - along * dx, y - y1 - along * dy);
   };
   // A finger sliding along one line may brush a point beside it. That is not a
   // turn: the point counts once the finger is nearer to it than to that line.
@@ -403,10 +400,10 @@ function play(root, levels, index) {
   svg.addEventListener('lostpointercapture', lift);
 
   root.append(h('div', { class: 'screen oneline' },
-    topbar(`${index + 1}. ${puzzle.name}`, { back: MENU, right: [count] }),
+    topbar(`${index + 1}. ${t(puzzle.name)}`, { back: MENU, right: [count] }),
     talk,
     tools,
-    h('div', { class: 'oneline-board' }, svg),
+    h('div', { class: 'oneline-board', dir: 'ltr' }, svg),
   ));
   update();
 
@@ -425,7 +422,7 @@ function play(root, levels, index) {
       restarts = saved.restarts | 0;
       hinted = !!saved.hinted;
       if (isStuck()) sayStuck();
-      else tell('С возвращением! Продолжай с жёлтой точки.');
+      else tell(t('С возвращением! Продолжай с жёлтой точки.'));
     } else {
       clear();
     }
@@ -444,7 +441,7 @@ function play(root, levels, index) {
 
 export default function run(root, arg) {
   const levels = PUZZLES.map(p => ({
-    key: `oneline:${p.id}`, name: p.name, sub: lineWord(p.edges.length), href: `${MENU}/${p.id}`, thumb: thumb(p),
+    key: `oneline:${p.id}`, name: t(p.name), sub: lineWord(p.edges.length), href: `${MENU}/${p.id}`, thumb: thumb(p),
   }));
   if (arg) {
     const index = PUZZLES.findIndex(p => p.id === arg);
@@ -454,8 +451,8 @@ export default function run(root, arg) {
     return undefined;
   }
   levelScreen(root, {
-    title: 'Одним росчерком',
-    hint: 'Обведи всю фигуру, не отрывая карандаша. По каждой линии можно пройти только один раз!',
+    title: t('Одним росчерком'),
+    hint: t('Обведи всю фигуру, не отрывая карандаша. По каждой линии можно пройти только один раз!'),
     levels,
   });
   return undefined;

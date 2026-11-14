@@ -1,28 +1,29 @@
 // The drawing surface: layers, Apple Pencil input, undo, fill, symmetry and replay.
 import { BRUSHES } from './brushes.js';
 import { h, canvas, clamp, blobOf, loadImg, hexRgb, mulberry, svgEl } from './util.js';
+import { N } from './i18n.js';
 
 export const PAPERS = {
-  white: { name: 'Белая', color: '#ffffff' },
-  cream: { name: 'Кремовая', color: '#fff4dc' },
-  sky: { name: 'Голубая', color: '#d8eeff' },
-  pink: { name: 'Розовая', color: '#ffe3ef' },
-  kraft: { name: 'Крафт', color: '#dcbd90' },
-  night: { name: 'Ночная', color: '#1d1a33' },
-  grid: { name: 'Клетка', color: '#ffffff', grid: 60 },
-  dots: { name: 'Точки', color: '#ffffff', dots: 60 },
-  lined: { name: 'Линейка', color: '#ffffff', lines: 60 },
-  mint: { name: 'Мятная', color: '#dff5e6' },
-  lilac: { name: 'Сиреневая', color: '#ece3ff' },
-  peach: { name: 'Персиковая', color: '#ffe6d1' },
+  white: { name: N('Белая'), color: '#ffffff' },
+  cream: { name: N('Кремовая'), color: '#fff4dc' },
+  sky: { name: N('Голубая'), color: '#d8eeff' },
+  pink: { name: N('Розовая'), color: '#ffe3ef' },
+  kraft: { name: N('Крафт'), color: '#dcbd90' },
+  night: { name: N('Ночная'), color: '#1d1a33' },
+  grid: { name: N('Клетка'), color: '#ffffff', grid: 60 },
+  dots: { name: N('Точки'), color: '#ffffff', dots: 60 },
+  lined: { name: N('Линейка'), color: '#ffffff', lines: 60 },
+  mint: { name: N('Мятная'), color: '#dff5e6' },
+  lilac: { name: N('Сиреневая'), color: '#ece3ff' },
+  peach: { name: N('Персиковая'), color: '#ffe6d1' },
 };
 
 export const SYMMETRY = {
-  none: { name: 'Обычно', n: 1 },
-  v: { name: 'Зеркало', n: 2 },
-  quad: { name: 'Калейдоскоп 4', n: 4 },
-  r6: { name: 'Снежинка', n: 6, mirror: true },
-  r8: { name: 'Мандала 8', n: 8, mirror: true },
+  none: { name: N('Обычно'), n: 1 },
+  v: { name: N('Зеркало'), n: 2 },
+  quad: { name: N('Калейдоскоп 4'), n: 4 },
+  r6: { name: N('Снежинка'), n: 6, mirror: true },
+  r8: { name: N('Мандала 8'), n: 8, mirror: true },
 };
 
 function transforms(sym, w, h2) {

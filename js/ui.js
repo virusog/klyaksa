@@ -3,6 +3,7 @@ import { h, canvas, clamp } from './util.js';
 import { BRUSHES, drawSample } from './brushes.js';
 import { state, hasReward, REWARDS } from './store.js';
 import { sfx, speak } from './audio.js';
+import { t } from './i18n.js';
 
 const I = {
   back: '<path d="M15 5l-7 7 7 7"/>',
@@ -85,7 +86,7 @@ export function mascot(mood = 'happy', color) {
 
 export function topbar(title, { back = '#/', right = [], onBack } = {}) {
   return h('header', { class: 'topbar' },
-    iconBtn('back', 'Назад', () => { if (onBack) onBack(); else location.hash = back; }),
+    iconBtn('back', t('Назад'), () => { if (onBack) onBack(); else location.hash = back; }),
     h('h1', {}, title),
     h('div', { class: 'spacer' }),
     right,
@@ -99,10 +100,10 @@ export function starBadge() {
 let toastT;
 export function toast(text) {
   document.querySelector('.toast')?.remove();
-  const t = h('div', { class: 'toast' }, text);
-  document.body.append(t);
+  const el = h('div', { class: 'toast' }, text);
+  document.body.append(el);
   clearTimeout(toastT);
-  toastT = setTimeout(() => t.remove(), 2400);
+  toastT = setTimeout(() => el.remove(), 2400);
 }
 
 export function popover(anchor, content) {
@@ -124,7 +125,7 @@ export function popover(anchor, content) {
 
 export function closePop() { document.querySelector('.pop')?.remove(); }
 
-export function confirmBox(text, yes = 'Да', no = 'Нет') {
+export function confirmBox(text, yes = t('Да'), no = t('Нет')) {
   return new Promise(res => {
     const end = v => { o.remove(); res(v); };
     const o = h('div', { class: 'modal-back' },
@@ -153,7 +154,7 @@ export function confetti(ms = 2600) {
     c: cols[Math.floor(Math.random() * 6)],
   }));
   const t0 = performance.now();
-  const f = t => {
+  const f = now => {
     x.clearRect(0, 0, c.width, c.height);
     for (const b of bits) {
       b.y += b.v; b.r += b.w; b.x += Math.sin(b.r * 3) * 1.4;
@@ -164,7 +165,7 @@ export function confetti(ms = 2600) {
       x.fillRect(-b.s / 2, -b.s / 3, b.s, b.s * 0.66);
       x.restore();
     }
-    if (t - t0 < ms) requestAnimationFrame(f); else c.remove();
+    if (now - t0 < ms) requestAnimationFrame(f); else c.remove();
   };
   requestAnimationFrame(f);
 }
@@ -182,7 +183,7 @@ export function celebrate({ title, text, stars, unlocked = [], actions = [] }) {
       stars != null && h('div', { class: 'stars-row' },
         [1, 2, 3].map(i => h('span', { class: `big-star ${i <= stars ? 'on' : ''}`, style: { animationDelay: `${i * 0.18}s` } }, '★')),
       ),
-      unlocked.map(r => h('div', { class: 'unlock' }, h('b', {}, 'Подарок! '), r.name)),
+      unlocked.map(r => h('div', { class: 'unlock' }, h('b', {}, t('Подарок!')), ' ', t(r.name))),
       h('div', { class: 'row wrap' }, actions.map(a => btn(a.primary ? 'primary' : 'ghost', a.label, () => { close(); a.fn?.(); }))),
     ),
   );
@@ -216,7 +217,7 @@ export function brushRail(p, ids, { onPick } = {}) {
         if (locked) {
           const r = REWARDS.find(x => x.id === id);
           sfx.soft();
-          toast(`«${b.name}» — подарок за ${r.at} ★. У тебя пока ${state.stars} ★`);
+          toast(t('«{name}» — подарок за {at} ★. У тебя пока {stars} ★', { name: t(b.name), at: r.at, stars: state.stars }));
           return;
         }
         sfx.pop();
@@ -224,7 +225,7 @@ export function brushRail(p, ids, { onPick } = {}) {
         mark();
         onPick?.(id);
       },
-    }, cv, h('span', {}, b.name), locked && h('i', { class: 'lock' }, '★'));
+    }, cv, h('span', {}, t(b.name)), locked && h('i', { class: 'lock' }, '★'));
     items.set(id, el);
     rail.append(el);
   }
@@ -237,7 +238,7 @@ export function brushRail(p, ids, { onPick } = {}) {
 
 export function paletteBar(p, { onPick, colors = COLORS } = {}) {
   const row = h('div', { class: 'palette' });
-  const pickInput = h('input', { type: 'color', value: p.color, 'aria-label': 'Любой цвет' });
+  const pickInput = h('input', { type: 'color', value: p.color, 'aria-label': t('Любой цвет') });
   const swatches = [];
   const mark = () => {
     for (const s of swatches) s.classList.toggle('on', s.dataset.c === p.color);
@@ -251,7 +252,7 @@ export function paletteBar(p, { onPick, colors = COLORS } = {}) {
   for (const c of colors) {
     const s = h('button', {
       class: 'swatch', 'data-c': c, style: { background: c },
-      'aria-label': 'Цвет', onclick: () => { sfx.drop(); choose(c); },
+      'aria-label': t('Цвет'), onclick: () => { sfx.drop(); choose(c); },
     });
     swatches.push(s);
     row.append(s);
@@ -266,7 +267,7 @@ export function paletteBar(p, { onPick, colors = COLORS } = {}) {
 
 export function sizeSlider(p) {
   const dot = h('i', { class: 'dot' });
-  const input = h('input', { type: 'range', 'aria-label': 'Толщина' });
+  const input = h('input', { type: 'range', 'aria-label': t('Толщина') });
   const sync = () => {
     const b = BRUSHES[p.brushId];
     input.min = b.min;
@@ -287,12 +288,12 @@ export function sizeSlider(p) {
 export function speaker(text, mood = 'happy') {
   const bubble = h('div', { class: 'bubble' }, text);
   const el = h('div', { class: 'speaker' }, mascot(mood), bubble);
-  el.say = t => {
-    bubble.textContent = t;
+  el.say = text => {
+    bubble.textContent = text;
     bubble.classList.remove('pop-in');
     void bubble.offsetWidth;
     bubble.classList.add('pop-in');
-    speak(t);
+    speak(text);
   };
   return el;
 }
@@ -318,7 +319,7 @@ export async function safeSave(fn) {
       return await fn();
     } catch (e) {
       console.error(e);
-      const again = await confirmBox('Не получилось сохранить рисунок. Попробуем ещё раз?', 'Повторить', 'Не сейчас');
+      const again = await confirmBox(t('Не получилось сохранить рисунок. Попробуем ещё раз?'), t('Повторить'), t('Не сейчас'));
       if (!again) throw e;
     }
   }
@@ -342,7 +343,7 @@ export function autosaver(isDirty, save, isBusy) {
     if (running || !isDirty()) return;
     pass().catch(e => {
       console.error(e);
-      toast('Не получилось сохранить. Закрой приложение и открой снова.');
+      toast(t('Не получилось сохранить. Закрой приложение и открой снова.'));
     });
   };
   const timer = setInterval(() => {

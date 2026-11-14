@@ -24,6 +24,7 @@ import {
 } from '../ui.js';
 import { sfx } from '../audio.js';
 import { levelScreen, finishLevel, isOpen } from './kit.js';
+import { t, N, plural } from '../i18n.js';
 
 const MENU = '#/game/anim';
 const W = 800;
@@ -32,17 +33,12 @@ const TW = 120;
 const TH = 90;
 // Sixteen sheets of 800 by 600 are as much as an iPad should be asked to hold.
 const MAX = 16;
-const SPEEDS = [['Медленно', 4], ['Нормально', 8], ['Быстро', 12]];
+const SPEEDS = [[N('Медленно'), 4], [N('Нормально'), 8], [N('Быстро'), 12]];
 const BRUSHES = ['pen', 'marker', 'pencil', 'crayon', 'eraser'];
 // Twenty colours fit in one row, which leaves the sheet more room.
 const PALETTE = COLORS.filter(c => !['#8b1e5a', '#fff176', '#ffb340', '#ff8fa3', '#c9a7ff'].includes(c));
 
-const framesWord = n => {
-  const d = n % 10;
-  const t = n % 100;
-  if (d === 1 && t !== 11) return 'кадр';
-  return d >= 2 && d <= 4 && (t < 12 || t > 14) ? 'кадра' : 'кадров';
-};
+const framesOf = n => plural(n, '{n} кадр|{n} кадра|{n} кадров');
 
 // Two icons the shared set does not have, drawn the same way.
 const glyph = d => h('span', {
@@ -90,8 +86,8 @@ const swing = i => rad(38 * Math.cos(TAU * i / 8));
 const bob = i => reach(PIVOT, swing(i), 360);
 
 const fly = i => {
-  const t = i / 7;
-  return [230 + 370 * t + 26 * Math.sin(t * TAU), 345 - 285 * t, 105 * 0.74 ** i];
+  const k = i / 7;
+  return [230 + 370 * k + 26 * Math.sin(k * TAU), 345 - 285 * k, 105 * 0.74 ** i];
 };
 function balloon(i) {
   const [x, y, r] = fly(i);
@@ -143,103 +139,103 @@ function walker(i) {
 // all, only the dots; spot: where the thing is in each frame (the dots).
 const LESSONS = [
   {
-    name: 'Прыгающий мяч', n: 8, fps: 8, thumb: [4, 0],
-    tip: 'Сверху мяч летит медленно, а у земли быстро. Точки справа показывают его путь.',
+    name: N('Прыгающий мяч'), n: 8, fps: 8, thumb: [4, 0],
+    tip: N('Сверху мяч летит медленно, а у земли быстро. Точки справа показывают его путь.'),
     tips: {
-      0: 'Мяч на самом верху. Нарисуй его по подсказке и нажми на кадр 2.',
-      1: 'Мяч чуть ниже. Бледный рисунок под ним — твой прошлый кадр.',
-      3: 'Мяч разогнался и вытянулся, как капля.',
-      4: 'Шлёп! У земли мяч сплющивается в лепёшку.',
-      5: 'Отскочил! Снова вытянулся и летит вверх.',
-      7: 'Последний кадр. Дорисуй и нажми «Смотреть»!',
+      0: N('Мяч на самом верху. Нарисуй его по подсказке и нажми на кадр 2.'),
+      1: N('Мяч чуть ниже. Бледный рисунок под ним — твой прошлый кадр.'),
+      3: N('Мяч разогнался и вытянулся, как капля.'),
+      4: N('Шлёп! У земли мяч сплющивается в лепёшку.'),
+      5: N('Отскочил! Снова вытянулся и летит вверх.'),
+      7: N('Последний кадр. Дорисуй и нажми «Смотреть»!'),
     },
     scene: '<path d="M80 522H720"/>',
     spot: i => [620, BALL_Y[i]],
     pose: i => oval(400, BALL_Y[i], ...(BALL_SHAPE[i] || [60, 60])),
   },
   {
-    name: 'Моргающий глаз', n: 6, fps: 8, thumb: [1],
-    tip: 'Меняется только веко. «Копия» переносит рисунок в следующий кадр.',
+    name: N('Моргающий глаз'), n: 6, fps: 8, thumb: [1],
+    tip: N('Меняется только веко. «Копия» переносит рисунок в следующий кадр.'),
     tips: {
-      0: 'Нарисуй открытый глаз. Потом нажми «Копия» — рисунок перейдёт в кадр 2.',
-      1: 'Веко пошло вниз. Закрась им верх глаза: фломастер перекроет рисунок.',
-      2: 'Глаз почти закрыт: из-под века выглядывает только краешек.',
-      3: 'Закрыт совсем: одна дуга и реснички.',
-      4: 'Глаз открывается. Открывается он медленнее, чем закрывается!',
-      5: 'Почти открыт. Дорисуй и нажми «Смотреть»!',
+      0: N('Нарисуй открытый глаз. Потом нажми «Копия» — рисунок перейдёт в кадр 2.'),
+      1: N('Веко пошло вниз. Закрась им верх глаза: фломастер перекроет рисунок.'),
+      2: N('Глаз почти закрыт: из-под века выглядывает только краешек.'),
+      3: N('Закрыт совсем: одна дуга и реснички.'),
+      4: N('Глаз открывается. Открывается он медленнее, чем закрывается!'),
+      5: N('Почти открыт. Дорисуй и нажми «Смотреть»!'),
     },
     pose: i => `${oval(400, 295, 80)}${oval(400, 295, 34)}`
       + `<path class="anim-g-lid" d="M200 300Q400 110 600 300Q400 ${110 + 360 * LID[i]} 200 300Z"/>`
       + `<path d="M200 300Q400 470 600 300"/>${LID[i] === 1 ? '<path d="M300 362l-14 34M400 386v38M500 362l14 34"/>' : ''}`,
   },
   {
-    name: 'Растущий цветок', n: 8, fps: 4, thumb: [7],
-    tip: 'Цветок растёт понемногу. Жми «Копия» и дорисовывай новое.',
+    name: N('Растущий цветок'), n: 8, fps: 4, thumb: [7],
+    tip: N('Цветок растёт понемногу. Жми «Копия» и дорисовывай новое.'),
     tips: {
-      0: 'Из земли показался маленький росток.',
-      2: 'Стебель выше, и появился первый листик.',
-      4: 'Наверху завязался бутон.',
-      6: 'Бутон раскрывается!',
-      7: 'Цветок расцвёл. Раскрась его как захочешь!',
+      0: N('Из земли показался маленький росток.'),
+      2: N('Стебель выше, и появился первый листик.'),
+      4: N('Наверху завязался бутон.'),
+      6: N('Бутон раскрывается!'),
+      7: N('Цветок расцвёл. Раскрась его как захочешь!'),
     },
     scene: '<path d="M80 520H720"/>',
     pose: flower,
   },
   {
-    name: 'Качающийся маятник', n: 8, fps: 8, thumb: [0, 4], bare: [5, 6, 7],
-    tip: 'Смотри на точки: у краёв они стоят тесно — там маятник замирает.',
-    bareTip: 'Обратно — без подсказки! Нарисуй маятник сама: нить от гвоздика до яркой точки.',
+    name: N('Качающийся маятник'), n: 8, fps: 8, thumb: [0, 4], bare: [5, 6, 7],
+    tip: N('Смотри на точки: у краёв они стоят тесно — там маятник замирает.'),
+    bareTip: N('Обратно — без подсказки! Нарисуй маятник сама: нить от гвоздика до яркой точки.'),
     tips: {
-      0: 'Маятник отвели в сторону. Здесь он на миг замирает.',
-      2: 'Середина пути: тут маятник летит быстрее всего.',
-      4: 'Другой край. Точки снова стоят тесно — маятник тормозит.',
+      0: N('Маятник отвели в сторону. Здесь он на миг замирает.'),
+      2: N('Середина пути: тут маятник летит быстрее всего.'),
+      4: N('Другой край. Точки снова стоят тесно — маятник тормозит.'),
     },
     scene: `<path d="M300 70H500"/>${oval(400, 70, 9)}<path d="M${pt(...bob(4))}A360 360 0 0 0 ${pt(...bob(0))}"/>`,
     spot: bob,
     pose: i => line(PIVOT, reach(PIVOT, swing(i), 316)) + oval(...bob(i), 44),
   },
   {
-    name: 'Улетающий шарик', n: 8, fps: 8, thumb: [0, 4], mid: [1, 3, 5],
-    tip: 'Шарик улетает вдаль: с каждым кадром он выше и меньше.',
-    midTip: 'Рыжий шарик — кадр до, голубой — кадр после. Нарисуй свой между ними, у яркой точки.',
+    name: N('Улетающий шарик'), n: 8, fps: 8, thumb: [0, 4], mid: [1, 3, 5],
+    tip: N('Шарик улетает вдаль: с каждым кадром он выше и меньше.'),
+    midTip: N('Рыжий шарик — кадр до, голубой — кадр после. Нарисуй свой между ними, у яркой точки.'),
     tips: {
-      0: 'Шарик совсем близко — он большой.',
-      7: 'Шарик уже далеко: маленький, как горошина.',
+      0: N('Шарик совсем близко — он большой.'),
+      7: N('Шарик уже далеко: маленький, как горошина.'),
     },
     spot: fly,
     pose: balloon,
   },
   {
-    name: 'Машущая рука', n: 8, fps: 8, thumb: [0, 4], mid: [1, 3, 5, 7],
-    tip: 'Локоть стоит на месте, а ладонь качается по дуге.',
-    midTip: 'Рыжая рука — кадр до, голубая — кадр после. Нарисуй свою посередине между ними.',
+    name: N('Машущая рука'), n: 8, fps: 8, thumb: [0, 4], mid: [1, 3, 5, 7],
+    tip: N('Локоть стоит на месте, а ладонь качается по дуге.'),
+    midTip: N('Рыжая рука — кадр до, голубая — кадр после. Нарисуй свою посередине между ними.'),
     tips: {
-      0: 'Рука наклонилась влево. Локоть внизу — он не двигается.',
-      4: 'Рука дошла до правого края и сейчас пойдёт обратно.',
+      0: N('Рука наклонилась влево. Локоть внизу — он не двигается.'),
+      4: N('Рука дошла до правого края и сейчас пойдёт обратно.'),
     },
     scene: `<path d="M${pt(...waveSpot(0))}A480 480 0 0 1 ${pt(...waveSpot(4))}"/>`,
     spot: waveSpot,
     pose: i => `<g transform="rotate(${WAVE[i]} ${ELBOW[0]} ${ELBOW[1]})">${HAND}</g>`,
   },
   {
-    name: 'Рыбка плывёт', n: 10, fps: 8, thumb: [2, 8], mid: [1, 3, 5, 7],
-    tip: 'Два движения сразу: рыбка плывёт вперёд, а хвост виляет.',
-    midTip: 'Рыбка — у яркой точки. А хвост? Посередине между рыжим и голубым.',
+    name: N('Рыбка плывёт'), n: 10, fps: 8, thumb: [2, 8], mid: [1, 3, 5, 7],
+    tip: N('Два движения сразу: рыбка плывёт вперёд, а хвост виляет.'),
+    midTip: N('Рыбка — у яркой точки. А хвост? Посередине между рыжим и голубым.'),
     tips: {
-      0: 'Рыбка только выплыла. Хвост пока смотрит прямо.',
-      9: 'Рыбка доплыла до края. В мультике она появится слева снова.',
+      0: N('Рыбка только выплыла. Хвост пока смотрит прямо.'),
+      9: N('Рыбка доплыла до края. В мультике она появится слева снова.'),
     },
     scene: '<path d="M40 548q90 -20 180 0t180 0t180 0t180 0"/>',
     spot: swim,
     pose: fish,
   },
   {
-    name: 'Шагающий человечек', n: 12, fps: 12, thumb: [2], mid: [1, 3, 5, 7, 9, 11],
-    tip: 'Рука идёт вперёд вместе с другой ногой. Бледные линии — дальние рука и нога.',
-    midTip: 'Рыжий человечек — кадр до, голубой — после. Каждая рука и нога — посередине между ними.',
+    name: N('Шагающий человечек'), n: 12, fps: 12, thumb: [2], mid: [1, 3, 5, 7, 9, 11],
+    tip: N('Рука идёт вперёд вместе с другой ногой. Бледные линии — дальние рука и нога.'),
+    midTip: N('Рыжий человечек — кадр до, голубой — после. Каждая рука и нога — посередине между ними.'),
     tips: {
-      0: 'Одна нога прямая, другая согнута и шагает вперёд. Бледные линии — дальние рука и нога.',
-      6: 'Та же поза, но ноги поменялись: теперь вперёд идёт другая.',
+      0: N('Одна нога прямая, другая согнута и шагает вперёд. Бледные линии — дальние рука и нога.'),
+      6: N('Та же поза, но ноги поменялись: теперь вперёд идёт другая.'),
     },
     scene: '<path d="M120 506H680"/>',
     pose: walker,
@@ -248,8 +244,8 @@ const LESSONS = [
 
 const LEVELS = LESSONS.map((L, i) => ({
   key: `anim:lesson-${i + 1}`,
-  name: L.name,
-  sub: `${L.n} ${framesWord(L.n)}`,
+  name: t(L.name),
+  sub: framesOf(L.n),
   href: `${MENU}/lesson-${i + 1}`,
 }));
 
@@ -360,17 +356,17 @@ let visit = 0;
 function menu(root) {
   const urls = [];
   let closed = false;
-  const head = h('h2', { class: 'anim-head hidden' }, 'Мои мультики');
+  const head = h('h2', { class: 'anim-head hidden' }, t('Мои мультики'));
   const mine = h('div', { class: 'anim-mine' });
   levelScreen(root, {
-    title: 'Мультик',
-    hint: 'Мультик — это много рисунков подряд. Каждый урок открывает новый секрет аниматоров!',
+    title: t('Мультик'),
+    hint: t('Мультик — это много рисунков подряд. Каждый урок открывает новый секрет аниматоров!'),
     levels: LEVELS.map((lv, i) => ({ ...lv, thumb: lessonThumb(LESSONS[i]) })),
     extra: h('div', { class: 'anim-top' },
       h('a', { class: 'anim-new', href: `${MENU}/new` },
         icon('plus', 36),
-        h('span', {}, h('b', {}, 'Новый мультик'), h('small', {}, 'Чистые кадры и твоя история'))),
-      h('h2', { class: 'anim-head' }, 'Уроки анимации'),
+        h('span', {}, h('b', {}, t('Новый мультик')), h('small', {}, t('Чистые кадры и твоя история')))),
+      h('h2', { class: 'anim-head' }, t('Уроки анимации')),
     ),
   });
   root.querySelector('.screen').append(head, mine);
@@ -380,18 +376,20 @@ function menu(root) {
     urls.push(url);
     const href = `${MENU}/${it.id}`;
     const n = it.frames?.length || 0;
+    // The saved title is the Russian key, so the gallery shows it in any language.
+    const title = t(it.title);
     const el = h('div', { class: 'anim-card' },
-      h('a', { href }, h('img', { src: url, alt: it.title })),
+      h('a', { href }, h('img', { src: url, alt: title })),
       h('div', { class: 'anim-card-foot' },
-        h('a', { href, class: 'anim-card-text' }, h('b', {}, it.title), h('small', {}, `${n} ${framesWord(n)}`)),
-        iconBtn('trash', 'Удалить мультик', async () => {
-          if (!(await confirmBox(`Удалить мультик «${it.title}» навсегда?`, 'Удалить', 'Оставить'))) return;
+        h('a', { href, class: 'anim-card-text' }, h('b', {}, title), h('small', {}, framesOf(n))),
+        iconBtn('trash', t('Удалить мультик'), async () => {
+          if (!(await confirmBox(t('Удалить мультик «{title}» навсегда?', { title }), t('Удалить'), t('Оставить')))) return;
           try {
             await db.del('art', it.id);
             el.remove();
             head.classList.toggle('hidden', !mine.children.length);
           } catch {
-            toast('Не получилось удалить. Попробуй ещё раз.');
+            toast(t('Не получилось удалить. Попробуй ещё раз.'));
           }
         }),
       ),
@@ -477,13 +475,13 @@ async function studio(root, arg) {
   const player = h('div', { class: 'anim-player hidden' }, playGuide);
   p.over.append(player);
 
-  const tipEl = L && speaker(said);
+  const tipEl = L && speaker(t(said));
   tipEl?.classList.add('anim-tip');
-  const undoBtn = iconBtn('undo', 'Отменить', () => { p.undo(); });
-  const redoBtn = iconBtn('redo', 'Вернуть', () => { p.redo(); });
-  const onionBtn = iconBtn('layers', 'Калька: бледный прошлый кадр', () => { onion = !onion; syncFrame(); });
-  const hintBtn = L && iconBtn('eye', 'Подсказка', () => { hints = !hints; syncFrame(); });
-  const doneBtn = btn('primary', 'Готово', L ? finishLesson : finishFree);
+  const undoBtn = iconBtn('undo', t('Отменить'), () => { p.undo(); });
+  const redoBtn = iconBtn('redo', t('Вернуть'), () => { p.redo(); });
+  const onionBtn = iconBtn('layers', t('Калька: бледный прошлый кадр'), () => { onion = !onion; syncFrame(); });
+  const hintBtn = L && iconBtn('eye', t('Подсказка'), () => { hints = !hints; syncFrame(); });
+  const doneBtn = btn('primary', t('Готово'), L ? finishLesson : finishFree);
 
   const size = sizeSlider(p);
   const rail = brushRail(p, BRUSHES, { onPick: () => size.sync() });
@@ -493,24 +491,24 @@ async function studio(root, arg) {
   const speedBtns = SPEEDS.map(([name, v]) => h('button', {
     class: 'anim-speed',
     onclick: () => { sfx.pop(); setFps(v); },
-  }, name));
+  }, t(name)));
   const strip = h('div', { class: 'anim-strip' });
   const act = (ico, label, fn) => btn('ghost anim-act', [ico, h('span', {}, label)], fn);
   // A lesson keeps its number of frames, so there «Копия» fills the next one.
   const acts = L
-    ? [act(glyph(COPY), 'Копия', copyNext), act(icon('trash', 24), 'Стереть', wipe)]
-    : [act(icon('plus', 24), 'Кадр', () => addFrame(false)), act(glyph(COPY), 'Копия', () => addFrame(true)),
-      act(icon('trash', 24), 'Убрать', removeFrame)];
+    ? [act(glyph(COPY), t('Копия'), copyNext), act(icon('trash', 24), t('Стереть'), wipe)]
+    : [act(icon('plus', 24), t('Кадр'), () => addFrame(false)), act(glyph(COPY), t('Копия'), () => addFrame(true)),
+      act(icon('trash', 24), t('Убрать'), removeFrame)];
 
   const screen = h('div', { class: `screen anim-screen${L ? ' lesson' : ''}` },
-    topbar(L ? `Урок ${index + 1}` : 'Мультик', { back: MENU, right: [tipEl, undoBtn, redoBtn, onionBtn, hintBtn, doneBtn] }),
+    topbar(L ? t('Урок {n}', { n: index + 1 }) : t('Мультик'), { back: MENU, right: [tipEl, undoBtn, redoBtn, onionBtn, hintBtn, doneBtn] }),
     h('div', { class: 'anim-main' }, rail, stageEl,
       h('div', { class: 'anim-panel' }, playBtn, h('div', { class: 'anim-speeds' }, speedBtns), strip, h('div', { class: 'anim-acts' }, acts))),
     h('footer', { class: 'tools-foot' }, size, pal),
   );
   root.append(screen);
   stageEl.addEventListener('pointerdown', () => {
-    if (playing) toast('Нажми «Стоп», чтобы рисовать дальше');
+    if (playing) toast(t('Нажми «Стоп», чтобы рисовать дальше'));
   });
 
   // Runs after every stroke, undo and redo: all of them change the current frame.
@@ -578,7 +576,7 @@ async function studio(root, arg) {
         onclick: () => { sfx.pop(); select(frames.indexOf(f)); },
       }, f.th, h('i'));
       f.el.lastChild.textContent = i + 1;
-      f.el.setAttribute('aria-label', `Кадр ${i + 1}`);
+      f.el.setAttribute('aria-label', t('Кадр {n}', { n: i + 1 }));
     });
     strip.replaceChildren(...frames.map(f => f.el));
     strip.classList.toggle('dense', frames.length > 10);
@@ -599,10 +597,11 @@ async function studio(root, arg) {
     if (prev) onionBox.replaceChildren(prev); else onionBox.textContent = '';
     if (L) {
       guideSvg.innerHTML = hints ? guide(L, cur) : '';
-      const t = tipFor(cur);
-      if (t !== said) {
-        said = t;
-        tipEl.say(t);
+      // The tip is compared by its Russian key and translated only to be shown.
+      const tip = tipFor(cur);
+      if (tip !== said) {
+        said = tip;
+        tipEl.say(t(tip));
       }
     }
     markFrames();
@@ -626,13 +625,13 @@ async function studio(root, arg) {
     player.classList.toggle('hidden', !on);
     screen.classList.toggle('playing', on);
     playBtn.classList.toggle('going', on);
-    playBtn.replaceChildren(on ? glyph(STOP) : icon('play', 24), on ? 'Стоп' : 'Смотреть');
+    playBtn.replaceChildren(on ? glyph(STOP) : icon('play', 24), on ? t('Стоп') : t('Смотреть'));
     syncTools();
   }
 
   function play() {
     if (playing || !idle()) return;
-    if (frames.length < 2) { toast('Мультику нужно хотя бы два кадра. Нажми «Кадр» или «Копия»!'); return; }
+    if (frames.length < 2) { toast(t('Мультику нужно хотя бы два кадра. Нажми «Кадр» или «Копия»!')); return; }
     commit();
     at = 0;
     setPlaying(true);
@@ -673,7 +672,7 @@ async function studio(root, arg) {
 
   function addFrame(copy) {
     if (!idle()) return;
-    if (frames.length >= MAX) { toast(`В мультике помещается ${MAX} кадров. Больше некуда!`); return; }
+    if (frames.length >= MAX) { toast(t('В мультике помещается {n} кадров. Больше некуда!', { n: MAX })); return; }
     commit();
     const f = newFrame();
     if (copy) fill(f, frames[cur]);
@@ -686,24 +685,24 @@ async function studio(root, arg) {
   async function copyNext() {
     if (!idle()) return;
     const to = frames[cur + 1];
-    if (!to) { toast('Это последний кадр — дальше копировать некуда'); return; }
-    if (!frames[cur].ink) { toast('Сначала нарисуй что-нибудь в этом кадре'); return; }
-    if (to.ink && !(await confirmBox(`В кадре ${cur + 2} уже есть рисунок. Заменить его копией?`, 'Заменить', 'Оставить'))) return;
+    if (!to) { toast(t('Это последний кадр — дальше копировать некуда')); return; }
+    if (!frames[cur].ink) { toast(t('Сначала нарисуй что-нибудь в этом кадре')); return; }
+    if (to.ink && !(await confirmBox(t('В кадре {n} уже есть рисунок. Заменить его копией?', { n: cur + 2 }), t('Заменить'), t('Оставить')))) return;
     // A second finger may have picked another frame while the question was up.
     if (frames[cur + 1] !== to) return;
     commit();
     fill(to, frames[cur]);
     changed = true;
     show(cur + 1);
-    toast('Это копия. Теперь измени её по подсказке!');
+    toast(t('Это копия. Теперь измени её по подсказке!'));
   }
 
   // Undo is forgotten as soon as she changes frame, so she is asked first.
   async function wipe() {
     if (!idle()) return;
     const f = frames[cur];
-    if (!f.ink) { toast('В этом кадре и так пусто'); return; }
-    if (!(await confirmBox('Стереть весь рисунок в этом кадре?', 'Стереть', 'Оставить'))) return;
+    if (!f.ink) { toast(t('В этом кадре и так пусто')); return; }
+    if (!(await confirmBox(t('Стереть весь рисунок в этом кадре?'), t('Стереть'), t('Оставить')))) return;
     if (frames[cur] === f && idle()) p.clearLayer();
   }
 
@@ -711,7 +710,7 @@ async function studio(root, arg) {
     if (!idle()) return;
     if (frames.length === 1) { await wipe(); return; }
     const f = frames[cur];
-    if (f.ink && !(await confirmBox('Убрать этот кадр из мультика?', 'Убрать', 'Оставить'))) return;
+    if (f.ink && !(await confirmBox(t('Убрать этот кадр из мультика?'), t('Убрать'), t('Оставить')))) return;
     if (frames[cur] !== f) return;
     frames.splice(cur, 1);
     changed = true;
@@ -733,7 +732,7 @@ async function studio(root, arg) {
         const id = artId || newId('art');
         const [thumb, full] = await cover(list);
         await db.put('art', {
-          id, kind: 'anim', title: L ? L.name : 'Мой мультик', created, updated: Date.now(),
+          id, kind: 'anim', title: L ? L.name : N('Мой мультик'), created, updated: Date.now(),
           w: W, h: H, fps, frames: pngs, thumb, full,
         });
         artId = id;
@@ -753,7 +752,7 @@ async function studio(root, arg) {
     if (!idle()) return;
     stopPlay();
     const done = frames.filter(counts).length;
-    if (!done) { toast('Сначала нарисуй хотя бы один кадр!'); return; }
+    if (!done) { toast(t('Сначала нарисуй хотя бы один кадр!')); return; }
     const n = frames.length;
     const stars = done === n ? 3 : done * 3 >= n * 2 ? 2 : 1;
     const copies = frames.some(f => f.ink && !f.drawn);
@@ -778,8 +777,11 @@ async function studio(root, arg) {
       levels: LEVELS, index, stars, menu: MENU,
       // With all frames drawn she watches it again; otherwise she goes on drawing.
       again: missing < 0 ? play : () => select(missing),
-      text: stars === 3 ? `Все ${n} ${framesWord(n)} нарисованы. Мультик уже в галерее!`
-        : `Готово ${done} из ${n}. ${copies ? 'Копия считается, когда ты в ней что-то изменишь. ' : ''}Нажми «Ещё раз» и дорисуй остальные кадры!`,
+      text: stars === 3
+        ? plural(n, 'Все {n} кадр нарисованы. Мультик уже в галерее!|Все {n} кадра нарисованы. Мультик уже в галерее!|Все {n} кадров нарисованы. Мультик уже в галерее!')
+        : copies
+          ? t('Готово {done} из {n}. Копия считается, когда ты в ней что-то изменишь. Нажми «Ещё раз» и дорисуй остальные кадры!', { done, n })
+          : t('Готово {done} из {n}. Нажми «Ещё раз» и дорисуй остальные кадры!', { done, n }),
     });
   }
 
@@ -788,7 +790,7 @@ async function studio(root, arg) {
     stopPlay();
     const done = frames.filter(counts).length;
     if (done < 2) {
-      toast(done ? 'Мультику нужно хотя бы два кадра с рисунком. Нажми «Копия» и измени её!' : 'Сначала нарисуй первый кадр!');
+      toast(done ? t('Мультику нужно хотя бы два кадра с рисунком. Нажми «Копия» и измени её!') : t('Сначала нарисуй первый кадр!'));
       return;
     }
     try {
@@ -799,12 +801,12 @@ async function studio(root, arg) {
     const r = awardOnce('anim');
     if (closed) return;
     celebrate({
-      title: `Мультик готов, ${state.name}!`,
-      text: r.gain ? 'Он уже в галерее. Держи звезду за сегодняшний мультик!' : 'Он уже в галерее.',
+      title: t('Мультик готов, {name}!', { name: state.name }),
+      text: r.gain ? t('Он уже в галерее. Держи звезду за сегодняшний мультик!') : t('Он уже в галерее.'),
       unlocked: r.unlocked,
       actions: [
-        { label: 'Рисовать дальше' },
-        { label: 'К мультикам', primary: true, fn: () => { location.hash = MENU; } },
+        { label: t('Рисовать дальше') },
+        { label: t('К мультикам'), primary: true, fn: () => { location.hash = MENU; } },
       ],
     });
   }

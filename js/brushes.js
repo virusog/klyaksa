@@ -1,5 +1,6 @@
 // Every brush is a "stamp" function called at even distances along the stroke.
 import { canvas, hexRgb, rgbHex, shade, mulberry, clamp } from './util.js';
+import { N } from './i18n.js';
 
 const tips = new Map();
 
@@ -77,22 +78,22 @@ function hueJitter(hex, rng, amount = 0.18) {
 
 export const BRUSHES = {
   pencil: {
-    name: 'Карандаш', spacing: 0.16, min: 2, max: 34, def: 8, opacity: 1, blend: 'source-over', scatter: 1.1,
+    name: N('Карандаш'), spacing: 0.16, min: 2, max: 34, def: 8, opacity: 1, blend: 'source-over', scatter: 1.1,
     stamp(c, o) {
       const r = o.r * (0.55 + 0.6 * o.p);
       image(c, tip('grain', o.color, Math.floor(o.rng() * 4)), o, r, 0.28 + 0.65 * o.p);
     },
   },
   pen: {
-    name: 'Ручка', spacing: 0.07, min: 2, max: 30, def: 7, opacity: 1, blend: 'source-over', scatter: 1,
+    name: N('Ручка'), spacing: 0.07, min: 2, max: 30, def: 7, opacity: 1, blend: 'source-over', scatter: 1,
     stamp(c, o) { disc(c, o.x, o.y, o.r * (0.35 + 0.85 * o.p), o.color); },
   },
   marker: {
-    name: 'Фломастер', spacing: 0.08, min: 6, max: 70, def: 18, opacity: 1, blend: 'source-over', scatter: 1,
+    name: N('Фломастер'), spacing: 0.08, min: 6, max: 70, def: 18, opacity: 1, blend: 'source-over', scatter: 1,
     stamp(c, o) { disc(c, o.x, o.y, o.r, o.color); },
   },
   highlighter: {
-    name: 'Маркер', spacing: 0.08, min: 12, max: 90, def: 34, opacity: 0.5, blend: 'multiply', scatter: 1,
+    name: N('Маркер'), spacing: 0.08, min: 12, max: 90, def: 34, opacity: 0.5, blend: 'multiply', scatter: 1,
     stamp(c, o) {
       c.globalAlpha = 1;
       c.fillStyle = o.color;
@@ -100,22 +101,22 @@ export const BRUSHES = {
     },
   },
   watercolor: {
-    name: 'Акварель', spacing: 0.1, min: 12, max: 140, def: 54, opacity: 0.7, blend: 'multiply', scatter: 1.12,
+    name: N('Акварель'), spacing: 0.1, min: 12, max: 140, def: 54, opacity: 0.7, blend: 'multiply', scatter: 1.12,
     stamp(c, o) {
       const r = o.r * (0.78 + 0.4 * o.p + o.rng() * 0.08);
       image(c, tip('water', o.color), { x: o.x + (o.rng() - 0.5) * 3, y: o.y + (o.rng() - 0.5) * 3 }, r, 0.5);
     },
   },
   crayon: {
-    name: 'Мелок', spacing: 0.14, min: 8, max: 80, def: 28, opacity: 1, blend: 'source-over', scatter: 1,
+    name: N('Мелок'), spacing: 0.14, min: 8, max: 80, def: 28, opacity: 1, blend: 'source-over', scatter: 1,
     stamp(c, o) { image(c, tip('crayon', o.color, Math.floor(o.rng() * 6)), o, o.r * (0.7 + 0.4 * o.p), 0.85); },
   },
   chalk: {
-    name: 'Пастель', spacing: 0.18, min: 10, max: 110, def: 42, opacity: 1, blend: 'source-over', scatter: 1,
+    name: N('Пастель'), spacing: 0.18, min: 10, max: 110, def: 42, opacity: 1, blend: 'source-over', scatter: 1,
     stamp(c, o) { image(c, tip('chalk', o.color, Math.floor(o.rng() * 6)), o, o.r, 0.75); },
   },
   spray: {
-    name: 'Баллончик', spacing: 0.22, min: 16, max: 150, def: 60, opacity: 1, blend: 'source-over', scatter: 1.1,
+    name: N('Баллончик'), spacing: 0.22, min: 16, max: 150, def: 60, opacity: 1, blend: 'source-over', scatter: 1.1,
     stamp(c, o) {
       c.fillStyle = o.color;
       c.globalAlpha = 0.75;
@@ -129,7 +130,7 @@ export const BRUSHES = {
     },
   },
   fur: {
-    name: 'Шёрстка', spacing: 0.24, min: 12, max: 90, def: 34, opacity: 1, blend: 'source-over', scatter: 2.3, prize: true,
+    name: N('Шёрстка'), spacing: 0.24, min: 12, max: 90, def: 34, opacity: 1, blend: 'source-over', scatter: 2.3, prize: true,
     stamp(c, o) {
       c.lineCap = 'round';
       for (let i = 0; i < 6; i++) {
@@ -148,14 +149,14 @@ export const BRUSHES = {
     },
   },
   neon: {
-    name: 'Неон', spacing: 0.1, min: 8, max: 60, def: 22, opacity: 1, blend: 'source-over', scatter: 2.8, prize: true,
+    name: N('Неон'), spacing: 0.1, min: 8, max: 60, def: 22, opacity: 1, blend: 'source-over', scatter: 2.8, prize: true,
     stamp(c, o) {
       image(c, tip('glow', o.color), o, o.r * 2.7, 0.3);
       disc(c, o.x, o.y, o.r * 0.34, '#ffffff');
     },
   },
   rainbow: {
-    name: 'Радуга', spacing: 0.06, min: 8, max: 80, def: 26, opacity: 1, blend: 'source-over', scatter: 1, prize: true,
+    name: N('Радуга'), spacing: 0.06, min: 8, max: 80, def: 26, opacity: 1, blend: 'source-over', scatter: 1, prize: true,
     stamp(c, o) {
       c.globalAlpha = 1;
       c.fillStyle = `hsl(${(o.dist * 0.45) % 360} 92% 60%)`;
@@ -165,7 +166,7 @@ export const BRUSHES = {
     },
   },
   glitter: {
-    name: 'Блёстки', spacing: 0.34, min: 14, max: 110, def: 40, opacity: 1, blend: 'source-over', scatter: 1.2, prize: true,
+    name: N('Блёстки'), spacing: 0.34, min: 14, max: 110, def: 40, opacity: 1, blend: 'source-over', scatter: 1.2, prize: true,
     stamp(c, o) {
       for (let i = 0; i < 5; i++) {
         const a = o.rng() * 6.2832;
@@ -178,15 +179,15 @@ export const BRUSHES = {
     },
   },
   stars: {
-    name: 'Звёздочки', spacing: 1.5, min: 16, max: 110, def: 42, opacity: 1, blend: 'source-over', scatter: 1.2, prize: true,
+    name: N('Звёздочки'), spacing: 1.5, min: 16, max: 110, def: 42, opacity: 1, blend: 'source-over', scatter: 1.2, prize: true,
     stamp(c, o) { shapeStamp(c, STAR, o, o.r * (0.7 + o.rng() * 0.45), hueJitter(o.color, o.rng)); },
   },
   hearts: {
-    name: 'Сердечки', spacing: 1.5, min: 16, max: 110, def: 42, opacity: 1, blend: 'source-over', scatter: 1.2, prize: true,
+    name: N('Сердечки'), spacing: 1.5, min: 16, max: 110, def: 42, opacity: 1, blend: 'source-over', scatter: 1.2, prize: true,
     stamp(c, o) { shapeStamp(c, HEART, o, o.r * (0.7 + o.rng() * 0.45), hueJitter(o.color, o.rng)); },
   },
   bubbles: {
-    name: 'Пузыри', spacing: 0.9, min: 16, max: 120, def: 50, opacity: 1, blend: 'source-over', scatter: 1.5, prize: true,
+    name: N('Пузыри'), spacing: 0.9, min: 16, max: 120, def: 50, opacity: 1, blend: 'source-over', scatter: 1.5, prize: true,
     stamp(c, o) {
       const r = o.r * (0.3 + o.rng() * 0.7);
       const x = o.x + (o.rng() - 0.5) * o.r;
@@ -203,7 +204,7 @@ export const BRUSHES = {
     },
   },
   calligraphy: {
-    name: 'Перо', spacing: 0.05, min: 6, max: 70, def: 24, opacity: 1, blend: 'source-over', scatter: 1.3, prize: true,
+    name: N('Перо'), spacing: 0.05, min: 6, max: 70, def: 24, opacity: 1, blend: 'source-over', scatter: 1.3, prize: true,
     stamp(c, o) {
       // A flat nib held at an angle: thin one way, wide the other.
       const w = o.r * (0.9 + 0.4 * o.p);
@@ -217,7 +218,7 @@ export const BRUSHES = {
     },
   },
   leaves: {
-    name: 'Листики', spacing: 1.1, min: 16, max: 110, def: 44, opacity: 1, blend: 'source-over', scatter: 1.6, prize: true,
+    name: N('Листики'), spacing: 1.1, min: 16, max: 110, def: 44, opacity: 1, blend: 'source-over', scatter: 1.6, prize: true,
     stamp(c, o) {
       const s = o.r * (0.6 + o.rng() * 0.5);
       c.save();
@@ -237,7 +238,7 @@ export const BRUSHES = {
     },
   },
   confetti: {
-    name: 'Конфетти', spacing: 0.5, min: 14, max: 120, def: 46, opacity: 1, blend: 'source-over', scatter: 1.4, prize: true,
+    name: N('Конфетти'), spacing: 0.5, min: 14, max: 120, def: 46, opacity: 1, blend: 'source-over', scatter: 1.4, prize: true,
     stamp(c, o) {
       c.globalAlpha = 1;
       for (let i = 0; i < 3; i++) {
@@ -252,11 +253,11 @@ export const BRUSHES = {
     },
   },
   dashed: {
-    name: 'Пунктир', spacing: 0.08, min: 4, max: 50, def: 12, opacity: 1, blend: 'source-over', scatter: 1, prize: true,
+    name: N('Пунктир'), spacing: 0.08, min: 4, max: 50, def: 12, opacity: 1, blend: 'source-over', scatter: 1, prize: true,
     stamp(c, o) { if (Math.floor(o.dist / (o.r * 5)) % 2 === 0) disc(c, o.x, o.y, o.r, o.color); },
   },
   snow: {
-    name: 'Снежинки', spacing: 1.4, min: 18, max: 120, def: 46, opacity: 1, blend: 'source-over', scatter: 1.5, prize: true,
+    name: N('Снежинки'), spacing: 1.4, min: 18, max: 120, def: 46, opacity: 1, blend: 'source-over', scatter: 1.5, prize: true,
     stamp(c, o) {
       const s = o.r * (0.55 + o.rng() * 0.45);
       c.save();
@@ -282,7 +283,7 @@ export const BRUSHES = {
     },
   },
   pixel: {
-    name: 'Пиксели', spacing: 0.3, min: 10, max: 90, def: 30, opacity: 1, blend: 'source-over', scatter: 2, prize: true,
+    name: N('Пиксели'), spacing: 0.3, min: 10, max: 90, def: 30, opacity: 1, blend: 'source-over', scatter: 2, prize: true,
     stamp(c, o) {
       // Snaps to a grid of squares, like pixel art.
       const g = Math.max(4, Math.round(o.r));
@@ -292,7 +293,7 @@ export const BRUSHES = {
     },
   },
   eraser: {
-    name: 'Ластик', spacing: 0.08, min: 8, max: 120, def: 36, opacity: 1, blend: 'destination-out', scatter: 1, direct: true,
+    name: N('Ластик'), spacing: 0.08, min: 8, max: 120, def: 36, opacity: 1, blend: 'destination-out', scatter: 1, direct: true,
     stamp(c, o) { disc(c, o.x, o.y, o.r, '#000'); },
   },
 };

@@ -150,6 +150,12 @@ export async function contentPhrases() {
     for (const w of d.does) add(w, 'words', `js/content/${f}`, 'dice does');
     for (const w of d.where) add(w, 'words', `js/content/${f}`, 'dice where');
   }
+  // The first dice words live in games.js itself, as const WHO/DOES/WHERE = [N('…'), …].
+  const games = readFileSync(join(JS, 'games.js'), 'utf8');
+  for (const [name, kind] of [['WHO', 'dice who'], ['DOES', 'dice does'], ['WHERE', 'dice where']]) {
+    const line = games.match(new RegExp(`^const ${name} = \\[(.*)\\];$`, 'm'))?.[1] || '';
+    for (const m of line.matchAll(/N\('([^']+)'\)/g)) add(m[1], 'games', 'js/games.js', kind);
+  }
   for (const f of ['ideas.js', 'ideas2.js']) {
     for (const s of (await load(`js/content/${f}`)).default) add(s, 'words', `js/content/${f}`, 'idea of the day');
   }

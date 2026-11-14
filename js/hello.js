@@ -96,7 +96,11 @@ export function me(root) {
     topbar(t('Мой профиль')),
     h('div', { class: 'hello-card' },
       speaker(t('Здесь можно поменять имя, значок и язык.')),
-      profileForm({ submit: t('Сохранить'), onDone: () => { toast(t('Готово!')); location.hash = '#/'; } }),
+      // The router clears toasts when the screen changes, so the toast waits for the new screen.
+      profileForm({ submit: t('Сохранить'), onDone: () => {
+        addEventListener('hashchange', () => toast(t('Готово!')), { once: true });
+        location.hash = '#/';
+      } }),
       h('h2', { class: 'hello-sub' }, t('Язык')),
       langPicker(code => setLang(code, '#/me')),
     ),

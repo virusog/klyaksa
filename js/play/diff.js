@@ -16,6 +16,7 @@ import { db } from '../store.js';
 import { sfx } from '../audio.js';
 import { PAGES } from '../pages.js';
 import { drawPage } from '../coloring.js';
+import { t, N, plural } from '../i18n.js';
 
 const MENU = '#/game/diff';
 const W = 1200, H = 900;
@@ -35,11 +36,11 @@ const NEAR_GROW = 1.6;  // and may be this much bigger than a bold change, being
 // step, so a later level never comes out with easier spots than an earlier one.
 // `tip` tells her what is new.
 const TIERS = [
-  { n: 3, lo: 0.012, hi: 0.06, out: 0, near: 0, tip: 'Нажимай на любую из картинок.' },
-  { n: 4, lo: 0.006, hi: 0.02, out: 1, near: 0, tip: 'Что-то могло и пропасть!' },
-  { n: 5, lo: 0.003, hi: 0.01, out: 2, near: 0, tip: 'Теперь они мельче.' },
-  { n: 6, lo: 0.002, hi: 0.008, out: 2, near: 3, tip: 'Цвет мог измениться совсем чуть-чуть.' },
-  { n: 7, lo: 0.0015, hi: 0.005, out: 2, near: 4, tip: 'Они крошечные. Не спеши!' },
+  { n: 3, lo: 0.012, hi: 0.06, out: 0, near: 0, tip: N('Нажимай на любую из картинок.') },
+  { n: 4, lo: 0.006, hi: 0.02, out: 1, near: 0, tip: N('Что-то могло и пропасть!') },
+  { n: 5, lo: 0.003, hi: 0.01, out: 2, near: 0, tip: N('Теперь они мельче.') },
+  { n: 6, lo: 0.002, hi: 0.008, out: 2, near: 3, tip: N('Цвет мог измениться совсем чуть-чуть.') },
+  { n: 7, lo: 0.0015, hi: 0.005, out: 2, near: 4, tip: N('Они крошечные. Не спеши!') },
 ];
 
 // Simple pictures first, crowded ones last. Each one was measured to give its
@@ -54,14 +55,16 @@ const PAGE_IDS = [
 ];
 const pageOf = i => PAGES.find(p => p.id === PAGE_IDS[i]) || PAGES[i % PAGES.length];
 const tierOf = i => TIERS[Math.floor(i / 4)];
-const word = n => (n < 5 ? 'отличия' : 'отличий');
 
-const LEVELS = PAGE_IDS.map((_, i) => ({
-  key: `diff:${i + 1}`,
-  name: pageOf(i).title,
-  sub: `${tierOf(i).n} ${word(tierOf(i).n)}`,
-  href: `${MENU}/${i + 1}`,
-}));
+const LEVELS = PAGE_IDS.map((_, i) => {
+  const n = tierOf(i).n;
+  return {
+    key: `diff:${i + 1}`,
+    name: t(pageOf(i).title),
+    sub: plural(n, '{n} отличие|{n} отличия|{n} отличий'),
+    href: `${MENU}/${i + 1}`,
+  };
+});
 
 // The page with the chosen changes applied.
 const variant = (page, changes) => ({
@@ -244,7 +247,7 @@ function play(root, index) {
   let hinted = false;
   let done = false;
 
-  const say = speaker('Готовлю картинки…');
+  const say = speaker(t('Готовлю картинки…'));
   const count = h('b', { class: 'diff-count' });
   const miss = h('span', { class: 'diff-miss' });
   const pics = [0, 1].map(() => {
@@ -252,11 +255,12 @@ function play(root, index) {
     const marks = h('div', { class: 'diff-marks' });
     return { c, marks, el: h('div', { class: 'diff-pic' }, c, marks) };
   });
-  const board = h('div', { class: 'diff-board' }, pics.map(p => p.el));
+  // A play surface: the original stays on the left in Hebrew too.
+  const board = h('div', { class: 'diff-board', dir: 'ltr' }, pics.map(p => p.el));
 
   const status = () => {
-    count.textContent = `Найдено ${found.size} из ${level.diffs.length}`;
-    miss.textContent = `Промахи: ${mistakes}`;
+    count.textContent = t('Найдено {a} из {b}', { a: found.size, b: level.diffs.length });
+    miss.textContent = t('Промахи: {n}', { n: mistakes });
   };
   const keep = () => db.put('kv', { id: saveId, found: [...found], mistakes, hinted }).catch(() => {});
 
@@ -280,14 +284,14 @@ function play(root, index) {
 
   function finish() {
     done = true;
-    say.say('Все отличия найдены!');
+    say.say(t('Все отличия найдены!'));
     // Stars are paid when the dialog opens. Until then the finished level
     // stays saved, so leaving at this very moment loses nothing.
     keep();
     const stars = Math.min(hinted ? 2 : 3, mistakes <= 1 ? 3 : mistakes <= 3 ? 2 : 1);
-    const text = hinted && mistakes <= 3 ? 'С подсказкой выходит две звезды. В следующий раз попробуй сама!'
-      : mistakes === 0 ? 'Ни одного промаха. Вот это глаз!'
-        : `Все отличия найдены. Промахов: ${mistakes}. Чем их меньше, тем больше звёзд.`;
+    const text = hinted && mistakes <= 3 ? t('С подсказкой выходит две звезды. В следующий раз попробуй сама!')
+      : mistakes === 0 ? t('Ни одного промаха. Вот это глаз!')
+        : t('Все отличия найдены. Промахов: {n}. Чем их меньше, тем больше звёзд.', { n: mistakes });
     // A moment to see the last ring before the dialog covers it.
     timer = setTimeout(() => {
       db.del('kv', saveId).catch(() => {});
@@ -302,7 +306,7 @@ function play(root, index) {
     done = false;
     for (const p of pics) p.marks.textContent = '';
     status();
-    say.say(`Найди ${level.diffs.length} ${word(level.diffs.length)} ещё раз!`);
+    say.say(plural(level.diffs.length, 'Найди {n} отличие ещё раз!|Найди {n} отличия ещё раз!|Найди {n} отличий ещё раз!'));
   }
 
   function tap(pic, cx, cy, alone) {
@@ -322,7 +326,7 @@ function play(root, index) {
       sfx.ding();
       status();
       const left = level.diffs.length - found.size;
-      if (left) { say.say(left === 1 ? 'Верно! Осталось одно.' : `Верно! Осталось ${left}.`); keep(); } else finish();
+      if (left) { say.say(left === 1 ? t('Верно! Осталось одно.') : t('Верно! Осталось {n}.', { n: left })); keep(); } else finish();
       return;
     }
     if (!alone) return;
@@ -334,7 +338,7 @@ function play(root, index) {
     no.addEventListener('animationend', () => no.remove());
     pic.marks.append(no);
     status();
-    say.say('Здесь всё одинаково. Сравни внимательнее.');
+    say.say(t('Здесь всё одинаково. Сравни внимательнее.'));
     keep();
   }
 
@@ -364,7 +368,7 @@ function play(root, index) {
   async function hint() {
     if (!level || done) return;
     if (!hinted) {
-      const yes = await confirmBox('Показать одно отличие? Тогда за уровень будет не больше двух звёзд.', 'Показать', 'Сама найду');
+      const yes = await confirmBox(t('Показать одно отличие? Тогда за уровень будет не больше двух звёзд.'), t('Показать'), t('Сама найду'));
       if (!yes || closed || done) return;
       hinted = true;
       keep();
@@ -372,11 +376,11 @@ function play(root, index) {
     dropHint();
     const d = level.diffs.find(x => !found.has(x.i));
     for (const el of ring(d, 'diff-ring diff-hint')) el.addEventListener('animationend', () => el.remove());
-    say.say('Смотри, где мигает!');
+    say.say(t('Смотри, где мигает!'));
   }
 
   root.append(h('div', { class: 'screen' },
-    topbar(`Найди отличия: уровень ${index + 1}`, { back: MENU, right: [btn('ghost', [icon('eye', 22), 'Подсказка'], hint)] }),
+    topbar(t('Найди отличия: уровень {n}', { n: index + 1 }), { back: MENU, right: [btn('ghost', [icon('eye', 22), t('Подсказка')], hint)] }),
     h('div', { class: 'diff-status' }, say, h('div', { class: 'diff-score' }, count, miss)),
     board,
   ));
@@ -398,7 +402,10 @@ function play(root, index) {
     status();
     const n = level.diffs.length;
     if (found.size === n) finish();
-    else say.say(found.size ? `Продолжаем! Осталось найти: ${n - found.size}.` : `Найди ${n} ${word(n)}. ${tierOf(index).tip}`);
+    else {
+      say.say(found.size ? t('Продолжаем! Осталось найти: {n}.', { n: n - found.size })
+        : plural(n, 'Найди {n} отличие. {tip}|Найди {n} отличия. {tip}|Найди {n} отличий. {tip}', { tip: t(tierOf(index).tip) }));
+    }
   }, 40);
 
   return () => { closed = true; clearTimeout(timer); };
@@ -408,8 +415,8 @@ export default function run(root, arg) {
   const index = Number(arg) - 1;
   if (LEVELS[index] && isOpen(LEVELS, index)) return play(root, index);
   levelScreen(root, {
-    title: 'Найди отличия',
-    hint: 'Две картинки почти одинаковые. Найди всё, чем они отличаются!',
+    title: t('Найди отличия'),
+    hint: t('Две картинки почти одинаковые. Найди всё, чем они отличаются!'),
     levels: LEVELS.map((L, i) => ({ ...L, thumb: thumb(pageOf(i)) })),
   });
   return () => {};

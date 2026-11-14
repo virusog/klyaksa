@@ -12,7 +12,7 @@ export const state = (() => {
   try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* private mode */ }
   // Progress from before profiles existed belongs to Настя, who must not be asked again.
   if (saved && saved.onboarded === undefined) {
-    saved = { avatar: '🦄', lang: 'ru', ...saved, name: saved.name || 'Настя', onboarded: true };
+    saved = { avatar: '🦄', lang: 'ru', ...saved, name: saved.name || 'Настя', onboarded: true }; // i18n-skip: her own name, kept as typed
   }
   return { ...DEFAULTS, ...(saved || {}) };
 })();

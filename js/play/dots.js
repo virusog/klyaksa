@@ -14,6 +14,7 @@ import { topbar, iconBtn, speaker, confirmBox } from '../ui.js';
 import { db } from '../store.js';
 import { sfx } from '../audio.js';
 import { levelScreen, finishLevel, starsOf, isOpen } from './kit.js';
+import { t, N, plural } from '../i18n.js';
 import base from '../content/dots.js';
 import moreA from '../content/dots-a.js';
 import moreB from '../content/dots-b.js';
@@ -44,7 +45,7 @@ const RAYS = Array.from({ length: 24 }, (_, k) => [Math.cos(k * Math.PI / 12), M
 
 const PICS = [...base, ...moreA, ...moreB].sort((a, b) => a.pts.length - b.pts.length);
 const LEVELS = PICS.map(p => ({ key: `dots:${p.id}`, href: `${MENU}/${p.id}` }));
-const SKIP_WORD = { 2: 'двойками', 3: 'тройками', 5: 'пятёрками' };
+const SKIP_WORD = { 2: N('двойками'), 3: N('тройками'), 5: N('пятёрками') };
 
 function rules(index) {
   const n = PICS.length;
@@ -55,19 +56,15 @@ function rules(index) {
 }
 
 function introOf(index, tier, step) {
-  if (tier === 2) return `Тут счёт ${SKIP_WORD[step]}: ${step}, ${step * 2}, ${step * 3}… Каждый раз прибавляй ${step}.`;
-  if (tier === 1) return 'Теперь точки не светятся: ищи следующее число сама.';
-  if (index === 0) return 'Нажимай на точки по порядку: 1, 2, 3… Можно вести линию пальцем. Нужная точка светится.';
-  if (index === 1) return 'Соединяй точки по порядку. Нужная точка светится.';
-  return 'Ищи числа по порядку. Если долго ищешь, нужная точка засветится сама.';
+  if (tier === 2) {
+    return t('Тут счёт {how}: {a}, {b}, {c}… Каждый раз прибавляй {step}.',
+      { how: t(SKIP_WORD[step]), a: step, b: step * 2, c: step * 3, step });
+  }
+  if (tier === 1) return t('Теперь точки не светятся: ищи следующее число сама.');
+  if (index === 0) return t('Нажимай на точки по порядку: 1, 2, 3… Можно вести линию пальцем. Нужная точка светится.');
+  if (index === 1) return t('Соединяй точки по порядку. Нужная точка светится.');
+  return t('Ищи числа по порядку. Если долго ищешь, нужная точка засветится сама.');
 }
-
-const dotsWord = n => {
-  const d = n % 10;
-  const t = n % 100;
-  if (d === 1 && t !== 11) return 'точка';
-  return d >= 2 && d <= 4 && (t < 12 || t > 14) ? 'точки' : 'точек';
-};
 
 const outline = pts => `M${pts.map(p => p.join(' ')).join('L')}Z`;
 const far = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -206,8 +203,8 @@ function thumb(pic) {
 
 function list(root) {
   levelScreen(root, {
-    title: 'По точкам',
-    hint: 'Соединяй точки по порядку и узнай, что спряталось. Чем дальше, тем точек больше!',
+    title: t('По точкам'),
+    hint: t('Соединяй точки по порядку и узнай, что спряталось. Чем дальше, тем точек больше!'),
     levels: PICS.map((pic, i) => {
       const solved = starsOf(LEVELS[i].key) > 0;
       const { step } = rules(i);
@@ -215,9 +212,9 @@ function list(root) {
       return {
         ...LEVELS[i],
         // The name would give the secret away, so it waits for the first win.
-        name: solved ? pic.name : 'Секрет',
+        name: solved ? t(pic.name) : t('Секрет'),
         // Kept to one line: a taller card would push the picture into the badge.
-        sub: `${n} ${dotsWord(n)}${step > 1 ? ` · счёт по ${step}` : ''}`,
+        sub: plural(n, '{n} точка|{n} точки|{n} точек') + (step > 1 ? ' · ' + t('счёт по {step}', { step }) : ''),
         thumb: solved ? thumb(pic) : h('span', { class: 'dots-secret' }, '?'),
       };
     }),
@@ -231,7 +228,7 @@ function play(root, index) {
   const N = P.length;
   const { tier, step } = rules(index);
   const saveId = `dots_${pic.id}`;
-  const heading = `По точкам · ${index + 1}`;
+  const heading = t('По точкам · {n}', { n: index + 1 });
   const intro = introOf(index, tier, step);
 
   let done = 0;       // dots joined so far; at N only the closing line is left
@@ -263,8 +260,8 @@ function play(root, index) {
   svg.append(fill, lines, extra, band, glow, ...dots);
 
   const count = h('span', { class: 'dots-count' });
-  const again = iconBtn('undo', 'Начать заново', async () => {
-    if (await confirmBox('Начать эту картинку заново?', 'Заново', 'Нет') && phase === 'play') restart();
+  const again = iconBtn('undo', t('Начать заново'), async () => {
+    if (await confirmBox(t('Начать эту картинку заново?'), t('Заново'), t('Нет')) && phase === 'play') restart();
   });
   const bar = topbar(heading, { back: MENU, right: [count, again] });
   const title = bar.querySelector('h1');
@@ -310,8 +307,8 @@ function play(root, index) {
     // Three misses in a row mean she is stuck, so the dot shows itself.
     glow.classList.toggle('on', phase === 'play' && (tier === 0 || misses >= 3));
     if (phase === 'play') {
-      tell(done === N ? 'Осталась одна линия: вернись к самой первой точке!'
-        : misses >= 3 && tier > 0 ? 'Подсказка: нужная точка светится.' : intro);
+      tell(done === N ? t('Осталась одна линия: вернись к самой первой точке!')
+        : misses >= 3 && tier > 0 ? t('Подсказка: нужная точка светится.') : intro);
     }
   }
 
@@ -343,13 +340,14 @@ function play(root, index) {
     drag = null;
     band.classList.remove('on');
     sheet.classList.add('solved');
-    title.textContent = pic.name;
+    title.textContent = t(pic.name);
     sfx.ding();
     refresh();
-    tell(`Вот что спряталось: «${pic.name}»!`);
+    tell(t('Вот что спряталось: «{name}»!', { name: t(pic.name) }));
     const stars = mistakes <= 1 ? 3 : mistakes <= 4 ? 2 : 1;
-    const text = `Это «${pic.name}». ${mistakes === 0 ? 'Ни одной ошибки!'
-      : mistakes === 1 ? 'Всего одна ошибка!' : `Ошибок: ${mistakes}. Без спешки выйдет ещё лучше.`}`;
+    const verdict = mistakes === 0 ? t('Ни одной ошибки!')
+      : mistakes === 1 ? t('Всего одна ошибка!') : t('Ошибок: {n}. Без спешки выйдет ещё лучше.', { n: mistakes });
+    const text = t('Это «{name}».', { name: t(pic.name) }) + ' ' + verdict;
     // A moment to look at the picture before the dialog covers it. The saved
     // progress stays until then, so leaving right now does not lose the level.
     timer = setTimeout(() => {

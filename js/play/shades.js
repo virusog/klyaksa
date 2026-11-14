@@ -26,6 +26,7 @@ import { topbar, btn, speaker, confirmBox } from '../ui.js';
 import { db } from '../store.js';
 import { sfx } from '../audio.js';
 import { levelScreen, finishLevel, isOpen } from './kit.js';
+import { t, N, plural } from '../i18n.js';
 
 const MENU = '#/game/shades';
 // The least difference allowed between any two tiles of one board, measured
@@ -35,7 +36,7 @@ const GAP = 0.015;
 const CELL = 150;  // a tile never grows beyond this
 const WAVE = 55;   // ms between neighbouring tiles in the finishing wave
 const REST = 700;  // ms after which a finger that has not moved is resting, not tapping
-const LOOK = 'Посмотри, как цвета перетекают друг в друга. Готова? Нажми «Перемешать»!';
+const LOOK = N('Посмотри, как цвета перетекают друг в друга. Готова? Нажми «Перемешать»!');
 
 // Which tiles carry a dot: slots counted row by row from the top left.
 const FIXED = {
@@ -48,46 +49,46 @@ const FIXED = {
 // top right, bottom left, bottom right for a grid), fixed tiles (a key of
 // FIXED or one slot), what the mascot says].
 const LADDER = [
-  ['Малина', 5, 1, '#ffe0ea #a80f4c', 'ends',
-    'Расставь плитки от светлой к тёмной: нажми на одну, потом на другую — и они поменяются местами. Плитки с точкой уже на месте.'],
-  ['Закат', 6, 1, '#ffdc4a #cf1a7c', 'ends',
-    'Жёлтый перетекает в малиновый. Плитку можно и перетащить пальцем прямо на другую.'],
-  ['Море', 7, 1, '#a6ead4 #4a72c4', 'ends',
-    'Семь плиток от мятной до синей. Чем меньше ходов, тем больше звёзд!'],
-  ['Сирень', 8, 1, '#d8c6f5 #835dd2', 'ends',
-    'Шаги стали мельче. Сравнивай плитку с её соседками.'],
-  ['Леденцы', 3, 3, '#fff08a #ff8fb8 #ffa53d #8a3fd0', 'four',
-    'Теперь цвет меняется и вбок, и вниз. Четыре уголка стоят на месте — иди от них.'],
-  ['Волна', 4, 3, '#f0ffd8 #62d6ff #7fe89a #3a5fd8', 'four',
-    'Собери сначала края между уголками, а потом серединку.'],
-  ['Ягоды', 4, 4, '#ffb0d0 #a0e0ff #e0306a #2a6ae0', 'four',
-    'Шестнадцать плиток. Сверху светлые, снизу яркие.'],
-  ['Лето', 5, 4, '#fff3b0 #ffb0c8 #40c8b0 #6a50d8', 'four',
-    'Двадцать плиток. Каждый ряд — своя дорожка цвета.'],
-  ['Мороженое', 5, 4, '#ffe0a8 #ff7eb0 #8ae8d0 #6d6ff0', 'ends',
-    'На месте только два уголка. Плитки для двух других найди сама!'],
-  ['Лагуна', 6, 4, '#aae9da #5996e0 #f5e9a2 #e89168', 'ends',
-    'Плиток больше. Сначала найди, какие цвета живут в углах.'],
-  ['Сумерки', 6, 5, '#f9c7ff #7b8cff #ffb399 #c23f8b', 'ends',
-    'Тридцать плиток. Собирай по рядам, от края до края.'],
-  ['Луг', 6, 5, '#fbe880 #72cf8e #f9a680 #4c9db0', 'cross',
-    'Точки теперь в других уголках. Не торопись!'],
-  ['Персик', 6, 5, '#ffd3e3 #ffb177 #c7a0f3 #f06787', 'ends',
-    'Цвета стали ближе друг к другу. Ставь похожие плитки рядом и сравнивай.'],
-  ['Мята', 6, 5, '#d2f6e0 #76cdf4 #faf692 #45af85', 'cross',
-    'Зелёные и голубые. Смотри, где светлее, а где темнее.'],
-  ['Осень', 7, 5, '#fde4ac #fda89e #e8bf63 #cb6e5d', 'ends',
-    'Тридцать пять тёплых плиток. Смотри очень внимательно.'],
-  ['Небо', 7, 5, '#dfedff #a9a5f9 #a9eddf #5081d6', 'cross',
-    'Одни голубые и синие. Ищи, какая плитка чуть светлее соседки.'],
-  ['Зефир', 7, 6, '#ffd9ec #ffc989 #d5c0ff #ff96a4', 0,
-    'Только одна плитка стоит на месте — в углу. От неё и начинай.'],
-  ['Туман', 7, 6, '#e9f8fc #a4b8f0 #c6f2c2 #75a1ab', 5,
-    'Одна точка, и она на краю. Сначала реши, какой цвет в каком углу.'],
-  ['Ракушка', 7, 6, '#ffeed7 #f9aebb #f0dc96 #d48971', 15,
-    'Точка внутри поля, а цвета очень близкие. Сравнивай плитки по парам.'],
-  ['Жемчуг', 7, 6, '#e6e2fe #acc6f3 #fdc8c3 #c895d8', 25,
-    'Самый тонкий уровень. Ты уже мастер оттенков — у тебя получится!'],
+  [N('Малина'), 5, 1, '#ffe0ea #a80f4c', 'ends',
+    N('Расставь плитки от светлой к тёмной: нажми на одну, потом на другую — и они поменяются местами. Плитки с точкой уже на месте.')],
+  [N('Закат'), 6, 1, '#ffdc4a #cf1a7c', 'ends',
+    N('Жёлтый перетекает в малиновый. Плитку можно и перетащить пальцем прямо на другую.')],
+  [N('Море'), 7, 1, '#a6ead4 #4a72c4', 'ends',
+    N('Семь плиток от мятной до синей. Чем меньше ходов, тем больше звёзд!')],
+  [N('Сирень'), 8, 1, '#d8c6f5 #835dd2', 'ends',
+    N('Шаги стали мельче. Сравнивай плитку с её соседками.')],
+  [N('Леденцы'), 3, 3, '#fff08a #ff8fb8 #ffa53d #8a3fd0', 'four',
+    N('Теперь цвет меняется и вбок, и вниз. Четыре уголка стоят на месте — иди от них.')],
+  [N('Волна'), 4, 3, '#f0ffd8 #62d6ff #7fe89a #3a5fd8', 'four',
+    N('Собери сначала края между уголками, а потом серединку.')],
+  [N('Ягоды'), 4, 4, '#ffb0d0 #a0e0ff #e0306a #2a6ae0', 'four',
+    N('Шестнадцать плиток. Сверху светлые, снизу яркие.')],
+  [N('Лето'), 5, 4, '#fff3b0 #ffb0c8 #40c8b0 #6a50d8', 'four',
+    N('Двадцать плиток. Каждый ряд — своя дорожка цвета.')],
+  [N('Мороженое'), 5, 4, '#ffe0a8 #ff7eb0 #8ae8d0 #6d6ff0', 'ends',
+    N('На месте только два уголка. Плитки для двух других найди сама!')],
+  [N('Лагуна'), 6, 4, '#aae9da #5996e0 #f5e9a2 #e89168', 'ends',
+    N('Плиток больше. Сначала найди, какие цвета живут в углах.')],
+  [N('Сумерки'), 6, 5, '#f9c7ff #7b8cff #ffb399 #c23f8b', 'ends',
+    N('Тридцать плиток. Собирай по рядам, от края до края.')],
+  [N('Луг'), 6, 5, '#fbe880 #72cf8e #f9a680 #4c9db0', 'cross',
+    N('Точки теперь в других уголках. Не торопись!')],
+  [N('Персик'), 6, 5, '#ffd3e3 #ffb177 #c7a0f3 #f06787', 'ends',
+    N('Цвета стали ближе друг к другу. Ставь похожие плитки рядом и сравнивай.')],
+  [N('Мята'), 6, 5, '#d2f6e0 #76cdf4 #faf692 #45af85', 'cross',
+    N('Зелёные и голубые. Смотри, где светлее, а где темнее.')],
+  [N('Осень'), 7, 5, '#fde4ac #fda89e #e8bf63 #cb6e5d', 'ends',
+    N('Тридцать пять тёплых плиток. Смотри очень внимательно.')],
+  [N('Небо'), 7, 5, '#dfedff #a9a5f9 #a9eddf #5081d6', 'cross',
+    N('Одни голубые и синие. Ищи, какая плитка чуть светлее соседки.')],
+  [N('Зефир'), 7, 6, '#ffd9ec #ffc989 #d5c0ff #ff96a4', 0,
+    N('Только одна плитка стоит на месте — в углу. От неё и начинай.')],
+  [N('Туман'), 7, 6, '#e9f8fc #a4b8f0 #c6f2c2 #75a1ab', 5,
+    N('Одна точка, и она на краю. Сначала реши, какой цвет в каком углу.')],
+  [N('Ракушка'), 7, 6, '#ffeed7 #f9aebb #f0dc96 #d48971', 15,
+    N('Точка внутри поля, а цвета очень близкие. Сравнивай плитки по парам.')],
+  [N('Жемчуг'), 7, 6, '#e6e2fe #acc6f3 #fdc8c3 #c895d8', 25,
+    N('Самый тонкий уровень. Ты уже мастер оттенков — у тебя получится!')],
 ];
 
 // sRGB bytes → linear light → OKLab (Björn Ottosson's published matrices).
@@ -171,7 +172,7 @@ const LEVELS = LADDER.map(([name, cols, rows, hues, fixed, tip], i) => {
   const loose = n - pinned.length;
   return {
     key: `shades:${i + 1}`, name, href: `${MENU}/${i + 1}`,
-    sub: rows > 1 ? `${cols}×${rows} · ${['', '1 точка', '2 точки', '', '4 точки'][pinned.length]}` : `${cols} в ряд`,
+    sub: rows > 1 ? `${cols}×${rows} · ` + plural(pinned.length, '{n} точка|{n} точки|{n} точек') : t('{n} в ряд', { n: cols }),
     cols, rows, n, pinned, loose, tip,
     colors: tints(cols, rows, hues.split(' ')),
     // The most swaps that still earn three and two stars: two swaps per slip.
@@ -201,9 +202,9 @@ function thumb(L) {
 
 function menu(root) {
   levelScreen(root, {
-    title: 'Оттенки',
-    hint: 'Собери плавный переход цвета. Плитки с точкой стоят на месте. Чем меньше ходов, тем больше звёзд!',
-    levels: LEVELS.map(L => ({ ...L, thumb: thumb(L) })),
+    title: t('Оттенки'),
+    hint: t('Собери плавный переход цвета. Плитки с точкой стоят на месте. Чем меньше ходов, тем больше звёзд!'),
+    levels: LEVELS.map(L => ({ ...L, name: t(L.name), thumb: thumb(L) })),
   });
 }
 
@@ -225,16 +226,17 @@ function play(root, index) {
   let winT = 0;
   let saving = Promise.resolve();
 
-  const movesEl = h('b', {}, 'Ходы: 0');
+  const movesEl = h('b', {}, t('Ходы: {n}', { n: 0 }));
   const goalEl = h('small', {});
   const say = speaker('…');
-  const board = h('div', { class: 'shades-board' });
+  // A play surface keeps its left-to-right geometry in Hebrew too.
+  const board = h('div', { class: 'shades-board', dir: 'ltr' });
   const stage = h('div', { class: 'shades-stage' }, board);
-  const mixBtn = btn('primary', 'Перемешать!', () => { if (phase === 'look') mix(); });
-  const hintBtn = btn('ghost', 'Подсказка', hint);
-  const againBtn = btn('ghost', 'Заново', restart);
+  const mixBtn = btn('primary', t('Перемешать!'), () => { if (phase === 'look') mix(); });
+  const hintBtn = btn('ghost', t('Подсказка'), hint);
+  const againBtn = btn('ghost', t('Заново'), restart);
   const screen = h('div', { class: 'screen shades-play' },
-    topbar(`${index + 1}. ${L.name}`, {
+    topbar(`${index + 1}. ${t(L.name)}`, {
       back: MENU,
       right: [h('div', { class: 'shades-score' }, movesEl, goalEl), mixBtn, hintBtn, againBtn],
     }),
@@ -260,10 +262,11 @@ function play(root, index) {
       el.style.setProperty('--y', `${Math.floor(p / cols) * ch}px`);
       el.classList.toggle('sel', p === sel);
     }
-    movesEl.textContent = `Ходы: ${swaps}`;
+    movesEl.textContent = t('Ходы: {n}', { n: swaps });
     const s = starsNow();
-    goalEl.textContent = '★'.repeat(s) + '☆'.repeat(3 - s)
-      + (s === 3 ? ` до ${L.three}` : s === 2 && swaps <= L.two ? ` до ${L.two}` : '');
+    const stars = '★'.repeat(s) + '☆'.repeat(3 - s);
+    const goal = s === 3 ? L.three : s === 2 && swaps <= L.two ? L.two : 0;
+    goalEl.textContent = goal ? t('{stars} до {n}', { stars, n: goal }) : stars;
   }
 
   // Whole pixels per tile, so the finished gradient has no hairlines in it.
@@ -325,7 +328,7 @@ function play(root, index) {
     board.classList.remove('done');
     tiles.forEach((el, k) => el.classList.toggle('fixed', fixed.has(k)));
     buttons();
-    say.say(game ? 'Продолжаем! Плитки ждали тебя.' : LOOK);
+    say.say(game ? t('Продолжаем! Плитки ждали тебя.') : t(LOOK));
     layout();
     // Tiles join the board already in place, so they do not fly in from a corner.
     if (!board.firstChild) board.append(...tiles);
@@ -338,7 +341,7 @@ function play(root, index) {
     loose.forEach((p, i) => { order[p] = loose[(i + 1) % loose.length]; });
     phase = 'play';
     buttons();
-    say.say(L.tip);
+    say.say(t(L.tip));
     render();
     store();
   }
@@ -364,7 +367,7 @@ function play(root, index) {
     buttons();
     board.classList.add('done');
     sfx.ding();
-    say.say('Готово! Все оттенки на своих местах.');
+    say.say(t('Готово! Все оттенки на своих местах.'));
     // The wave runs to the far corner before the dialog covers it. The saved
     // board goes only together with the stars: if she leaves during the wave,
     // the last move is still waiting for her.
@@ -373,9 +376,9 @@ function play(root, index) {
       const stars = starsNow();
       finishLevel({
         levels: LEVELS, index, stars, menu: MENU,
-        text: `Ходов: ${swaps}.` + (stars === 3 ? ' Глаз-алмаз!'
-          : swaps > L.three ? ` Для трёх звёзд — не больше ${L.three}.`
-          : ' С подсказкой бывает не больше двух звёзд.'),
+        text: stars === 3 ? t('Ходов: {n}. Глаз-алмаз!', { n: swaps })
+          : swaps > L.three ? t('Ходов: {n}. Для трёх звёзд — не больше {max}.', { n: swaps, max: L.three })
+          : t('Ходов: {n}. С подсказкой бывает не больше двух звёзд.', { n: swaps }),
         again: () => { if (alive) start(); },
       });
     }, (cols + rows - 2) * WAVE + 900);
@@ -385,7 +388,7 @@ function play(root, index) {
   async function hint() {
     if (phase !== 'play') return;
     if (!hinted && starsNow() === 3) {
-      const yes = await confirmBox('Поставить одну плитку на место? Тогда за этот уровень будет не больше двух звёзд.', 'Поставить', 'Не надо');
+      const yes = await confirmBox(t('Поставить одну плитку на место? Тогда за этот уровень будет не больше двух звёзд.'), t('Поставить'), t('Не надо'));
       if (!yes || !alive || phase !== 'play') return;
     }
     drop();
@@ -405,12 +408,12 @@ function play(root, index) {
     tiles[order[q]].classList.add('fly');
     sfx.ding();
     settle();
-    if (phase === 'play') say.say('Эта плитка теперь на своём месте. Видишь точку? Иди от неё дальше.');
+    if (phase === 'play') say.say(t('Эта плитка теперь на своём месте. Видишь точку? Иди от неё дальше.'));
   }
 
   async function restart() {
     if (phase !== 'play') return;
-    if (swaps && !(await confirmBox('Начать уровень заново? Ходы обнулятся.', 'Заново', 'Нет'))) return;
+    if (swaps && !(await confirmBox(t('Начать уровень заново? Ходы обнулятся.'), t('Заново'), t('Нет')))) return;
     if (!alive || phase !== 'play') return;
     forget();
     start();
@@ -443,7 +446,7 @@ function play(root, index) {
     sfx.soft();
     if (told) return;
     told = true;
-    say.say('Плитка с точкой уже стоит на своём месте. Её двигать не нужно.');
+    say.say(t('Плитка с точкой уже стоит на своём месте. Её двигать не нужно.'));
   }
 
   // A finger that went down and up without travelling.

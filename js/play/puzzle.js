@@ -24,6 +24,7 @@ import { award, db } from '../store.js';
 import { sfx } from '../audio.js';
 import { PAGES } from '../pages.js';
 import { drawPage } from '../coloring.js';
+import { t } from '../i18n.js';
 
 const MENU = '#/game/puzzle';
 const OWN = `${MENU}/own`;
@@ -46,7 +47,7 @@ const LEVELS = LADDER.map(([id, cols, rows, turned = false], i) => {
   const page = PAGES.find(p => p.id === id) || PAGES[i];
   return {
     key: `puzzle:${i + 1}`, name: page.title, href: `${MENU}/${i + 1}`,
-    sub: `${cols}×${rows}${turned ? ' · перевёртыши' : ''}`,
+    sub: turned ? t('{cols}×{rows} · перевёртыши', { cols, rows }) : `${cols}×${rows}`,
     page, cols, rows, turned,
   };
 });
@@ -139,13 +140,13 @@ function game(root, cfg) {
   let peekT = 0, winT = 0;
   let taught = !cfg.teach;
 
-  const movesEl = h('b', {}, 'Ходы: 0');
+  const movesEl = h('b', {}, t('Ходы: {n}', { n: 0 }));
   const goalEl = h('small', {});
-  const say = speaker('Достаю картину…');
+  const say = speaker(t('Достаю картину…'));
   const board = h('div', { class: 'puzzle-board' });
   const stage = h('div', { class: 'puzzle-stage' }, board);
-  const mixBtn = btn('primary hidden', 'Перемешать!', () => { if (phase === 'look') mix(); });
-  const peekBtn = btn('ghost hidden', [icon('eye', 22), ' Подсмотреть'], peek);
+  const mixBtn = btn('primary hidden', t('Перемешать!'), () => { if (phase === 'look') mix(); });
+  const peekBtn = btn('ghost hidden', [icon('eye', 22), ' ', t('Подсмотреть')], peek);
   const screen = h('div', { class: 'screen puzzle-play' },
     topbar(cfg.title, { back: cfg.back, right: [h('div', { class: 'puzzle-score' }, movesEl, scored ? goalEl : null), mixBtn, peekBtn] }),
     say,
@@ -168,9 +169,9 @@ function game(root, cfg) {
       el.classList.toggle('sel', p === sel);
       right += ok;
     }
-    movesEl.textContent = `Ходы: ${swaps}`;
+    movesEl.textContent = t('Ходы: {n}', { n: swaps });
     const s = starsNow();
-    goalEl.textContent = '★'.repeat(s) + '☆'.repeat(3 - s) + (s === 3 ? ` до ${n}` : s === 2 ? ` до ${twoStars}` : '');
+    goalEl.textContent = '★'.repeat(s) + '☆'.repeat(3 - s) + (s === 3 ? ' ' + t('до {n}', { n }) : s === 2 ? ' ' + t('до {n}', { n: twoStars }) : '');
   }
 
   // Whole pixels per tile, so finished tiles meet without a hairline between them.
@@ -198,7 +199,7 @@ function game(root, cfg) {
   function scramble() {
     const lopsided = ids.filter(k => look.lop(k) > 0.04);
     let best = null;
-    for (let t = 0; t < 60 && (!best || best.right); t++) {
+    for (let tries = 0; tries < 60 && (!best || best.right); tries++) {
       order = shuffle(ids);
       rot = ids.map(() => 0);
       // Only tiles that visibly change are turned: a turned patch of plain sky would be a trap.
@@ -213,10 +214,10 @@ function game(root, cfg) {
     ({ order, rot } = mixed);
     for (const el of tiles) el.classList.add('fly');
     begin(turned
-      ? 'Часть кусочков вверх ногами! Нажми на выбранный кусочек ещё раз — он перевернётся.'
-      : cfg.teach ? 'Нажми на кусочек, потом на другой — они поменяются местами. Или перетащи пальцем.'
-        : scored ? `Собери картину! Три звезды — если ходов не больше ${n}.`
-          : 'Собери свою картину обратно!');
+      ? t('Часть кусочков вверх ногами! Нажми на выбранный кусочек ещё раз — он перевернётся.')
+      : cfg.teach ? t('Нажми на кусочек, потом на другой — они поменяются местами. Или перетащи пальцем.')
+        : scored ? t('Собери картину! Три звезды — если ходов не больше {n}.', { n })
+          : t('Собери свою картину обратно!'));
     save();
   }
 
@@ -238,7 +239,7 @@ function game(root, cfg) {
     sfx.ding();
     if (!taught) {
       taught = true;
-      say.say('Смотри: кусочек встал на место и прилип! Так ты видишь, что уже готово.');
+      say.say(t('Смотри: кусочек встал на место и прилип! Так ты видишь, что уже готово.'));
     }
   }
 
@@ -264,7 +265,7 @@ function game(root, cfg) {
     peekBtn.classList.add('hidden');
     board.classList.add('done');
     sfx.ding();
-    say.say('Готово! Картина снова целая.');
+    say.say(t('Готово! Картина снова целая.'));
     // A moment to admire the finished picture before the dialog covers it. The
     // saved board goes only together with the stars: if she leaves during this
     // moment, the finished picture and its stars wait for her here.
@@ -277,7 +278,7 @@ function game(root, cfg) {
   async function peek() {
     if (phase !== 'play' || peekT) return;
     if (scored && !peeked && starsNow() === 3) {
-      const yes = await confirmBox('Подсмотреть картину? Тогда за этот уровень будет не больше двух звёзд.', 'Подсмотреть', 'Не надо');
+      const yes = await confirmBox(t('Подсмотреть картину? Тогда за этот уровень будет не больше двух звёзд.'), t('Подсмотреть'), t('Не надо'));
       if (!yes || dead || phase !== 'play') return;
     }
     peeked = true;
@@ -285,7 +286,7 @@ function game(root, cfg) {
     sel = -1;
     render();
     save();
-    say.say('Вот вся картина. Запоминай!');
+    say.say(t('Вот вся картина. Запоминай!'));
     board.append(pic);
     peekT = setTimeout(() => { pic.remove(); peekT = 0; }, 2000);
   }
@@ -406,7 +407,7 @@ function game(root, cfg) {
       peeked = !!saved.peeked;
       layout();
       if (countRight() === n) win();
-      else begin(`Продолжаем! Картина ждала тебя.${turned ? ' Помни: второе нажатие переворачивает кусочек.' : ''}`);
+      else begin(turned ? t('Продолжаем! Картина ждала тебя. Помни: второе нажатие переворачивает кусочек.') : t('Продолжаем! Картина ждала тебя.'));
       return;
     }
     mixed = scramble();
@@ -415,7 +416,7 @@ function game(root, cfg) {
     rot = ids.map(() => 0);
     phase = 'look';
     mixBtn.classList.remove('hidden');
-    say.say('Запомни картину! Когда будешь готова, нажми «Перемешать».');
+    say.say(t('Запомни картину! Когда будешь готова, нажми «Перемешать».'));
     layout();
   });
 
@@ -430,16 +431,16 @@ function game(root, cfg) {
 
 function levelList(root) {
   levelScreen(root, {
-    title: 'Пазл',
-    hint: 'Собери картину из кусочков. Чем дальше, тем их больше — а потом они ещё и переворачиваются!',
+    title: t('Пазл'),
+    hint: t('Собери картину из кусочков. Чем дальше, тем их больше — а потом они ещё и переворачиваются!'),
     levels: LEVELS.map(L => {
       const thumb = pageCanvas(L.page, 0.2);
       thumb.className = 'puzzle-thumb';
-      return { ...L, thumb };
+      return { ...L, name: t(L.name), thumb };
     }),
     extra: h('a', { class: 'puzzle-own', href: OWN },
       icon('brush', 34),
-      h('span', {}, h('b', {}, 'Пазл из моего рисунка'), h('small', {}, 'Выбери свою картину и размер')),
+      h('span', {}, h('b', {}, t('Пазл из моего рисунка')), h('small', {}, t('Выбери свою картину и размер'))),
     ),
   });
 }
@@ -447,7 +448,7 @@ function levelList(root) {
 function playLevel(root, index, again) {
   const L = LEVELS[index];
   return game(root, {
-    title: `${index + 1}. ${L.name}`, back: MENU,
+    title: `${index + 1}. ${t(L.name)}`, back: MENU,
     picture: () => pageCanvas(L.page, 1),
     cols: L.cols, rows: L.rows, turned: L.turned,
     saveId: `puzzle_${index + 1}`, tag: `${L.page.id}:${L.cols}x${L.rows}`,
@@ -455,7 +456,9 @@ function playLevel(root, index, again) {
     onBad: () => { location.hash = MENU; },
     onWin: ({ swaps, peeked, stars, n }) => finishLevel({
       levels: LEVELS, index, stars, menu: MENU, again,
-      text: `Ходов: ${swaps}.${peeked ? ' С подсказкой бывает не больше двух звёзд.' : stars < 3 ? ` Для трёх звёзд — не больше ${n}.` : ''}`,
+      text: peeked ? t('Ходов: {n}. С подсказкой бывает не больше двух звёзд.', { n: swaps })
+        : stars < 3 ? t('Ходов: {n}. Для трёх звёзд — не больше {max}.', { n: swaps, max: n })
+          : t('Ходов: {n}.', { n: swaps }),
     }),
   });
 }
@@ -473,18 +476,18 @@ function ownPicker(root) {
   }, s.replace('x', '×')));
   const flipTab = h('button', {
     class: 'tab puzzle-flip', onclick: () => { sfx.pop(); flip = !flip; mark(); },
-  }, 'Перевёртыши');
+  }, t('Перевёртыши'));
   function mark() {
-    sizeTabs.forEach((t, i) => t.classList.toggle('on', OWN_SIZES[i] === size));
+    sizeTabs.forEach((b, i) => b.classList.toggle('on', OWN_SIZES[i] === size));
     flipTab.classList.toggle('on', flip);
     sessionStorage.setItem('puzzleOwn', size + (flip ? 't' : ''));
   }
   mark();
 
   const body = h('div', { class: 'puzzle-pics' });
-  const tip = speaker('Выбери, на сколько кусочков резать, и нажми на свою картину.');
+  const tip = speaker(t('Выбери, на сколько кусочков резать, и нажми на свою картину.'));
   const sizes = h('div', { class: 'tabs puzzle-sizes' }, sizeTabs, flipTab);
-  root.append(h('div', { class: 'screen scroll hub' }, topbar('Пазл из моего рисунка', { back: MENU }), tip, sizes, body));
+  root.append(h('div', { class: 'screen scroll hub' }, topbar(t('Пазл из моего рисунка'), { back: MENU }), tip, sizes, body));
 
   db.all('art').catch(() => []).then(list => {
     if (dead) return;
@@ -495,8 +498,8 @@ function ownPicker(root) {
       sizes.remove();
       body.replaceWith(h('div', { class: 'empty' },
         mascot('wow'),
-        h('p', {}, 'В галерее пока пусто. Нарисуй картину — и из неё получится пазл!'),
-        h('a', { class: 'btn primary', href: '#/studio/new' }, 'Рисовать'),
+        h('p', {}, t('В галерее пока пусто. Нарисуй картину — и из неё получится пазл!')),
+        h('a', { class: 'btn primary', href: '#/studio/new' }, t('Рисовать')),
       ));
       return;
     }
@@ -506,7 +509,7 @@ function ownPicker(root) {
       body.append(h('button', {
         class: 'puzzle-pic',
         onclick: () => { sfx.pop(); location.hash = `${OWN}/${encodeURIComponent(rec.id)}/${size}${flip ? 't' : ''}`; },
-      }, h('img', { src: url, alt: '' }), h('span', {}, rec.title || 'Рисунок')));
+      }, h('img', { src: url, alt: '' }), h('span', {}, rec.title ? t(rec.title) : t('Рисунок'))));
     }
   });
 
@@ -544,25 +547,25 @@ function playOwn(root, artId, sizeText, again) {
   if (!artId || !m || !OWN_SIZES.includes(`${m[1]}x${m[2]}`)) { location.hash = OWN; return null; }
   const cols = +m[1], rows = +m[2];
   return game(root, {
-    title: 'Мой пазл', back: OWN,
+    title: t('Мой пазл'), back: OWN,
     picture: () => ownPicture(artId, cols, rows),
     cols, rows, turned: !!m[3],
     saveId: 'puzzle_own', tag: `${artId}:${sizeText}`,
     scored: false, teach: false,
     onBad: () => {
       // The router clears toasts when the address changes, so this one waits for that.
-      window.addEventListener('hashchange', () => toast('Из этого рисунка пазл не получается. Выбери другой!'), { once: true });
+      window.addEventListener('hashchange', () => toast(t('Из этого рисунка пазл не получается. Выбери другой!')), { once: true });
       location.hash = OWN;
     },
     onWin: ({ swaps }) => {
       const res = award('puzzle:own', 1);
       celebrate({
-        title: 'Твоя картина собрана!',
-        text: res.gain ? `Ходов: ${swaps}. За первый пазл из своего рисунка — звезда ★` : `Ходов: ${swaps}.`,
+        title: t('Твоя картина собрана!'),
+        text: res.gain ? t('Ходов: {n}. За первый пазл из своего рисунка — звезда ★', { n: swaps }) : t('Ходов: {n}.', { n: swaps }),
         unlocked: res.unlocked,
         actions: [
-          { label: 'Ещё раз', fn: again },
-          { label: 'Другой рисунок', primary: true, fn: () => { location.hash = OWN; } },
+          { label: t('Ещё раз'), fn: again },
+          { label: t('Другой рисунок'), primary: true, fn: () => { location.hash = OWN; } },
         ],
       });
     },

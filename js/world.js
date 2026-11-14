@@ -1,18 +1,20 @@
 // The living world: what she draws starts to swim, fly and hop.
+// HABITATS keeps the Russian (marked with N); show name, who and hint with t().
 import { h, canvas, blobOf, loadImg, clamp, pick } from './util.js';
 import { Painter } from './painter.js';
 import { db, newId, awardOnce } from './store.js';
 import { topbar, btn, iconBtn, brushRail, paletteBar, sizeSlider, celebrate, confirmBox, toast, speaker, autosaver, safeSave } from './ui.js';
 import { sfx } from './audio.js';
+import { t, N } from './i18n.js';
 import moreGuides from './content/world-guides.js';
 import moreGuides2 from './content/world-guides2.js';
 
 export const HABITATS = {
-  sea: { name: 'Море', who: 'рыбку', hint: 'Нарисуй морского жителя. Пусть смотрит направо!',
+  sea: { name: N('Море'), who: N('рыбку'), hint: N('Нарисуй морского жителя. Пусть смотрит направо!'),
     guide: 'M180 300C300 110 560 130 640 300C560 470 300 490 180 300ZM180 300L60 190L95 300L60 410Z' },
-  sky: { name: 'Небо', who: 'птичку', hint: 'Нарисуй того, кто летает. Крылья пошире, голова справа!',
+  sky: { name: N('Небо'), who: N('птичку'), hint: N('Нарисуй того, кто летает. Крылья пошире, голова справа!'),
     guide: 'M400 310C330 180 200 150 90 190C160 260 250 330 340 360C400 390 500 380 560 320C600 300 650 290 690 300C650 250 590 240 540 260C500 200 460 230 400 310Z' },
-  land: { name: 'Луг', who: 'зверька', hint: 'Нарисуй зверя, который живёт на лугу. Лапы внизу, голова справа!',
+  land: { name: N('Луг'), who: N('зверька'), hint: N('Нарисуй зверя, который живёт на лугу. Лапы внизу, голова справа!'),
     guide: 'M180 330C180 230 300 200 420 220C450 140 590 130 620 220C650 300 590 350 530 360V500H470V380H290V500H230V370C200 370 180 350 180 330Z' },
 };
 
@@ -83,7 +85,7 @@ export async function makeCreature(source, habitat) {
   return rec;
 }
 
-function drawSea(c, W, H, t, deco) {
+function drawSea(c, W, H, sec, deco) {
   const g = c.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#7fd9f5'); g.addColorStop(0.55, '#2f9ddb'); g.addColorStop(1, '#1b6bb0');
   c.fillStyle = g;
@@ -91,7 +93,7 @@ function drawSea(c, W, H, t, deco) {
   c.globalAlpha = 0.14;
   c.fillStyle = '#fff';
   for (let i = 0; i < 5; i++) {
-    const x = ((i + 0.5) / 5) * W + Math.sin(t * 0.3 + i) * 40;
+    const x = ((i + 0.5) / 5) * W + Math.sin(sec * 0.3 + i) * 40;
     c.beginPath();
     c.moveTo(x - 30, 0); c.lineTo(x + 40, 0); c.lineTo(x + 210, H); c.lineTo(x - 170, H);
     c.fill();
@@ -112,7 +114,7 @@ function drawSea(c, W, H, t, deco) {
     c.moveTo(s.x, H * 0.92);
     for (let i = 1; i <= 6; i++) {
       const y = H * 0.92 - (i / 6) * s.h;
-      c.lineTo(s.x + Math.sin(t * 1.3 + i * 0.8 + s.x) * i * 5, y);
+      c.lineTo(s.x + Math.sin(sec * 1.3 + i * 0.8 + s.x) * i * 5, y);
     }
     c.stroke();
   }
@@ -120,9 +122,9 @@ function drawSea(c, W, H, t, deco) {
   c.fillStyle = 'rgba(255,255,255,.2)';
   c.lineWidth = 2;
   for (const b of deco.bubbles) {
-    const y = ((b.y - t * b.v * 40) % (H + 40) + H + 40) % (H + 40) - 20;
+    const y = ((b.y - sec * b.v * 40) % (H + 40) + H + 40) % (H + 40) - 20;
     c.beginPath();
-    c.arc(b.x * W + Math.sin(t * 2 + b.y) * 8, y, b.r, 0, 6.3);
+    c.arc(b.x * W + Math.sin(sec * 2 + b.y) * 8, y, b.r, 0, 6.3);
     c.fill(); c.stroke();
   }
 }
@@ -136,7 +138,7 @@ function drawCloud(c, x, y, s) {
   c.fill();
 }
 
-function drawSky(c, W, H, t, deco) {
+function drawSky(c, W, H, sec, deco) {
   const g = c.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#6ec2f7'); g.addColorStop(1, '#fde7c4');
   c.fillStyle = g;
@@ -146,10 +148,10 @@ function drawSky(c, W, H, t, deco) {
   c.arc(W * 0.85, H * 0.18, 62, 0, 6.3);
   c.fill();
   c.fillStyle = 'rgba(255,255,255,.92)';
-  for (const k of deco.clouds) drawCloud(c, ((k.x * W + t * k.v * 18) % (W + 300)) - 200, k.y * H, k.s);
+  for (const k of deco.clouds) drawCloud(c, ((k.x * W + sec * k.v * 18) % (W + 300)) - 200, k.y * H, k.s);
 }
 
-function drawLand(c, W, H, t, deco) {
+function drawLand(c, W, H, sec, deco) {
   const g = c.createLinearGradient(0, 0, 0, H * 0.6);
   g.addColorStop(0, '#90d6fa'); g.addColorStop(1, '#e0f5ff');
   c.fillStyle = g;
@@ -159,7 +161,7 @@ function drawLand(c, W, H, t, deco) {
   c.arc(W * 0.14, H * 0.16, 56, 0, 6.3);
   c.fill();
   c.fillStyle = 'rgba(255,255,255,.92)';
-  for (const k of deco.clouds) drawCloud(c, ((k.x * W + t * k.v * 8) % (W + 300)) - 200, k.y * H * 0.5, k.s * 0.8);
+  for (const k of deco.clouds) drawCloud(c, ((k.x * W + sec * k.v * 8) % (W + 300)) - 200, k.y * H * 0.5, k.s * 0.8);
   c.fillStyle = '#a4e27f';
   c.beginPath();
   c.moveTo(0, H);
@@ -177,7 +179,7 @@ function drawLand(c, W, H, t, deco) {
     const y = H * (0.62 + s.y * 0.36);
     c.beginPath();
     c.moveTo(s.x * W, y);
-    c.lineTo(s.x * W + Math.sin(t * 1.8 + s.x * 30) * 5, y - 16);
+    c.lineTo(s.x * W + Math.sin(sec * 1.8 + s.x * 30) * 5, y - 16);
     c.stroke();
   }
   for (const f of deco.flowers) {
@@ -185,7 +187,7 @@ function drawLand(c, W, H, t, deco) {
     c.fillStyle = f.c;
     for (let i = 0; i < 5; i++) {
       c.beginPath();
-      c.arc(x + Math.cos(i * 1.257 + t * 0.2) * 9, y + Math.sin(i * 1.257 + t * 0.2) * 9, 6.5, 0, 6.3);
+      c.arc(x + Math.cos(i * 1.257 + sec * 0.2) * 9, y + Math.sin(i * 1.257 + sec * 0.2) * 9, 6.5, 0, 6.3);
       c.fill();
     }
     c.fillStyle = '#ffd447';
@@ -209,7 +211,7 @@ function makeDeco() {
 export function worldView(root, tab = 'sea') {
   const cv = canvas(10, 10);
   cv.className = 'world-canvas';
-  const box = h('div', { class: 'world-box' }, cv);
+  const box = h('div', { class: 'world-box', dir: 'ltr' }, cv);
   const ctx = cv.getContext('2d');
   let W = 0, H = 0, dpr = 1, raf = 0, live = true, removing = false;
   const deco = makeDeco();
@@ -267,9 +269,9 @@ export function worldView(root, tab = 'sea') {
     raf = requestAnimationFrame(tick);
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    const t = now / 1000;
+    const sec = now / 1000;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    PAINT[tab](ctx, W, H, t, deco);
+    PAINT[tab](ctx, W, H, sec, deco);
 
     if (tab === 'sea') {
       ctx.fillStyle = '#ffcf6b';
@@ -345,7 +347,7 @@ export function worldView(root, tab = 'sea') {
       return Math.abs(x - c.x) < dw / 2 && Math.abs(y - c.y) < dh / 2;
     });
     if (removing && hit) {
-      if (await confirmBox('Отпустить на волю?', 'Отпустить', 'Оставить')) {
+      if (await confirmBox(t('Отпустить на волю?'), t('Отпустить'), t('Оставить'))) {
         await db.del('world', hit.rec.id);
         all = all.filter(c => c !== hit);
       }
@@ -361,20 +363,20 @@ export function worldView(root, tab = 'sea') {
     if (tab === 'sea') { sfx.drop(); for (let i = 0; i < 4; i++) food.push({ x: x + (Math.random() - 0.5) * 36, y: y + Math.random() * 20 }); }
   });
 
-  const hint = speaker(`Здесь пока пусто. Нарисуй ${HABITATS[tab].who}, и она оживёт!`);
+  const hint = speaker(t('Здесь пока пусто. Нарисуй {who}, и она оживёт!', { who: t(HABITATS[tab].who) }));
   hint.classList.add('world-hint');
-  const removeBtn = iconBtn('trash', 'Отпустить', () => {
+  const removeBtn = iconBtn('trash', t('Отпустить'), () => {
     removing = !removing;
     removeBtn.classList.toggle('on', removing);
-    toast(removing ? 'Коснись того, кого хочешь отпустить' : 'Всё как было');
+    toast(removing ? t('Коснись того, кого хочешь отпустить') : t('Всё как было'));
   });
 
   root.append(h('div', { class: 'screen world' },
-    topbar('Живой мир', {
+    topbar(t('Живой мир'), {
       right: [
-        h('div', { class: 'tabs small' }, Object.entries(HABITATS).map(([k, v]) => h('a', { class: `tab ${k === tab ? 'on' : ''}`, href: `#/world/${k}` }, v.name))),
+        h('div', { class: 'tabs small' }, Object.entries(HABITATS).map(([k, v]) => h('a', { class: `tab ${k === tab ? 'on' : ''}`, href: `#/world/${k}` }, t(v.name)))),
         removeBtn,
-        btn('primary', `Нарисовать ${HABITATS[tab].who}`, () => { location.hash = `#/creature/${tab}`; }),
+        btn('primary', t('Нарисовать {who}', { who: t(HABITATS[tab].who) }), () => { location.hash = `#/creature/${tab}`; }),
       ],
     }),
     h('div', { class: 'world-wrap' }, box, hint),
@@ -389,7 +391,7 @@ export function worldView(root, tab = 'sea') {
 
 export function creatureDraw(root, habitat) {
   const H = HABITATS[habitat];
-  const stageEl = h('div', { class: 'stage-host' });
+  const stageEl = h('div', { class: 'stage-host', dir: 'ltr' });
   const p = new Painter(stageEl, { w: 800, h: 600, layers: 1, brush: 'marker', color: '#ff6b5e' });
   p.size = 16;
   let guideN = Math.floor(Math.random() * H.guides.length);
@@ -413,8 +415,8 @@ export function creatureDraw(root, habitat) {
       throw e;
     }
   }, () => p.isBusy());
-  const restartBtn = iconBtn('trash', 'Начать заново', async () => {
-    if (!(await confirmBox('Стереть и начать заново?', 'Заново', 'Нет'))) return;
+  const restartBtn = iconBtn('trash', t('Начать заново'), async () => {
+    if (!(await confirmBox(t('Стереть и начать заново?'), t('Заново'), t('Нет')))) return;
     saver.stop();
     await saver.flush().catch(() => {});
     finished = true;
@@ -427,33 +429,33 @@ export function creatureDraw(root, habitat) {
     restartBtn.classList.remove('hidden');
   });
 
-  const go = btn('primary', 'Оживить!', async () => {
-    if (!p.log.length) { toast('Сначала нарисуй!'); return; }
+  const go = btn('primary', t('Оживить!'), async () => {
+    if (!p.log.length) { toast(t('Сначала нарисуй!')); return; }
     let rec;
     try {
       rec = await safeSave(() => makeCreature(p.layers[0].c, habitat));
     } catch { return; }
-    if (!rec) { toast('Сначала нарисуй!'); return; }
+    if (!rec) { toast(t('Сначала нарисуй!')); return; }
     finished = true;
     saver.stop();
     db.del('kv', draftId).catch(() => {});
     const r = awardOnce(`world-${habitat}`);
     sfx.win();
     location.hash = `#/world/${habitat}`;
-    if (r.unlocked.length) setTimeout(() => celebrate({ title: 'Подарок!', unlocked: r.unlocked, actions: [{ label: 'Ура', primary: true }] }), 500);
+    if (r.unlocked.length) setTimeout(() => celebrate({ title: t('Подарок!'), unlocked: r.unlocked, actions: [{ label: t('Ура'), primary: true }] }), 500);
   });
 
   root.append(h('div', { class: 'screen studio' },
-    topbar(H.hint, {
+    topbar(t(H.hint), {
       back: `#/world/${habitat}`,
       right: [
         restartBtn,
-        iconBtn('undo', 'Отменить', () => p.undo()),
-        H.guides.length > 1 && iconBtn('dice', 'Другая подсказка', () => {
+        iconBtn('undo', t('Отменить'), () => p.undo()),
+        H.guides.length > 1 && iconBtn('dice', t('Другая подсказка'), () => {
           guideN = (guideN + 1) % H.guides.length;
           showShape();
         }),
-        iconBtn('eye', 'Подсказка', () => {
+        iconBtn('eye', t('Подсказка'), () => {
           showGuide = !showGuide;
           p.under.style.opacity = showGuide ? 1 : 0;
         }),
