@@ -14,7 +14,7 @@ import { sfx } from './audio.js';
 import { t, N, lang, dir, appName, LANGS } from './i18n.js';
 import { hello, me, setLang } from './hello.js';
 import { rating } from './rating.js';
-import { startSync, joinRating, leaveRating } from './player.js';
+import { startSync, joinRating, leaveRating, classFromLink, cleanClass, newClassCode, inviteLink, setClass } from './player.js';
 
 // The page speaks the chosen language: direction, title and the home-screen name.
 document.documentElement.lang = lang;
@@ -150,6 +150,8 @@ function parents(root) {
       Object.assign(state, data.state);
       save();
       toast(t('Архив восстановлен'));
+      // Starts again with everything from the archive: language, stars, prizes.
+      setTimeout(() => location.reload(), 1200);
     } catch (e) {
       console.error(e);
       toast(t('Не получилось прочитать архив'));
@@ -169,7 +171,8 @@ function parents(root) {
         btn(code === lang ? 'primary' : 'ghost', L.name, () => setLang(code, '#/parents')))),
     ),
     h('section', {}, h('h3', {}, t('Рейтинг класса')),
-      h('p', {}, t('В рейтинге видны только имя, значок и число звёзд. Если выключить, сервер забудет всё об этом игроке.')),
+      h('p', {}, t('В рейтинге видны только имя, значок и число звёзд, и только одноклассницам с тем же кодом класса. Если выключить, сервер забудет всё об этом игроке.')),
+      classRow(),
       h('label', { class: 'set' }, h('span', {}, t('Участвовать в рейтинге')), h('input', {
         type: 'checkbox', ...(state.rated ? { checked: true } : {}),
         onchange: async e => {
@@ -220,7 +223,45 @@ function parents(root) {
     ),
   );
 
+  // The old address keeps working, but its pictures and stars can move to blobika.com.
+  if (/github\.io$/.test(location.hostname)) {
+    body.prepend(h('section', { class: 'moved' }, h('h3', {}, t('Блобика переехала на blobika.com')),
+      h('ol', {},
+        h('li', {}, t('Здесь, ниже, нажмите «Скачать архив» и сохраните файл.')),
+        h('li', {}, t('Откройте blobika.com в Safari и поставьте на экран Домой.')),
+        h('li', {}, t('Там в разделе «Для родителей» нажмите «Восстановить» и выберите этот файл.')),
+      ),
+      h('a', { class: 'btn primary', href: 'https://blobika.com/' }, t('Открыть blobika.com'))));
+  }
   root.append(h('div', { class: 'screen scroll hub parents' }, topbar(t('Для родителей')), gate, body));
+}
+
+// The class code: typed in, made anew, or shared with classmates as a link.
+function classRow() {
+  const field = h('input', { value: state.classCode, class: 'field', dir: 'ltr', autocapitalize: 'off', spellcheck: 'false', 'aria-label': t('Код класса') });
+  const apply = async code => {
+    const c = cleanClass(code);
+    if (code && !c) { toast(t('Код — это от 4 до 24 латинских букв, цифр или чёрточек.')); field.value = state.classCode; return; }
+    field.value = c;
+    await setClass(c);
+    toast(c ? t('Код класса сохранён') : t('Код класса убран'));
+  };
+  field.addEventListener('change', () => apply(field.value));
+  return h('div', { class: 'class-row' },
+    h('label', { class: 'set' }, h('span', {}, t('Код класса')), field),
+    h('div', { class: 'row wrap' },
+      btn('ghost', t('Новый класс'), () => apply(newClassCode())),
+      btn('primary', t('Пригласить одноклассниц'), async () => {
+        if (!state.classCode) { toast(t('Сначала задайте код класса.')); return; }
+        const url = inviteLink(state.classCode);
+        try {
+          if (navigator.share) await navigator.share({ title: appName, text: t('Рисуем и соревнуемся вместе!'), url });
+          else { await navigator.clipboard.writeText(url); toast(t('Ссылка скопирована')); }
+        } catch (e) {
+          if (e?.name !== 'AbortError') toast(url);
+        }
+      })),
+  );
 }
 
 const routes = {
@@ -314,5 +355,6 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js');
 }
 
+classFromLink();
 startSync();
 go();

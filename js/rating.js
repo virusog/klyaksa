@@ -1,9 +1,9 @@
 // The class rating: who has the most stars this week and over all time.
 import { h } from './util.js';
-import { state } from './store.js';
+import { state, save } from './store.js';
 import { t, plural } from './i18n.js';
-import { loadBoard, syncNow } from './player.js';
-import { topbar, btn, iconBtn, starBadge, mascot, speaker } from './ui.js';
+import { loadBoard, syncNow, setClass, cleanClass } from './player.js';
+import { topbar, btn, iconBtn, starBadge, mascot, speaker, toast } from './ui.js';
 import { sfx } from './audio.js';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -13,6 +13,7 @@ export function rating(root) {
   let rows = null;
   let failed = false;
   let alive = true;
+  let gen = 0;
   const body = h('div', { class: 'rating-body' });
   const tabs = h('div', { class: 'tabs rating-tabs' });
 
@@ -27,6 +28,20 @@ export function rating(root) {
       }, label));
     }
     body.textContent = '';
+    if (!state.classCode) {
+      const field = h('input', { class: 'field rating-code', dir: 'ltr', autocapitalize: 'off', spellcheck: 'false', placeholder: 'class-…', 'aria-label': t('Код класса') });
+      body.append(h('div', { class: 'rating-empty' }, mascot('wow'),
+        h('p', {}, t('Рейтинг — для своего класса. Открой ссылку-приглашение от учительницы или родителей.')),
+        h('small', {}, t('Или введи код класса:')),
+        h('div', { class: 'row' }, field, btn('primary', t('Войти в класс'), async () => {
+          const c = cleanClass(field.value);
+          if (!c) { toast(t('Код — это от 4 до 24 латинских букв, цифр или чёрточек.')); return; }
+          if (!state.rated) { state.rated = true; save(); }
+          await setClass(c);
+          load();
+        }))));
+      return;
+    }
     if (!state.rated) {
       body.append(h('div', { class: 'rating-empty' }, mascot('wow'),
         h('p', {}, t('Ты сейчас не участвуешь в рейтинге.')),
@@ -53,6 +68,7 @@ export function rating(root) {
     const mine = list.find(r => r.me);
     let headline;
     if (!mine) headline = t('Тебя ещё нет в рейтинге. Получи звезду, и ты появишься!');
+    else if (score(mine) === 0) headline = t('На этой неделе звёзд пока нет. Получи первую!');
     else if (mine.place === 1) headline = t('Ты на первом месте! Так держать!');
     else {
       const ahead = list.filter(r => score(r) > score(mine)).pop();
@@ -72,24 +88,27 @@ export function rating(root) {
     );
   }
 
+  // Only the latest load may draw: a slow earlier one must not replace a newer board.
   async function load() {
+    const my = ++gen;
     failed = false;
     rows = null;
     render();
+    if (!state.classCode || !state.rated) return;
     try {
       await syncNow();
       const got = await loadBoard();
-      if (!alive) return;
+      if (!alive || my !== gen) return;
       rows = got;
     } catch {
-      if (!alive) return;
+      if (!alive || my !== gen) return;
       failed = true;
     }
     render();
   }
 
   root.append(h('div', { class: 'screen scroll hub rating' },
-    topbar(t('Рейтинг'), { right: [iconBtn('undo', t('Обновить'), load), starBadge()] }),
+    topbar(t('Рейтинг'), { right: [iconBtn('refresh', t('Обновить'), load), starBadge()] }),
     tabs,
     body,
   ));

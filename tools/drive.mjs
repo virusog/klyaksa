@@ -33,7 +33,7 @@ const base = arg('base', 'http://localhost:8123/index.html');
 const net = process.argv.includes('--net') ? 'real' : process.argv.includes('--offline') ? 'offline' : 'fake';
 
 // The pretend rating server: the same three calls as server/schema.sql, kept
-// in this page's localStorage, with two classmates already on it.
+// in this page's localStorage, with two classmates already in class 'test-class'.
 const FAKE_SERVER = `
 (() => {
   const mode = ${JSON.stringify(net)};
@@ -41,8 +41,8 @@ const FAKE_SERVER = `
   const real = window.fetch.bind(window);
   const KEY = 'klyaksa.fakeServer';
   const load = () => JSON.parse(localStorage.getItem(KEY) || 'null') || { players: [
-    { id: 'fake-1', secret: 'x', name: 'Маша', avatar: '🦄', stars: 40, week: 9, visible: true },
-    { id: 'fake-2', secret: 'x', name: 'Noa', avatar: '🐼', stars: 25, week: 14, visible: true },
+    { id: 'fake-1', secret: 'x', klass: 'test-class', name: 'Маша', avatar: '🦄', stars: 40, week: 9, visible: true },
+    { id: 'fake-2', secret: 'x', klass: 'test-class', name: 'Noa', avatar: '🐼', stars: 25, week: 14, visible: true },
   ] };
   const reply = body => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
   window.fetch = async (url, opts) => {
@@ -56,20 +56,20 @@ const FAKE_SERVER = `
     if (m[1] === 'klyaksa_save') {
       let p = db.players.find(x => x.id === b.p_id);
       if (p && p.secret !== b.p_secret) return new Response('{"message":"wrong secret"}', { status: 400 });
-      if (!p) db.players.push(p = { id: b.p_id, secret: b.p_secret, stars: 0, week: 0 });
+      if (!p) db.players.push(p = { id: b.p_id, secret: b.p_secret, stars: b.p_stars, week: 0 });
       const gain = Math.max(0, b.p_stars - p.stars);
-      Object.assign(p, { name: String(b.p_name).trim().replace(/\\s+/g, ' ').slice(0, 24), avatar: b.p_avatar, stars: p.stars + gain, week: p.week + gain, visible: b.p_visible });
+      Object.assign(p, { klass: b.p_class, name: String(b.p_name).trim().replace(/\\s+/g, ' ').slice(0, 24), avatar: b.p_avatar, stars: p.stars + gain, week: p.week + gain, visible: b.p_visible });
       saveDb();
-      return reply(null);
+      return reply({ ok: true, stars: p.stars });
     }
     if (m[1] === 'klyaksa_board') {
-      return reply(db.players.filter(p => p.visible).sort((a, c) => c.stars - a.stars).slice(0, b.p_limit)
-        .map(({ id, name, avatar, stars, week }) => ({ id, name, avatar, stars, week })));
+      return reply(db.players.filter(p => p.visible && p.klass === b.p_class).sort((a, c) => c.stars - a.stars).slice(0, b.p_limit)
+        .map(({ id, secret, name, avatar, stars, week }) => ({ name, avatar, stars, week, me: id === b.p_id && secret === b.p_secret })));
     }
     if (m[1] === 'klyaksa_forget') {
       db.players = db.players.filter(p => !(p.id === b.p_id && p.secret === b.p_secret));
       saveDb();
-      return reply(null);
+      return reply({ ok: true });
     }
     return new Response('{}', { status: 404 });
   };

@@ -493,7 +493,6 @@ html:not([lang=ru]) .level-card :is(b, small) { font-family: ui-rounded, "SF Pro
 /* Profile, first launch and the class rating */
 .me-avatar { display: inline-grid; place-items: center; width: 52px; height: 52px; margin-inline-end: 10px; vertical-align: middle; font-size: 34px; background: var(--card); border: var(--line); border-radius: 50%; box-shadow: 0 3px 0 var(--ink); }
 .lang-btn { font-size: 17px; font-weight: 900; }
-.hello { display: flex; flex-direction: column; align-items: center; }
 .hello-card { width: min(640px, 100%); margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 10px 0 30px; }
 .hello-card > .mascot { width: 110px; height: 110px; }
 .hello-card h1 { font-size: 34px; font-weight: 900; }
@@ -524,7 +523,10 @@ html:not([lang=ru]) .level-card :is(b, small) { font-family: ui-rounded, "SF Pro
 .rating-row.top { background: #fff6d6; }
 .rating-row.me { background: #d5f6e1; outline: 4px solid var(--mint); outline-offset: 1px; }
 .rating-place { min-width: 44px; text-align: center; font-size: 24px; font-weight: 900; }
-.rating-avatar { font-size: 34px; font-family: "Apple Color Emoji", serif; }
+.rating-avatar { font-size: 34px; font-family: "Apple Color Emoji", serif; width: 44px; overflow: hidden; text-align: center; }
+.rating-code { width: 220px; }
+.class-row .row { margin-top: 8px; }
+.moved { background: #fff2b8; border-radius: 18px; padding: 14px 18px; }
 .rating-name { flex: 1; min-width: 0; font-size: 21px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rating-name em { font-style: normal; font-size: 14px; margin-inline-start: 8px; padding: 2px 8px; border-radius: 10px; background: var(--mint); color: #fff; }
 .rating-stars { font-size: 22px; color: #d89000; white-space: nowrap; }

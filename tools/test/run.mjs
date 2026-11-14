@@ -13,6 +13,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const quick = process.argv[2] === 'quick';
 const tmp = mkdtempSync(join(tmpdir(), 'klyaksa-test-'));
 const results = [];
+// A class nobody else uses, so the real-server test never shows up on a real class board.
+const TEST_CLASS = `test-${process.pid}`;
 
 function run(name, cmd, args, { parse } = {}) {
   const started = Date.now();
@@ -70,13 +72,14 @@ run('all shown Russian text is marked for translation', 'node', ['tools/i18n.mjs
 run('English and Hebrew are complete and well-formed', 'node', ['tools/i18n.mjs', 'check']);
 run('rating server', 'node', ['tools/test/server.test.mjs']);
 
-page('first launch, profile, cookie and the real rating server', 'profile.js', { route: '#/', flags: ['--net'] });
-page('the rating with no internet', 'offline.js', { route: '#/', state: { onboarded: true, name: 'Test' }, flags: ['--offline'] });
+page('first launch from a class invitation, profile, cookie and the real rating server', 'profile.js', { route: '#/', flags: ['--net', '--base', `http://localhost:8123/index.html?class=${TEST_CLASS}`], vars: { __CLASS__: TEST_CLASS } });
+page('the rating with no internet', 'offline.js', { route: '#/', state: { onboarded: true, name: 'Test', classCode: 'test-class' }, flags: ['--offline'] });
+page('the rating without a class code', 'noclass.js', { route: '#/', state: { onboarded: true, name: 'Test' } });
 page('Настя keeps her old progress', 'migrate.js', { route: '#/', state: { stars: 12, best: { x: 3 }, sound: false } });
 for (const lang of ['ru', 'en', 'he']) {
   for (const size of ['1180x820', '820x1180']) {
     page(`every screen, ${lang}, ${size}`, 'sweep.js', {
-      route: '#/', size, state: { lang, onboarded: true, name: 'Test', avatar: '🦊', unlockAll: true, rated: false, stars: 300 },
+      route: '#/', size, state: { lang, onboarded: true, name: 'Test', avatar: '🦊', unlockAll: true, rated: true, classCode: 'test-class', stars: 300 },
       vars: { __LANG__: lang, __DEEP__: String(!quick && size === '1180x820') }, timeout: 1500,
     });
   }

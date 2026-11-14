@@ -3,7 +3,7 @@ import { N, lang } from './i18n.js';
 
 const KEY = 'klyaksa.v1';
 const DEFAULTS = {
-  name: '', avatar: '🐱', lang, onboarded: false, rated: true, player: null,
+  name: '', avatar: '🐱', lang, onboarded: false, rated: true, player: null, classCode: '',
   stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [], unlockAll: false,
 };
 

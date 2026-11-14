@@ -10,6 +10,7 @@ const I = {
   undo: '<path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-3" transform="translate(0 -5)"/>',
   redo: '<path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h3" transform="translate(0 -5)"/>',
   check: '<path d="M5 13l5 5L20 7"/>',
+  refresh: '<path d="M19 12a7 7 0 1 1-2-4.9"/><path d="M19 4v4h-4"/>',
   layers: '<path d="M12 4l9 5-9 5-9-5z"/><path d="M3 14l9 5 9-5"/>',
   sym: '<path d="M12 3v18"/><path d="M8 7l-5 5 5 5z"/><path d="M16 7l5 5-5 5z"/>',
   paper: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/>',
