@@ -121,7 +121,8 @@ function parents(root) {
   const b = 6 + Math.floor(Math.random() * 4);
   const input = h('input', { type: 'number', inputmode: 'numeric', class: 'gate-input', 'aria-label': t('Ответ') });
   const gate = h('div', { class: 'gate' },
-    h('h2', {}, t('Для взрослых: сколько будет {a} × {b}?', { a, b })),
+    // The sum is isolated left to right, so in Hebrew it still reads "6 × 7", not "7 × 6".
+    h('h2', {}, t('Для взрослых: сколько будет {a} × {b}?', { a: `⁦${a}`, b: `${b}⁩` })),
     input,
     btn('primary', t('Войти'), () => {
       if (+input.value === a * b) { gate.remove(); body.classList.remove('hidden'); } else toast(t('Неправильно'));

@@ -259,14 +259,16 @@ function play(root, index) {
   });
   svg.append(fill, lines, extra, band, glow, ...dots);
 
-  const count = h('span', { class: 'dots-count' });
+  // "3 / 14": a count, read left to right in Hebrew too.
+  const count = h('span', { class: 'dots-count', dir: 'ltr' });
   const again = iconBtn('undo', t('Начать заново'), async () => {
     if (await confirmBox(t('Начать эту картинку заново?'), t('Заново'), t('Нет')) && phase === 'play') restart();
   });
   const bar = topbar(heading, { back: MENU, right: [count, again] });
   const title = bar.querySelector('h1');
   const bubble = speaker(intro);
-  const sheet = h('div', { class: 'dots-sheet' }, svg);
+  // A play surface: the picture and its numbers keep their left-to-right geometry.
+  const sheet = h('div', { class: 'dots-sheet', dir: 'ltr' }, svg);
   root.append(h('div', { class: 'screen dots-play' }, bar, bubble, h('div', { class: 'dots-host' }, sheet)));
 
   const tell = text => {

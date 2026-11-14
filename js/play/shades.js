@@ -26,7 +26,7 @@ import { topbar, btn, speaker, confirmBox } from '../ui.js';
 import { db } from '../store.js';
 import { sfx } from '../audio.js';
 import { levelScreen, finishLevel, isOpen } from './kit.js';
-import { t, N, plural } from '../i18n.js';
+import { t, N, plural, dir } from '../i18n.js';
 
 const MENU = '#/game/shades';
 // The least difference allowed between any two tiles of one board, measured
@@ -165,6 +165,10 @@ function anchored(cols, rows, pinned) {
   }));
 }
 
+// "6×5" is columns by rows, read left to right; in Hebrew a bare "6×5" would
+// come out as "5×6", so there it is isolated as a left-to-right run.
+const size = (cols, rows) => (dir === 'rtl' ? `⁦${cols}×${rows}⁩` : `${cols}×${rows}`);
+
 const LEVELS = LADDER.map(([name, cols, rows, hues, fixed, tip], i) => {
   const n = cols * rows;
   const pinned = typeof fixed === 'number' ? [fixed] : FIXED[fixed](cols, n);
@@ -172,7 +176,7 @@ const LEVELS = LADDER.map(([name, cols, rows, hues, fixed, tip], i) => {
   const loose = n - pinned.length;
   return {
     key: `shades:${i + 1}`, name, href: `${MENU}/${i + 1}`,
-    sub: rows > 1 ? `${cols}×${rows} · ` + plural(pinned.length, '{n} точка|{n} точки|{n} точек') : t('{n} в ряд', { n: cols }),
+    sub: rows > 1 ? `${size(cols, rows)} · ` + plural(pinned.length, '{n} точка|{n} точки|{n} точек') : t('{n} в ряд', { n: cols }),
     cols, rows, n, pinned, loose, tip,
     colors: tints(cols, rows, hues.split(' ')),
     // The most swaps that still earn three and two stars: two swaps per slip.

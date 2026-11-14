@@ -205,7 +205,8 @@ function play(root, n) {
   const movesLabel = [...t('Ходы: {n}').split('{n}'), ''];
   const say = speaker('…');
   const board = h('div', { class: 'pairs-board' });
-  const table = h('div', { class: 'pairs-table' }, board);
+  // The cards lie in the same places in every language, so a saved game looks the same.
+  const table = h('div', { class: 'pairs-table', dir: 'ltr' }, board);
   root.append(h('div', { class: 'screen pairs-screen' },
     topbar(t('Пары · уровень {n}', { n }), {
       back: MENU,

@@ -6,7 +6,7 @@ import { Painter } from './painter.js';
 import { db, state, award, awardOnce, newId } from './store.js';
 import { topbar, btn, iconBtn, starBadge, brushRail, paletteBar, sizeSlider, celebrate, toast, mascot, autosaver, safeSave } from './ui.js';
 import { sfx } from './audio.js';
-import { t, N } from './i18n.js';
+import { t, N, lang } from './i18n.js';
 
 const W = 1200, H = 900;
 const INK = '#2a2140';
@@ -322,7 +322,8 @@ export async function coloringPlay(root, id, mode = 'free') {
 }
 
 function makeStage(an, opts) {
-  const stageEl = h('div', { class: 'stage-host' });
+  // The page and its numbers are a play surface: left to right in every language.
+  const stageEl = h('div', { class: 'stage-host', dir: 'ltr' });
   const p = new Painter(stageEl, { w: W, h: H, layers: 1, overlayCanvas: an.lineC, ...opts });
   an.lineC.className = 'layer line-art';
   p.over.append(an.lineC);
@@ -503,7 +504,8 @@ function exprFor(n, rnd) {
   for (let a = 2; a * a <= n; a++) if (n % a === 0) pairs.push([a, n / a]);
   if (pairs.length) kinds.push(() => { const [a, b] = pairs[Math.floor(rnd() * pairs.length)]; return rnd() < 0.5 ? `${a}×${b}` : `${b}×${a}`; });
   // Division only inside the times table she knows.
-  if (n <= 10) kinds.push(() => { const d = 2 + Math.floor(rnd() * 4); return `${n * d}:${d}`; });
+  // English schools write division as ÷; Russian and Israeli ones use a colon.
+  if (n <= 10) kinds.push(() => { const d = 2 + Math.floor(rnd() * 4); return `${n * d}${lang === 'en' ? '÷' : ':'}${d}`; });
   return kinds[Math.floor(rnd() * kinds.length)]();
 }
 
@@ -562,7 +564,8 @@ function playNumbers(root, page, an, math = false) {
     return m;
   }
 
-  const paletteEl = h('div', { class: 'num-palette' });
+  // The numbered chips count 1, 2, 3… like a number line, so they keep left to right.
+  const paletteEl = h('div', { class: 'num-palette', dir: 'ltr' });
   const chips = palette.map((c, i) => {
     const dark = hexRgb(c).reduce((a, b) => a + b) < 330;
     const chip = h('button', {

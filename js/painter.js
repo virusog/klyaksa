@@ -53,6 +53,8 @@ export class Painter {
     this.h = o.h || 1200;
     this.host = host;
     host.classList.add('stage');
+    // A play surface: pointer maths and pictures stay left to right in Hebrew too.
+    host.dir = 'ltr';
     this.sheet = h('div', { class: 'sheet', style: { width: `${this.w}px`, height: `${this.h}px` } });
     this.paperC = canvas(this.w, this.h);
     this.paperC.className = 'paper';

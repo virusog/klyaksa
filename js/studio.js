@@ -38,7 +38,8 @@ export function studio(root, editId) {
   const prompt = sessionStorage.getItem('prompt');
   sessionStorage.removeItem('prompt');
 
-  const stageEl = h('div', { class: 'stage-host' });
+  // The drawing sheet is a play surface: it keeps left-to-right geometry in Hebrew too.
+  const stageEl = h('div', { class: 'stage-host', dir: 'ltr' });
   const undoBtn = iconBtn('undo', t('Отменить'), () => { p.undo(); sync(); });
   const redoBtn = iconBtn('redo', t('Вернуть'), () => { p.redo(); sync(); });
 

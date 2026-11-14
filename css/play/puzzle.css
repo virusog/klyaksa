@@ -7,6 +7,8 @@
 .puzzle-own:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
 .puzzle-own b { display: block; font-size: 21px; font-weight: 900; line-height: 1.15; }
 .puzzle-own small { font-size: 15px; opacity: .78; }
+/* Same reason as .level-card names in app.css: a heavy face for English too. */
+html:not([lang=ru]) .puzzle-own :is(b, small) { font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; }
 
 /* Пазл: the board */
 .puzzle-play > .speaker { flex: none; }
@@ -43,7 +45,7 @@
 /* Пазл: her own pictures */
 .puzzle-sizes { align-items: center; }
 .puzzle-sizes .tab { min-height: 52px; }
-.puzzle-flip { margin-left: 14px; }
+.puzzle-flip { margin-inline-start: 14px; }
 .puzzle-pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; padding-bottom: 20px; }
 .puzzle-pic {
   display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #fff; border: var(--line); border-radius: 14px;

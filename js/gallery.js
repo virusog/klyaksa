@@ -59,7 +59,8 @@ export async function artView(root, id, action) {
   let stop = () => {};
   let painter = null;
 
-  const stageEl = h('div', { class: 'art-stage' });
+  // The replay draws on a canvas measured left to right, also in Hebrew.
+  const stageEl = h('div', { class: 'art-stage', dir: 'ltr' });
   const showStill = () => {
     stageEl.textContent = '';
     stageEl.classList.remove('stage');

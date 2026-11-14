@@ -461,7 +461,9 @@ async function studio(root, arg) {
   const tipFor = i => (L.mid?.includes(i) ? L.midTip : L.bare?.includes(i) ? L.bareTip : L.tips?.[i]) || L.tip;
   let said = L ? tipFor(cur) : '';
 
-  const stageEl = h('div', { class: 'stage-host' });
+  // A play surface: the sheet, the guide, the onion skin and the player keep
+  // their left-to-right geometry in Hebrew too.
+  const stageEl = h('div', { class: 'stage-host', dir: 'ltr' });
   const p = new Painter(stageEl, { w: W, h: H, layers: 1, brush: 'pen', onChange: inked });
   const layer = p.layers[0];
   // A finger still on the sheet would finish its stroke in the wrong frame.
@@ -492,7 +494,8 @@ async function studio(root, arg) {
     class: 'anim-speed',
     onclick: () => { sfx.pop(); setFps(v); },
   }, t(name)));
-  const strip = h('div', { class: 'anim-strip' });
+  // The film runs left to right in every language, like the lessons' motion.
+  const strip = h('div', { class: 'anim-strip', dir: 'ltr' });
   const act = (ico, label, fn) => btn('ghost anim-act', [ico, h('span', {}, label)], fn);
   // A lesson keeps its number of frames, so there «Копия» fills the next one.
   const acts = L

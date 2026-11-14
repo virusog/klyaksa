@@ -145,7 +145,8 @@ function squigglePoints(r) {
 }
 
 function squiggle(root) {
-  const stageEl = h('div', { class: 'stage-host' });
+  // The drawing sheet is a play surface: it keeps left-to-right geometry in Hebrew too.
+  const stageEl = h('div', { class: 'stage-host', dir: 'ltr' });
   const p = new Painter(stageEl, { w: 1200, h: 900, layers: 2, brush: 'marker', color: '#2a2140' });
   p.active = 1;
   p.size = 12;
@@ -261,7 +262,8 @@ function dice(root) {
 
 function half(root) {
   const L = pick(ALL_LESSONS.filter(l => l.mirror));
-  const stageEl = h('div', { class: 'stage-host' });
+  // "Right" and "left" below are the sheet's own sides, so the sheet never mirrors.
+  const stageEl = h('div', { class: 'stage-host', dir: 'ltr' });
   const p = new Painter(stageEl, { w: 1200, h: 900, layers: 1, brush: 'pencil', color: '#2a2140' });
   p.size = 9;
   let closed = false;
@@ -432,6 +434,7 @@ function pixels(root, tpl) {
   const S = 40;
   const cv = canvas(n * S, n * S);
   cv.className = 'pix-canvas';
+  cv.dir = 'ltr';
   const ctx = cv.getContext('2d');
   const paint = () => {
     ctx.clearRect(0, 0, cv.width, cv.height);
@@ -611,7 +614,7 @@ function guess(root) {
   const pool = ALL_LESSONS.filter(l => !l.noCopy && l.guess !== false);
   const rounds = shuffle(pool).slice(0, 12);
   let n = 0, total = 0, closed = false;
-  const artBox = h('div', { class: 'guess-art' });
+  const artBox = h('div', { class: 'guess-art', dir: 'ltr' });
   const opts = h('div', { class: 'guess-opts' });
   const label = h('h2', {});
   root.append(h('div', { class: 'screen scroll guess' },

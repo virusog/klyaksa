@@ -98,7 +98,8 @@ export function lessonPlay(root, id, mode) {
   let finished = false;
   const draftId = `draft_lesson_${id}_${mode}`;
 
-  const stageEl = h('div', { class: 'stage-host' });
+  // The sheet and the guide are a play surface: left to right in every language.
+  const stageEl = h('div', { class: 'stage-host', dir: 'ltr' });
   const p = new Painter(stageEl, { w: 1200, h: 900, layers: 2, brush: 'pencil', color: '#2a2140', pad: 6, fillGap: 11,
     onChange: () => { if (p.log.length < stepLog) stepLog = p.log.length; },
   });

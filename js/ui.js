@@ -35,7 +35,7 @@ const I = {
 
 export const icon = (n, size = 26) =>
   h('span', {
-    class: 'ico',
+    class: `ico ico-${n}`,
     html: `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${I[n] || ''}</svg>`,
   });
 

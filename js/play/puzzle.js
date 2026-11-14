@@ -24,9 +24,12 @@ import { award, db } from '../store.js';
 import { sfx } from '../audio.js';
 import { PAGES } from '../pages.js';
 import { drawPage } from '../coloring.js';
-import { t } from '../i18n.js';
+import { t, dir } from '../i18n.js';
 
 const MENU = '#/game/puzzle';
+// "4×3" is columns × rows and reads left to right in Hebrew too; an isolate keeps
+// the right-to-left text around it from turning it into "3×4".
+const LRI = dir === 'rtl' ? '\u2066' : '', PDI = dir === 'rtl' ? '\u2069' : '';
 const OWN = `${MENU}/own`;
 const W = 1200, H = 900;
 
@@ -47,7 +50,7 @@ const LEVELS = LADDER.map(([id, cols, rows, turned = false], i) => {
   const page = PAGES.find(p => p.id === id) || PAGES[i];
   return {
     key: `puzzle:${i + 1}`, name: page.title, href: `${MENU}/${i + 1}`,
-    sub: turned ? t('{cols}×{rows} · перевёртыши', { cols, rows }) : `${cols}×${rows}`,
+    sub: turned ? t('{cols}×{rows} · перевёртыши', { cols: LRI + cols, rows: rows + PDI }) : `${LRI}${cols}×${rows}${PDI}`,
     page, cols, rows, turned,
   };
 });
@@ -144,7 +147,8 @@ function game(root, cfg) {
   const goalEl = h('small', {});
   const say = speaker(t('Достаю картину…'));
   const board = h('div', { class: 'puzzle-board' });
-  const stage = h('div', { class: 'puzzle-stage' }, board);
+  // A play surface: tiles are placed and hit-tested from the left in every language.
+  const stage = h('div', { class: 'puzzle-stage', dir: 'ltr' }, board);
   const mixBtn = btn('primary hidden', t('Перемешать!'), () => { if (phase === 'look') mix(); });
   const peekBtn = btn('ghost hidden', [icon('eye', 22), ' ', t('Подсмотреть')], peek);
   const screen = h('div', { class: 'screen puzzle-play' },
@@ -472,7 +476,7 @@ function ownPicker(root) {
   let flip = saved.endsWith('t');
 
   const sizeTabs = OWN_SIZES.map(s => h('button', {
-    class: 'tab', onclick: () => { sfx.pop(); size = s; mark(); },
+    class: 'tab', dir: 'ltr', onclick: () => { sfx.pop(); size = s; mark(); },
   }, s.replace('x', '×')));
   const flipTab = h('button', {
     class: 'tab puzzle-flip', onclick: () => { sfx.pop(); flip = !flip; mark(); },
