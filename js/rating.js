@@ -78,8 +78,9 @@ export function rating(root) {
     body.append(
       speaker(headline, mine?.place === 1 ? 'joy' : 'happy'),
       h('p', { class: 'rating-count' }, plural(list.length, '{n} участница|{n} участницы|{n} участниц')),
-      h('ol', { class: 'rating-list' }, list.map(r => h('li', { class: `rating-row ${r.me ? 'me' : ''} ${r.place <= 3 ? 'top' : ''}` },
-        h('span', { class: 'rating-place' }, r.place <= 3 ? MEDALS[r.place - 1] : String(r.place)),
+      h('ol', { class: 'rating-list' }, list.map(r => h('li', { class: `rating-row ${r.me ? 'me' : ''} ${r.place <= 3 && score(r) > 0 ? 'top' : ''}` },
+        // Medals only for stars actually won: an empty week has no winners yet.
+        h('span', { class: 'rating-place' }, r.place <= 3 && score(r) > 0 ? MEDALS[r.place - 1] : String(r.place)),
         h('span', { class: 'rating-avatar' }, r.avatar),
         h('span', { class: 'rating-name' }, h('bdi', {}, r.name), r.me ? h('em', {}, t('это ты')) : null),
         h('span', { class: 'rating-stars' }, h('b', {}, String(score(r))), '★'),

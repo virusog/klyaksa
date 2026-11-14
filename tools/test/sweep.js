@@ -8,7 +8,7 @@ const problems = [];
 const seen = { routes: 0, levels: 0 };
 const CYR = /[А-Яа-яЁё]+/g;
 // Names of languages are written in their own language on purpose.
-const ALLOWED = new Set(['Русский']);
+const ALLOWED = new Set(['Русский', 'Блобика']);
 
 function visibleText() {
   const skip = new Set(T.qq('.rating-name, .me-name'));
@@ -30,8 +30,16 @@ function visibleText() {
   return parts.join(' ');
 }
 
+// The slowest checks, to find what makes a run long.
+const slow = [];
+let last = performance.now();
 function inspect(where) {
   seen.routes++;
+  const now = performance.now();
+  slow.push([Math.round(now - last), where]);
+  slow.sort((x, y) => y[0] - x[0]);
+  slow.length = Math.min(slow.length, 8);
+  last = now;
   const over = T.overflow();
   if (over.length) problems.push(`${where}: sticks out sideways: ${over.slice(0, 3).join(', ')}`);
   if (LANG !== 'ru') {
@@ -111,4 +119,4 @@ if (DEEP) {
   for (const p of PAGES) { await visit(`#/color/${p.id}/num`, 1300); seen.levels++; }
   for (const p of PIX) { await visit(`#/game/pixels/${p.id}`, 200); seen.levels++; }
 }
-return { lang: LANG, size: `${innerWidth}x${innerHeight}`, seen, problems: problems.slice(0, 200), problemCount: problems.length };
+return { lang: LANG, size: `${innerWidth}x${innerHeight}`, seen, slow, problems: problems.slice(0, 200), problemCount: problems.length };
