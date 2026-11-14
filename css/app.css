@@ -126,7 +126,7 @@ img { -webkit-user-drag: none; display: block; }
   grid-template-areas:
     "st st sc sc co co"
     "st st sc sc nu wo"
-    "ga ga ga ga wa wa";
+    "ga ga ra ra wa wa";
   height: calc(100% - 150px);
   min-height: 520px;
 }
@@ -149,11 +149,12 @@ img { -webkit-user-drag: none; display: block; }
 .t-world { grid-area: wo; background: #7cc8f5; }
 .t-games { grid-area: ga; background: #d7c6ff; }
 .t-gallery { grid-area: wa; background: #ffd3b5; }
+.t-rating { grid-area: ra; background: #ffe58f; }
 .t-num .tile-art, .t-world .tile-art { width: 66%; }
 .t-num b, .t-world b { font-size: 21px; }
 .t-num small, .t-world small { font-size: 14px; }
-.t-games .tile-art, .t-gallery .tile-art { width: auto; height: 86%; right: 18px; }
-.t-games .tile-art svg, .t-gallery .tile-art svg { height: 100%; width: auto; }
+.t-games .tile-art, .t-gallery .tile-art, .t-rating .tile-art { width: auto; height: 86%; right: 18px; }
+.t-games .tile-art svg, .t-gallery .tile-art svg, .t-rating .tile-art svg { height: 100%; width: auto; }
 .tile-prog { position: absolute; top: 14px; left: 16px; font-style: normal; background: #fff; border: var(--line); border-radius: 12px; padding: 2px 10px; font-size: 16px; }
 .next-gift { display: block; text-align: center; font-size: 17px; opacity: .8; padding: 4px; }
 
@@ -421,7 +422,7 @@ figure { margin: 0; text-align: center; font-size: 18px; }
       "st st sc sc"
       "st st sc sc"
       "co co nu wo"
-      "ga ga wa wa";
+      "ga ra wa wa";
     height: calc(100% - 170px);
   }
   .lesson-body { flex-direction: column; }
@@ -461,3 +462,44 @@ figure { margin: 0; text-align: center; font-size: 18px; }
 .game-card .game-art { z-index: 0; }
 .pix-sizes .tab { min-height: 44px; font-size: 16px; }
 .shape-ghost { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Profile, first launch and the class rating */
+.me-avatar { display: inline-grid; place-items: center; width: 52px; height: 52px; margin-inline-end: 10px; vertical-align: middle; font-size: 34px; background: var(--card); border: var(--line); border-radius: 50%; box-shadow: 0 3px 0 var(--ink); }
+.lang-btn { font-size: 17px; font-weight: 900; }
+.hello { display: flex; flex-direction: column; align-items: center; }
+.hello-card { width: min(640px, 100%); margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 10px 0 30px; }
+.hello-card > .mascot { width: 110px; height: 110px; }
+.hello-card h1 { font-size: 34px; font-weight: 900; }
+.hello-card p { font-size: 20px; }
+.hello-langs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+.hello-lang { min-height: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--card); border: var(--line); border-radius: 22px; box-shadow: 0 5px 0 var(--ink); font: inherit; color: inherit; cursor: pointer; }
+.hello-lang b { font-size: 26px; font-weight: 900; }
+.hello-lang small { font-size: 16px; opacity: .7; }
+.hello-lang.on { background: var(--sun); }
+.hello-lang:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.hello-form { width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.hello-label { font-size: 20px; font-weight: 800; text-align: start; }
+.hello-name { width: 100%; font-size: 26px; min-height: 60px; }
+.hello-avatars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+.hello-avatar { aspect-ratio: 1; min-height: 52px; font-size: 32px; background: var(--card); border: 2px solid var(--ink); border-radius: 16px; font-family: "Apple Color Emoji", serif; cursor: pointer; }
+.hello-avatar.on { background: var(--sun); outline: 4px solid var(--ink); outline-offset: 1px; }
+.hello-go { align-self: center; min-width: 220px; min-height: 60px; font-size: 22px; margin-top: 6px; }
+.hello-note { font-size: 16px !important; opacity: .75; }
+.hello-back { background: none; border: 0; font: inherit; font-size: 17px; text-decoration: underline; color: inherit; min-height: 52px; cursor: pointer; }
+.hello-sub { font-size: 22px; font-weight: 900; margin-top: 10px; }
+@media (max-width: 700px) { .hello-avatars { grid-template-columns: repeat(6, 1fr); } }
+
+.rating-tabs { margin-bottom: 4px; }
+.rating-body { display: flex; flex-direction: column; gap: 10px; max-width: 760px; margin: 0 auto; }
+.rating-count { font-size: 16px; opacity: .7; }
+.rating-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rating-row { display: flex; align-items: center; gap: 12px; min-height: 62px; padding: 6px 14px; background: var(--card); border: var(--line); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); }
+.rating-row.top { background: #fff6d6; }
+.rating-row.me { background: #d5f6e1; outline: 4px solid var(--mint); outline-offset: 1px; }
+.rating-place { min-width: 44px; text-align: center; font-size: 24px; font-weight: 900; }
+.rating-avatar { font-size: 34px; font-family: "Apple Color Emoji", serif; }
+.rating-name { flex: 1; min-width: 0; font-size: 21px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rating-name em { font-style: normal; font-size: 14px; margin-inline-start: 8px; padding: 2px 8px; border-radius: 10px; background: var(--mint); color: #fff; }
+.rating-stars { font-size: 22px; color: #d89000; white-space: nowrap; }
+.rating-stars b { color: var(--ink); margin-inline-end: 4px; }
+.rating-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 50px 0; text-align: center; font-size: 20px; }

@@ -6,11 +6,21 @@ import { coloringHub, coloringPlay } from './coloring.js';
 import { worldView, creatureDraw } from './world.js';
 import { gamesHub, gameRoute } from './games.js';
 import { gallery, artView } from './gallery.js';
-import { mascot, icon, topbar, btn, starBadge, toast, confirmBox, shareBlob } from './ui.js';
+import { mascot, icon, topbar, btn, starBadge, toast, confirmBox, shareBlob, popover } from './ui.js';
 import { ALL_LESSONS } from './lessons.js';
 import moreIdeas from './content/ideas.js';
 import moreIdeas2 from './content/ideas2.js';
 import { sfx } from './audio.js';
+import { t, N, lang, dir, appName, LANGS } from './i18n.js';
+import { hello, me, setLang } from './hello.js';
+import { rating } from './rating.js';
+import { startSync, joinRating, leaveRating } from './player.js';
+
+// The page speaks the chosen language: direction, title and the home-screen name.
+document.documentElement.lang = lang;
+document.documentElement.dir = dir;
+document.title = appName;
+document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', appName);
 
 const IDEAS = [
   'дом, в котором ты хотела бы жить', 'самое вкусное мороженое на свете', 'кот-супергерой', 'чудовище, которое боится мышей',
@@ -34,9 +44,16 @@ const TILES = [
     art: `<path d="M18 70C40 26 96 26 118 70 96 114 40 114 18 70z" fill="#ffc83d" stroke="#2a2140" stroke-width="5"/><path d="M116 70l28-26-6 26 6 26z" fill="#ff6b5e" stroke="#2a2140" stroke-width="5" stroke-linejoin="round"/><circle cx="46" cy="60" r="7" fill="#2a2140"/><circle cx="20" cy="30" r="7" fill="none" stroke="#fff" stroke-width="4"/><circle cx="36" cy="14" r="4" fill="none" stroke="#fff" stroke-width="3"/>` },
   { href: '#/games', cls: 'games', title: 'Игры', sub: 'Пазлы, пары, мультики, пиксели',
     art: `<rect x="20" y="24" width="88" height="88" rx="16" fill="#fff" stroke="#2a2140" stroke-width="5" transform="rotate(-12 64 68)"/><g fill="#2a2140"><circle cx="46" cy="52" r="8"/><circle cx="82" cy="46" r="8"/><circle cx="64" cy="68" r="8"/><circle cx="46" cy="90" r="8"/><circle cx="84" cy="84" r="8"/></g>` },
+  { href: '#/rating', cls: 'rating', title: 'Рейтинг', sub: 'Кто набрал больше звёзд',
+    art: `<rect x="56" y="34" width="44" height="86" rx="6" fill="#ffc83d" stroke="#2a2140" stroke-width="5"/><rect x="10" y="60" width="44" height="60" rx="6" fill="#fff" stroke="#2a2140" stroke-width="5"/><rect x="102" y="76" width="44" height="44" rx="6" fill="#ff85c0" stroke="#2a2140" stroke-width="5"/><path d="M78 6l6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2z" fill="#ffc83d" stroke="#2a2140" stroke-width="4" stroke-linejoin="round"/>` },
   { href: '#/gallery', cls: 'gallery', title: 'Галерея', sub: 'Мои картины',
     art: `<rect x="14" y="20" width="112" height="96" rx="6" fill="#fff" stroke="#2a2140" stroke-width="5"/><path d="M22 106l30-40 22 26 18-16 26 30z" fill="#27c4a8"/><circle cx="96" cy="44" r="12" fill="#ffc83d"/>` },
 ];
+
+function langPop(anchor) {
+  popover(anchor, h('div', { class: 'pop-list' }, Object.entries(LANGS).map(([code, L]) =>
+    h('button', { class: `pick ${code === lang ? 'on' : ''}`, lang: code, dir: L.dir, onclick: () => setLang(code, '#/') }, L.name))));
+}
 
 function home(root) {
   const doy = Math.floor(Date.now() / 864e5);
@@ -47,7 +64,7 @@ function home(root) {
     h('header', { class: 'home-top' },
       h('a', { class: 'mascot-wrap', href: '#/prizes', 'aria-label': 'Подарки' }, mascot('joy')),
       h('div', { class: 'hello' },
-        h('h1', {}, `Привет, ${state.name}!`),
+        h('h1', {}, h('a', { class: 'me-avatar', href: '#/me', 'aria-label': t('Мой профиль') }, state.avatar), `Привет, ${state.name}!`),
         h('p', {}, h('span', {}, 'Идея дня: '), h('b', {}, idea)),
       ),
       h('button', {
@@ -55,6 +72,7 @@ function home(root) {
         onclick: () => { sfx.pop(); sessionStorage.setItem('prompt', idea); location.hash = '#/studio/new'; },
       }, 'Рисуем!'),
       starBadge(),
+      h('button', { class: 'btn icon lang-btn', 'aria-label': t('Язык'), onclick: e => langPop(e.currentTarget) }, LANGS[lang].short),
       h('a', { class: 'btn icon', href: '#/parents', 'aria-label': 'Для родителей' }, icon('gear')),
     ),
     h('main', { class: 'tiles' }, TILES.map(t => h('a', { class: `tile t-${t.cls}`, href: t.href },
@@ -110,7 +128,7 @@ function parents(root) {
     }),
   );
   const name = h('input', { value: state.name, class: 'field', 'aria-label': 'Имя' });
-  name.addEventListener('change', () => { state.name = name.value.trim() || 'Настя'; save(); });
+  name.addEventListener('change', () => { state.name = name.value.replace(/\s+/g, ' ').trim().slice(0, 24) || state.name; name.value = state.name; save(); });
   const check = (label, k) => h('label', { class: 'set' }, h('span', {}, label), h('input', {
     type: 'checkbox', ...(state[k] ? { checked: true } : {}),
     onchange: e => { state[k] = e.target.checked; save(); },
@@ -144,6 +162,28 @@ function parents(root) {
       check('Клякса читает подсказки вслух', 'voice'),
       check('Открыть сразу все уровни в играх', 'unlockAll'),
       h('label', { class: 'set' }, h('span', {}, 'Напоминать об отдыхе глаз'), brk),
+    ),
+    h('section', {}, h('h3', {}, t('Язык')),
+      h('div', { class: 'row wrap parents-langs' }, Object.entries(LANGS).map(([code, L]) =>
+        btn(code === lang ? 'primary' : 'ghost', L.name, () => setLang(code, '#/parents')))),
+    ),
+    h('section', {}, h('h3', {}, t('Рейтинг класса')),
+      h('p', {}, t('В рейтинге видны только имя, значок и число звёзд. Если выключить, сервер забудет всё об этом игроке.')),
+      h('label', { class: 'set' }, h('span', {}, t('Участвовать в рейтинге')), h('input', {
+        type: 'checkbox', ...(state.rated ? { checked: true } : {}),
+        onchange: async e => {
+          const on = e.target.checked;
+          try {
+            if (on) await joinRating(); else await leaveRating();
+            toast(on ? t('Теперь она в рейтинге') : t('Убрали из рейтинга'));
+          } catch {
+            toast(t('Нет связи с интернетом. Попробуйте позже.'));
+            state.rated = !on;
+            e.target.checked = !on;
+            save();
+          }
+        },
+      })),
     ),
     h('section', {}, h('h3', {}, 'Сохранность рисунков'),
       h('p', {}, 'Рисунки хранятся только на этом iPad. Иногда скачивайте архив, чтобы они не потерялись при сбросе устройства.'),
@@ -197,6 +237,9 @@ const routes = {
   art: artView,
   prizes,
   parents,
+  hello,
+  me,
+  rating,
 };
 
 const root = document.getElementById('app');
@@ -223,7 +266,12 @@ async function go() {
   cleanup = null;
   document.querySelectorAll('.pop,.modal-back,.toast,.confetti').forEach(e => e.remove());
   root.textContent = '';
-  const [name, ...args] = location.hash.replace(/^#\/?/, '').split('/');
+  let [name, ...args] = location.hash.replace(/^#\/?/, '').split('/');
+  // A new device first meets the player: language, name and avatar.
+  if (!state.onboarded && name !== 'hello') {
+    history.replaceState(null, '', '#/hello');
+    [name, ...args] = ['hello'];
+  }
   if (!name) planUpdate();
   const route = routes[name] || home;
   const c = await route(root, ...args.map(decodeURIComponent));
@@ -265,4 +313,5 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js');
 }
 
+startSync();
 go();

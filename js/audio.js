@@ -1,5 +1,6 @@
 // All sounds are synthesised, so the app needs no audio files and works offline.
 import { state } from './store.js';
+import { lang, LANGS } from './i18n.js';
 
 let ac;
 let voiceReady = false;
@@ -52,7 +53,7 @@ export function speak(text) {
   if (!state.voice || !window.speechSynthesis) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ru-RU';
+  u.lang = LANGS[lang].speech;
   u.rate = 0.98;
   u.pitch = 1.15;
   speechSynthesis.speak(u);
