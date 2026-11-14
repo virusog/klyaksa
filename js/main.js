@@ -1,5 +1,5 @@
 import { h, pick } from './util.js';
-import { state, save, REWARDS, nextReward, askPersist, db } from './store.js';
+import { state, save, mergeState, REWARDS, nextReward, askPersist, db } from './store.js';
 import { studio } from './studio.js';
 import { school, lessonIntro, lessonPlay } from './school.js';
 import { coloringHub, coloringPlay } from './coloring.js';
@@ -11,10 +11,10 @@ import { ALL_LESSONS } from './lessons.js';
 import moreIdeas from './content/ideas.js';
 import moreIdeas2 from './content/ideas2.js';
 import { sfx } from './audio.js';
-import { t, N, lang, dir, appName, LANGS } from './i18n.js';
+import { t, N, plural, lang, dir, appName, LANGS } from './i18n.js';
 import { hello, me, setLang } from './hello.js';
 import { rating } from './rating.js';
-import { startSync, joinRating, leaveRating, classFromLink, cleanClass, newClassCode, inviteLink, setClass } from './player.js';
+import { startSync, joinRating, leaveRating, classFromLink, cleanClass, newClassCode, inviteLink, setClass, forgetDropped, freshPlayer } from './player.js';
 
 // The page speaks the chosen language: direction, title and the home-screen name.
 document.documentElement.lang = lang;
@@ -116,6 +116,19 @@ async function walk(v, fn) {
 const toB64 = b => new Promise(r => { const f = new FileReader(); f.onload = () => r({ __b: f.result }); f.readAsDataURL(b); });
 const fromB64 = o => fetch(o.__b).then(r => r.blob());
 
+// What an archive holds, in words: drawings, creatures of the world, stars.
+function archiveCount(art = [], world = [], st = {}) {
+  const drawings = art.filter(a => a?.thumb).length;
+  const pictures = drawings + world.length;
+  const parts = [plural(drawings, '{n} рисунок|{n} рисунка|{n} рисунков')];
+  if (world.length) parts.push(plural(world.length, '{n} существо|{n} существа|{n} существ'));
+  parts.push(plural(st.stars || 0, '{n} звезда|{n} звезды|{n} звёзд'));
+  return { pictures, text: parts.join(', ') };
+}
+// On iPad an app put on the Home Screen keeps its own drawings, apart from Safari.
+const inSafariTab = navigator.standalone === false;
+const emptyHere = () => t('Сейчас страница открыта в Safari. Если ребёнок рисует в приложении с экрана «Домой», архив надо скачивать и восстанавливать там.');
+
 function parents(root) {
   const a = 6 + Math.floor(Math.random() * 4);
   const b = 6 + Math.floor(Math.random() * 4);
@@ -141,16 +154,40 @@ function parents(root) {
   const restore = h('input', { type: 'file', accept: '.json,application/json', class: 'hidden' });
   restore.addEventListener('change', async () => {
     const f = restore.files[0];
-    if (!f || !(await confirmBox(t('Заменить данные из архива?'), t('Заменить'), t('Отмена')))) return;
+    restore.value = '';
+    if (!f) return;
+    let data;
     try {
-      const data = JSON.parse(await f.text());
+      data = JSON.parse(await f.text());
+      if (!data || typeof data.state !== 'object') throw new Error('not an archive');
+    } catch (e) {
+      console.error(e);
+      toast(t('Не получилось прочитать архив'));
+      return;
+    }
+    // Says what is inside first, so an empty archive is noticed before anything changes.
+    const n = archiveCount(data.art, data.world, data.state);
+    const ask = [t('В архиве: {what}.', { what: n.text }), n.pictures ? '' : t('Рисунков в нём нет.'),
+      t('Рисунки и успехи из него добавятся к тем, что уже здесь.')];
+    if (!(await confirmBox(ask.filter(Boolean).join(' '), t('Добавить'), t('Отмена')))) return;
+    try {
+      // Adds what is missing here. A record that is already here and not older stays,
+      // so newer drafts and colourings made on this device are kept.
       for (const s of ['art', 'world', 'kv']) {
-        for (const it of data[s] || []) await db.put(s, await walk(it, fromB64));
+        for (const it of data[s] || []) {
+          if (!it?.id) continue;
+          const mine = await db.get(s, it.id);
+          if (mine && !((it.updated || 0) > (mine.updated || 0))) continue;
+          await db.put(s, await walk(it, fromB64));
+        }
       }
-      Object.assign(state, data.state);
+      Object.assign(state, mergeState({ ...state }, data.state));
       save();
-      toast(t('Архив восстановлен'));
-      // Starts again with everything from the archive: language, stars, prizes.
+      if (!state.player) freshPlayer();
+      // Of her two rating players one stays; the other is taken off the server.
+      await forgetDropped();
+      toast(t('Архив восстановлен: {what}', { what: n.text }));
+      // Starts again with the joined stars, prizes and drawings.
       setTimeout(() => location.reload(), 1200);
     } catch (e) {
       console.error(e);
@@ -197,12 +234,14 @@ function parents(root) {
           const dump = { state };
           for (const s of ['art', 'world', 'kv']) dump[s] = await walk(await db.all(s), toB64);
           const blob = new Blob([JSON.stringify(dump)], { type: 'application/json' });
+          const n = archiveCount(dump.art, dump.world, state);
           const name = `blobika-${new Date().toISOString().slice(0, 10)}.json`;
           // iPad only allows sharing right after a tap, so saving gets its own button.
           const o = h('div', { class: 'modal-back' }, h('div', { class: 'modal' },
             mascot('joy'),
             h('h2', {}, t('Архив готов')),
-            h('p', {}, t('Размер: {n} МБ', { n: (blob.size / 1e6).toFixed(1) })),
+            h('p', {}, t('В архиве: {what}.', { what: n.text }), ' ', t('Размер: {n} МБ', { n: (blob.size / 1e6).toFixed(1) })),
+            n.pictures ? null : h('p', { class: 'note' }, t('Рисунков здесь нет.'), ' ', inSafariTab ? emptyHere() : ''),
             h('div', { class: 'row' },
               btn('ghost', t('Отмена'), () => o.remove()),
               btn('primary', t('Сохранить архив'), () => { o.remove(); return shareBlob(blob, name); }),
@@ -212,6 +251,7 @@ function parents(root) {
         }),
         h('label', { class: 'btn ghost' }, restore, t('Восстановить')),
       ),
+      inSafariTab ? h('p', { class: 'note' }, emptyHere()) : null,
     ),
     h('section', {}, h('h3', {}, t('Как поставить на iPad')),
       h('ol', {},
@@ -227,10 +267,12 @@ function parents(root) {
   if (/github\.io$/.test(location.hostname)) {
     body.prepend(h('section', { class: 'moved' }, h('h3', {}, t('Блобика переехала на blobika.com')),
       h('ol', {},
-        h('li', {}, t('Здесь, ниже, нажмите «Скачать архив» и сохраните файл.')),
-        h('li', {}, t('Откройте blobika.com в Safari и поставьте на экран Домой.')),
+        h('li', {}, t('Откройте это приложение той иконкой на экране «Домой», с которой рисует ребёнок, а не в Safari: у иконки свои рисунки.')),
+        h('li', {}, t('Здесь, ниже, нажмите «Скачать архив». Проверьте, что в нём есть рисунки, и сохраните файл в «Файлы».')),
+        h('li', {}, t('Откройте blobika.com в Safari, поставьте на экран «Домой» и запустите с новой иконки.')),
         h('li', {}, t('Там в разделе «Для родителей» нажмите «Восстановить» и выберите этот файл.')),
       ),
+      inSafariTab ? h('p', { class: 'note' }, emptyHere()) : null,
       h('a', { class: 'btn primary', href: 'https://blobika.com/' }, t('Открыть blobika.com'))));
   }
   root.append(h('div', { class: 'screen scroll hub parents' }, topbar(t('Для родителей')), gate, body));

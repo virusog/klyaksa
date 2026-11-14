@@ -92,8 +92,11 @@ let running = null;
 // Sends her name, avatar and stars. Silent when offline: the next change or launch tries again.
 export function syncNow() {
   if (running) return running;
-  if (!state.onboarded || !state.rated || !state.name || !state.classCode) return Promise.resolve(false);
+  const canSave = state.onboarded && state.rated && state.name && state.classCode;
+  if (!canSave && !state.forget?.length) return Promise.resolve(false);
   running = (async () => {
+    // Her old player goes first, so she is never on the board twice.
+    if (!(await flushForget()) || !canSave) return false;
     for (let attempt = 0; attempt < 2; attempt++) {
       const p = ensurePlayer();
       try {
@@ -138,6 +141,34 @@ export async function leaveRating() {
   await rpc('klyaksa_forget', { p_id: p.id, p_secret: p.secret });
 }
 
+// Players dropped when an archive was joined in (see mergeState) are taken off the
+// server, so she is not in the class twice. Kept in state.forget and tried again before
+// every save until the server answers. Returns true when nothing is left to forget.
+async function flushForget() {
+  for (const p of [...(state.forget || [])]) {
+    if (p.id !== state.player?.id) {
+      try { await rpc('klyaksa_forget', { p_id: p.id, p_secret: p.secret }); } catch { continue; }
+    }
+    state.forget = state.forget.filter(x => x.id !== p.id);
+    save();
+  }
+  return !state.forget?.length;
+}
+
+// A new player for this device, never taken from the cookie (see mergeState).
+export function freshPlayer() {
+  state.player = { id: newId(), secret: randomHex(16) };
+  writeCookie(state.player);
+  save();
+}
+
+export async function forgetDropped() {
+  clearTimeout(timer);
+  await running;
+  writeCookie(ensurePlayer());
+  return flushForget();
+}
+
 export async function joinRating() {
   state.rated = true;
   save();
@@ -156,6 +187,7 @@ export async function setClass(code) {
 // Keeps the rating up to date: on launch, after every new star, when she comes back online.
 export function startSync() {
   ensurePlayer();
+  if (state.forget?.length) syncSoon(500);
   onStars(() => syncSoon());
   window.addEventListener('online', () => syncSoon(500));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSoon(1500); });

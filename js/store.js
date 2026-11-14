@@ -4,7 +4,7 @@ import { N, lang } from './i18n.js';
 const KEY = 'klyaksa.v1';
 const DEFAULTS = {
   name: '', avatar: '🐱', lang, onboarded: false, rated: true, player: null, classCode: '',
-  stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [], unlockAll: false,
+  stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [], unlockAll: false, forget: [],
 };
 
 export const state = (() => {
@@ -16,6 +16,60 @@ export const state = (() => {
   }
   return { ...DEFAULTS, ...(saved || {}) };
 })();
+
+// Entries of best that are not stars (the colour lab keeps its next level there).
+const NOT_STARS = new Set(['lab:level']);
+// Stars that side a holds in best beyond what side b has.
+const extra = (a, b) => Object.entries(a.best || {})
+  .filter(([k]) => !NOT_STARS.has(k))
+  .reduce((sum, [k, v]) => sum + Math.max(0, (+v || 0) - (+(b.best || {})[k] || 0)), 0);
+const validPlayer = p => !!(p?.id && p?.secret);
+
+// Joins progress from an archive into this device's. The profile and settings made
+// here win; results are joined task by task, so nothing earned on either side is lost
+// and restoring the same archive twice changes nothing. Each side's stars may include
+// some only the server knew, so the total is each side's own plus what the other adds.
+// Of two rating players the one the server already rates higher stays; the other is
+// queued in forget. The archive never switches the rating on.
+export function mergeState(here, old = {}) {
+  const out = { ...DEFAULTS, ...old, ...here };
+  const best = { ...(old.best || {}) };
+  for (const [k, v] of Object.entries(here.best || {})) best[k] = Math.max(+best[k] || 0, +v || 0);
+  out.best = best;
+  // The same player on both sides: the server total already covers both, so nothing is added twice.
+  const samePlayer = validPlayer(old.player) && old.player.id === here.player?.id;
+  const sumBest = Object.entries(best).filter(([k]) => !NOT_STARS.has(k)).reduce((a, [, v]) => a + (+v || 0), 0);
+  out.stars = samePlayer
+    ? Math.max(+here.stars || 0, +old.stars || 0, sumBest)
+    : Math.max((+here.stars || 0) + extra(old, here), (+old.stars || 0) + extra(here, old));
+  if (!here.classCode && old.classCode) {
+    out.classCode = old.classCode;
+    out.rated = here.rated !== false && old.rated !== false;
+  }
+  const forget = [];
+  const queue = p => { if (validPlayer(p) && !forget.some(x => x.id === p.id)) forget.push({ id: p.id, secret: p.secret }); };
+  [...(here.forget || []), ...(old.forget || [])].forEach(queue);
+  let kept = here;
+  if (validPlayer(old.player) && old.player.id !== here.player?.id) {
+    const takeOld = old.syncedAt && (!here.syncedAt || (+old.stars || 0) > (+here.stars || 0));
+    kept = takeOld ? old : here;
+    queue(takeOld ? here.player : old.player);
+    out.player = kept.player;
+    out.syncedAt = kept.syncedAt;
+  }
+  // The server lets a known player grow only 400 stars a day and counts it as this
+  // week's. When the archive brings old stars to this device's player that the server
+  // already knows, she starts as a new player instead (null here, made by the caller):
+  // her week starts at 0 and the whole total arrives at once. The player she leaves is
+  // forgotten. Stars earned here on top of the archive's player are new, so they just go.
+  if (kept === here && here.syncedAt && !samePlayer && out.stars > (+here.stars || 0)) {
+    queue(out.player);
+    out.player = null;
+    out.syncedAt = undefined;
+  }
+  out.forget = forget.filter(p => p.id !== out.player?.id);
+  return out;
+}
 
 export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* private mode */ }

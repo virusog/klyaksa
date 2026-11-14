@@ -76,6 +76,7 @@ page('first launch from a class invitation, profile, cookie and the real rating 
 page('the rating with no internet', 'offline.js', { route: '#/', state: { onboarded: true, name: 'Test', classCode: 'test-class' }, flags: ['--offline'] });
 page('the rating without a class code', 'noclass.js', { route: '#/', state: { onboarded: true, name: 'Test' } });
 page('Настя keeps her old progress', 'migrate.js', { route: '#/', state: { stars: 12, best: { x: 3 }, sound: false } });
+page('a drawing survives the archive: save, wipe, restore, gallery', 'archive.js', { route: '#/', state: { onboarded: true, name: 'Test', classCode: 'test-class', stars: 12, best: { 'lesson:cat': 3, x: 9 } } });
 for (const lang of ['ru', 'en', 'he']) {
   for (const size of ['1180x820', '820x1180']) {
     page(`every screen, ${lang}, ${size}`, 'sweep.js', {
