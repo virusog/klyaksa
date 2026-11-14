@@ -9,6 +9,11 @@
 // The script file is the body of an async function. It can use the helper T
 // (see below) and what it returns is printed as JSON, together with any page
 // errors. Every run starts with empty storage.
+//
+// The shared rating is replaced by a pretend server inside the page, so test
+// runs never add players to the real one. --net uses the real server instead
+// (only tools/test/profile.js needs that, and it removes its player again).
+// --offline makes every rating request fail, as with no internet.
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -25,6 +30,51 @@ const shotFile = arg('shot');
 const preset = arg('state', '');
 const timeout = Number(arg('timeout', 90)) * 1000;
 const base = arg('base', 'http://localhost:8123/index.html');
+const net = process.argv.includes('--net') ? 'real' : process.argv.includes('--offline') ? 'offline' : 'fake';
+
+// The pretend rating server: the same three calls as server/schema.sql, kept
+// in this page's localStorage, with two classmates already on it.
+const FAKE_SERVER = `
+(() => {
+  const mode = ${JSON.stringify(net)};
+  if (mode === 'real') return;
+  const real = window.fetch.bind(window);
+  const KEY = 'klyaksa.fakeServer';
+  const load = () => JSON.parse(localStorage.getItem(KEY) || 'null') || { players: [
+    { id: 'fake-1', secret: 'x', name: 'Маша', avatar: '🦄', stars: 40, week: 9, visible: true },
+    { id: 'fake-2', secret: 'x', name: 'Noa', avatar: '🐼', stars: 25, week: 14, visible: true },
+  ] };
+  const reply = body => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  window.fetch = async (url, opts) => {
+    const m = String(url).match(/\\/rest\\/v1\\/rpc\\/(klyaksa_\\w+)$/);
+    if (!m) return real(url, opts);
+    if (mode === 'offline') throw new TypeError('Failed to fetch');
+    await new Promise(r => setTimeout(r, 30));
+    const b = JSON.parse(opts.body || '{}');
+    const db = load();
+    const saveDb = () => localStorage.setItem(KEY, JSON.stringify(db));
+    if (m[1] === 'klyaksa_save') {
+      let p = db.players.find(x => x.id === b.p_id);
+      if (p && p.secret !== b.p_secret) return new Response('{"message":"wrong secret"}', { status: 400 });
+      if (!p) db.players.push(p = { id: b.p_id, secret: b.p_secret, stars: 0, week: 0 });
+      const gain = Math.max(0, b.p_stars - p.stars);
+      Object.assign(p, { name: String(b.p_name).trim().replace(/\\s+/g, ' ').slice(0, 24), avatar: b.p_avatar, stars: p.stars + gain, week: p.week + gain, visible: b.p_visible });
+      saveDb();
+      return reply(null);
+    }
+    if (m[1] === 'klyaksa_board') {
+      return reply(db.players.filter(p => p.visible).sort((a, c) => c.stars - a.stars).slice(0, b.p_limit)
+        .map(({ id, name, avatar, stars, week }) => ({ id, name, avatar, stars, week })));
+    }
+    if (m[1] === 'klyaksa_forget') {
+      db.players = db.players.filter(p => !(p.id === b.p_id && p.secret === b.p_secret));
+      saveDb();
+      return reply(null);
+    }
+    return new Response('{}', { status: 404 });
+  };
+})();
+`;
 
 // Runs in the page before the app. Everything a test script needs.
 const HELPERS = `
@@ -150,7 +200,7 @@ try {
   const seed = preset
     ? `try { if (!sessionStorage.__seeded) { sessionStorage.__seeded = 1; localStorage.setItem('klyaksa.v1', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('klyaksa.v1') || '{}'), ${preset}))); } } catch (e) {}`
     : '';
-  await send('Page.addScriptToEvaluateOnNewDocument', { source: seed + HELPERS });
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: seed + FAKE_SERVER + HELPERS });
   const onLoad = new Promise(res => { loaded = res; });
   await send('Page.navigate', { url: base + route });
   await Promise.race([onLoad, sleep(15000)]);
