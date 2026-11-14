@@ -5,9 +5,9 @@
 const KEY = 'klyaksa.v1';
 
 export const LANGS = {
-  ru: { name: 'Русский', short: 'RU', dir: 'ltr', speech: 'ru-RU', app: 'Клякса' },
-  en: { name: 'English', short: 'EN', dir: 'ltr', speech: 'en-US', app: 'Blotty' },
-  he: { name: 'עברית', short: 'עב', dir: 'rtl', speech: 'he-IL', app: 'כתמי' },
+  ru: { name: 'Русский', short: 'RU', dir: 'ltr', speech: 'ru-RU', app: 'Блобика' },
+  en: { name: 'English', short: 'EN', dir: 'ltr', speech: 'en-US', app: 'Blobika' },
+  he: { name: 'עברית', short: 'עב', dir: 'rtl', speech: 'he-IL', app: 'בלוביקה' },
 };
 
 function pickLang() {

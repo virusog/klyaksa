@@ -8,7 +8,7 @@ export default {
   "Цветолаб": "Colour Lab",
   "Смешай точно такой же цвет": "Mix the exact same colour",
   "Рисуй по клеточкам": "Draw square by square",
-  "Что рисует Клякса?": "What Is Blotty Drawing?",
+  "Что рисует Блобика?": "What Is Blobika Drawing?",
   "Угадай как можно раньше": "Guess as soon as you can",
   "Пары": "Pairs",
   "Найди одинаковые картинки": "Find the matching pictures",

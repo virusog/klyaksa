@@ -8,7 +8,7 @@ const problems = [];
 const seen = { routes: 0, levels: 0 };
 const CYR = /[А-Яа-яЁё]+/g;
 // Names of languages are written in their own language on purpose.
-const ALLOWED = new Set(['Русский', 'Клякса']);
+const ALLOWED = new Set(['Русский']);
 
 function visibleText() {
   const skip = new Set(T.qq('.rating-name, .me-name'));

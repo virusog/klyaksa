@@ -71,11 +71,11 @@ papers), `school` (school screens, chapter titles), `lessons-a` and `lessons-b`
 ## Writing the translations
 
 - English: warm, simple, natural for an 8-year-old, British/American neutral.
-  The app is called **Blotty** in English (the mascot Клякса is Blotty).
+  The app and its mascot are called **Blobika**: Блобика in Russian, Blobika in English, בלוביקה in Hebrew (feminine).
 - Hebrew: natural Israeli Hebrew for a girl in second or third grade, without
   niqqud except where a word would be ambiguous for a child. Address her in the
   feminine singular (תצירי, את, בחרי, ציירי). The app and the mascot are called
-  **כתמי**. Use Hebrew quotation marks or none, not «ёлочки».
+  **בלוביקה**. Use Hebrew quotation marks or none, not «ёлочки».
 - Keep every `{placeholder}` exactly. A plural gets exactly two forms
   `"{n} frame|{n} frames"`; in Hebrew use the form a child would read, e.g.
   `"פריים אחד|{n} פריימים"` is fine.

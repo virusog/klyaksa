@@ -69,7 +69,7 @@ export function hello(root, step) {
     root.append(h('div', { class: 'screen scroll hello' },
       h('div', { class: 'hello-card' },
         mascot('joy'),
-        h('h1', {}, t('Привет! Я Клякса.')),
+        h('h1', {}, t('Привет! Я Блобика.')),
         h('p', {}, t('На каком языке будем играть?')),
         langPicker(code => {
           if (code === lang) { location.hash = '#/hello/2'; return; }

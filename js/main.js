@@ -160,7 +160,7 @@ function parents(root) {
     h('section', {}, h('h3', {}, t('Настройки')),
       h('label', { class: 'set' }, h('span', {}, t('Имя')), name),
       check(t('Звуки'), 'sound'),
-      check(t('Клякса читает подсказки вслух'), 'voice'),
+      check(t('Блобика читает подсказки вслух'), 'voice'),
       check(t('Открыть сразу все уровни в играх'), 'unlockAll'),
       h('label', { class: 'set' }, h('span', {}, t('Напоминать об отдыхе глаз')), brk),
     ),
@@ -194,7 +194,7 @@ function parents(root) {
           const dump = { state };
           for (const s of ['art', 'world', 'kv']) dump[s] = await walk(await db.all(s), toB64);
           const blob = new Blob([JSON.stringify(dump)], { type: 'application/json' });
-          const name = `klyaksa-${new Date().toISOString().slice(0, 10)}.json`;
+          const name = `blobika-${new Date().toISOString().slice(0, 10)}.json`;
           // iPad only allows sharing right after a tap, so saving gets its own button.
           const o = h('div', { class: 'modal-back' }, h('div', { class: 'modal' },
             mascot('joy'),

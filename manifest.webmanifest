@@ -1,6 +1,6 @@
 {
-  "name": "Клякса — мастерская рисования",
-  "short_name": "Клякса",
+  "name": "Blobika",
+  "short_name": "Blobika",
   "lang": "ru",
   "start_url": "./index.html",
   "scope": "./",

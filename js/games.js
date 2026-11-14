@@ -21,7 +21,7 @@ const GAMES = [
   { id: 'half', title: N('Половинка'), text: N('Дорисуй вторую сторону'), c: '#27c4a8', art: 'M55 10V100M55 25C20 10 10 50 20 60S45 75 55 70' },
   { id: 'lab', title: N('Цветолаб'), text: N('Смешай точно такой же цвет'), c: '#4aa8ff', art: 'M45 10h20v30l25 50a6 6 0 0 1-5 8H25a6 6 0 0 1-5-8l25-50z' },
   { id: 'pixels', title: N('Пиксели'), text: N('Рисуй по клеточкам'), c: '#8b5cf6', art: 'M15 15h25v25H15zM40 40h25v25H40zM65 15h25v25H65zM15 65h25v25H15zM65 65h25v25H65z' },
-  { id: 'guess', title: N('Что рисует Клякса?'), text: N('Угадай как можно раньше'), c: '#ff6b5e', art: 'M55 95v.5M55 75c0-20 25-20 25-42S65 10 50 10 25 20 25 35' },
+  { id: 'guess', title: N('Что рисует Блобика?'), text: N('Угадай как можно раньше'), c: '#ff6b5e', art: 'M55 95v.5M55 75c0-20 25-20 25-42S65 10 50 10 25 20 25 35' },
 ];
 
 // Newer games live in their own files under js/play and load when opened.
@@ -618,7 +618,7 @@ function guess(root) {
   const opts = h('div', { class: 'guess-opts' });
   const label = h('h2', {});
   root.append(h('div', { class: 'screen scroll guess' },
-    topbar(t('Что рисует Клякса?'), { back: '#/games' }),
+    topbar(t('Что рисует Блобика?'), { back: '#/games' }),
     h('div', { class: 'guess-body' }, h('div', { class: 'guess-top' }, mascot('wow'), label), artBox, opts),
   ));
 
