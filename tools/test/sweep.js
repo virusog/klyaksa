@@ -11,7 +11,9 @@ const CYR = /[А-Яа-яЁё]+/g;
 const ALLOWED = new Set(['Русский', 'Блобика']);
 
 function visibleText() {
-  const skip = new Set(T.qq('.rating-name, .me-name'));
+  // What classmates wrote is theirs: names, chat messages. Drawing titles and result
+  // names are the app's own Russian keys, so they are checked.
+  const skip = new Set(T.qq('.rating-name, .me-name, .chat-name, .msg-text, .post-name'));
   const parts = [];
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -67,6 +69,34 @@ const ROUTES = ['#/', '#/studio/new', '#/school', '#/coloring/pages', '#/colorin
   '#/color/whale/free', '#/color/whale/num', '#/color/whale/math', '#/color/mandala3/free',
   '#/lesson/cat', '#/lesson/cat/trace', '#/lesson/cat/copy', '#/lesson/fox/memory'];
 for (const r of ROUTES) await visit(r, r.startsWith('#/color/') ? 1500 : r === '#/rating' ? 2500 : 700);
+
+// "My class": its three tabs with the pretend class, a drawing opened big, the
+// picker of her own drawings, and the emoji and message menus of the chat.
+const until = async (fn, ms = 4000) => { for (let i = 0; i < ms / 50 && !fn(); i++) await T.wait(50); return fn(); };
+const closeModals = () => T.qq('.modal-back').forEach(m => m.remove());
+await T.go('#/class', 200);
+if (await until(() => T.qq('.rating-row').length)) inspect('#/class'); else problems.push('#/class: the rating did not load');
+await T.go('#/class/art', 200);
+if (await until(() => T.qq('.post-card img').length && T.qq('.post-card img').every(i => i.naturalWidth > 0))) inspect('#/class/art');
+else problems.push('#/class/art: the drawings did not load');
+T.qq('.art-sort .tab')[1]?.click();
+if (await until(() => T.q('.post-crown'))) inspect('#/class/art week'); else problems.push('#/class/art week: no crown on the best drawing');
+T.q('.post-card .post-pic')?.click();
+if (await until(() => T.q('.post-modal .post-full')?.naturalWidth > 0)) inspect('#/class/art post'); else problems.push('#/class/art: the drawing did not open');
+closeModals();
+T.q('.class-share')?.click();
+if (await until(() => T.q('.share-pick'))) inspect('#/class/art picker'); else problems.push('#/class/art: the picker did not open');
+closeModals();
+await T.go('#/class/chat', 200);
+if (await until(() => T.qq('.msg-row').length >= 4)) inspect('#/class/chat'); else problems.push('#/class/chat: the messages did not load');
+T.q('.chat-emoji')?.click();
+await T.wait(150);
+if (T.q('.pop .emoji')) inspect('#/class/chat emoji'); else problems.push('#/class/chat: the emoji did not open');
+T.q('.pop')?.remove();
+T.q('.msg-row .msg-more')?.click();
+await T.wait(150);
+if (T.q('.pop .pick')) inspect('#/class/chat menu'); else problems.push('#/class/chat: the message menu did not open');
+T.q('.pop')?.remove();
 
 // Popovers and dialogs of the studio and the parents screen.
 await T.go('#/studio/new', 700);

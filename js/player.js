@@ -52,7 +52,12 @@ async function rpc(name, body, ms = 9000) {
       body: JSON.stringify(body),
       signal: ctl.signal,
     });
-    if (!r.ok) throw Object.assign(new Error(`rating ${r.status}`), { status: r.status });
+    if (!r.ok) {
+      // PostgREST answers {"code":"54000","message":…}: the code tells a limit from a refusal.
+      let code = '';
+      try { code = String((await r.json())?.code || ''); } catch { /* not JSON */ }
+      throw Object.assign(new Error(`rating ${r.status} ${code}`), { status: r.status, code });
+    }
     return r.json();
   } finally {
     clearTimeout(timer);
@@ -99,19 +104,24 @@ export function syncNow() {
     if (!(await flushForget()) || !canSave) return false;
     for (let attempt = 0; attempt < 2; attempt++) {
       const p = ensurePlayer();
+      // The code this save sends: she may change it while the save is on its way.
+      const sent = state.classCode;
       try {
         const res = await rpc('klyaksa_save', {
-          p_id: p.id, p_secret: p.secret, p_class: state.classCode, p_name: state.name, p_avatar: state.avatar,
+          p_id: p.id, p_secret: p.secret, p_class: sent, p_name: state.name, p_avatar: state.avatar,
           p_lang: state.lang, p_stars: state.stars, p_visible: true,
         });
         // The server may know more stars than this device (storage was cleared, an old archive restored).
         if (res?.stars > state.stars) state.stars = res.stars;
+        // A mistyped code the server knows a fix for: she moves to the real class.
+        if (res?.class && state.classCode === sent && res.class !== sent && cleanClass(res.class)) state.classCode = res.class;
         state.syncedAt = Date.now();
         save();
         return true;
       } catch (e) {
         // Her id is taken by someone else's secret: start afresh with a new one.
-        if (e.status === 403 && attempt === 0) { state.player = null; continue; }
+        // (PostgREST answers this 42501 with 401 to the public key, so the code is what counts.)
+        if ((e.code === '42501' || e.status === 403) && attempt === 0) { state.player = null; continue; }
         return false;
       }
     }
@@ -123,6 +133,40 @@ export function syncNow() {
 export function syncSoon(delay = 2500) {
   clearTimeout(timer);
   timer = setTimeout(syncNow, delay);
+}
+
+// Class features (drawings, chat) only for a girl who is in the rating of a class.
+export const inClass = () => !!(state.onboarded && state.rated && state.name && state.classCode);
+
+// What the server knows of a typed code: the class it really means (a known typo
+// is moved to the right class) and how many girls are in it.
+export const checkClass = code => rpc('klyaksa_class_check', { p_class: code }, 6000);
+
+// A call made as her: the server takes the class from her own row, never from here.
+function asMe(name, params = {}, ms) {
+  const p = ensurePlayer();
+  return rpc(name, { p_id: p.id, p_secret: p.secret, ...params }, ms);
+}
+
+export const addPost = ({ title, thumb, image, w, h }) =>
+  asMe('klyaksa_post_add', { p_title: title, p_thumb: thumb, p_image: image, p_w: w, p_h: h }, 30000);
+export const loadPosts = (sort = 'new') => asMe('klyaksa_posts', { p_sort: sort, p_limit: 60 }, 15000);
+export const postImage = id => asMe('klyaksa_post_image', { p_post: id }, 20000);
+export const likePost = (id, on) => asMe('klyaksa_like', { p_post: id, p_on: on });
+export const deletePost = id => asMe('klyaksa_post_delete', { p_post: id });
+export const sendChat = (kind, body) => asMe('klyaksa_chat_send', { p_kind: kind, p_body: body });
+export const loadChat = (after = 0) => asMe('klyaksa_chat', { p_after: after, p_limit: 80 });
+export const deleteChat = id => asMe('klyaksa_chat_delete', { p_msg: id });
+export const report = (kind, target) => asMe('klyaksa_report', { p_kind: kind, p_target: target });
+export const loadNews = () => asMe('klyaksa_news', {}, 6000);
+
+// Why a class call failed, in words she understands. No status means no internet.
+export function netError(e) {
+  if (!e?.status) return 'offline';
+  if (e.code === '54000') return 'limit';
+  if (e.code === '42501') return 'denied';
+  if (e.code === '22023') return 'bad';
+  return 'other';
 }
 
 export async function loadBoard() {
@@ -176,11 +220,19 @@ export async function joinRating() {
   return syncNow();
 }
 
-// Moves her into another class (or out of any class with '').
+// Moves her into another class (the server takes her drawings and messages out of
+// the old one), or out of any class with '': then the server forgets her, as when
+// her parents switch participation off, but she stays ready to join another class.
 export async function setClass(code) {
+  const was = state.classCode;
   state.classCode = cleanClass(code);
   save();
   await running;
+  if (was && !state.classCode) {
+    const p = ensurePlayer();
+    try { await rpc('klyaksa_forget', { p_id: p.id, p_secret: p.secret }); } catch { return false; }
+    return true;
+  }
   return syncNow();
 }
 

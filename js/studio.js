@@ -198,6 +198,7 @@ export function studio(root, editId) {
       title: t('Красота, {name}!', { name: state.name }),
       text: r.gain ? t('Рисунок в галерее. Держи звезду за сегодняшнее творчество.') : t('Рисунок в галерее.'),
       unlocked: r.unlocked,
+      brag: { t: 'draw', what: prompt || N('Мой рисунок') },
       actions: [
         { label: t('Рисовать дальше') },
         { label: t('В галерею'), primary: true, fn: () => { location.hash = `#/art/${artId}`; } },

@@ -1,7 +1,7 @@
 // Shared pieces for the newer games: the level list, the finish dialog, and
 // two small parsers that both a game and the content checker use.
 import { h } from '../util.js';
-import { t } from '../i18n.js';
+import { t, N } from '../i18n.js';
 import { state, award } from '../store.js';
 import { topbar, starBadge, celebrate, speaker, toast, icon } from '../ui.js';
 import { sfx } from '../audio.js';
@@ -43,9 +43,17 @@ export function levelScreen(root, { title, back = '#/games', hint, levels, extra
   grid.querySelector('.level-card:not(.done)')?.scrollIntoView({ block: 'center' });
 }
 
+// The names of the newer games, as the class chat tells that she finished one
+// (the same Russian names as the game cards in js/games.js).
+const GAME_NAMES = {
+  pairs: N('Пары'), puzzle: N('Пазл'), diff: N('Найди отличия'), dots: N('По точкам'), dictation: N('Диктант по клеточкам'),
+  oneline: N('Одним росчерком'), shades: N('Оттенки'), patterns: N('Продолжи узор'), anim: N('Мультик'),
+};
+
 // Pays the stars and shows the finish dialog with the usual three buttons.
 // title and text arrive already translated.
 export function finishLevel({ levels, index, stars, title, text, menu, again }) {
+  const game = GAME_NAMES[String(menu).split('/').pop()];
   const res = award(levels[index].key, stars);
   const next = levels[index + 1];
   return celebrate({
@@ -53,6 +61,7 @@ export function finishLevel({ levels, index, stars, title, text, menu, again }) 
     text,
     stars,
     unlocked: res.unlocked,
+    brag: game && { t: 'game', what: game, stars },
     actions: [
       again && { label: t('Ещё раз'), fn: again },
       { label: t('К уровням'), primary: !next, fn: () => { location.hash = menu; } },

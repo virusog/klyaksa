@@ -73,8 +73,9 @@ run('English and Hebrew are complete and well-formed', 'node', ['tools/i18n.mjs'
 run('rating server', 'node', ['tools/test/server.test.mjs']);
 
 page('first launch from a class invitation, profile, cookie and the real rating server', 'profile.js', { route: '#/', flags: ['--net', '--base', `http://localhost:8123/index.html?class=${TEST_CLASS}`], vars: { __CLASS__: TEST_CLASS } });
-page('the rating with no internet', 'offline.js', { route: '#/', state: { onboarded: true, name: 'Test', classCode: 'test-class' }, flags: ['--offline'] });
+page('my class with no internet', 'offline.js', { route: '#/', state: { lang: 'ru', onboarded: true, name: 'Test', rated: true, classCode: 'test-class' }, flags: ['--offline'] });
 page('the rating without a class code', 'noclass.js', { route: '#/', state: { onboarded: true, name: 'Test' } });
+page('my class: rating, drawings, hearts, chat, typed codes', 'classroom.js', { route: '#/', state: { lang: 'ru', onboarded: true, name: 'Test', avatar: '🦊', rated: true, classCode: 'test-class', stars: 12 }, timeout: 240 });
 page('Настя keeps her old progress', 'migrate.js', { route: '#/', state: { stars: 12, best: { x: 3 }, sound: false } });
 page('a drawing survives the archive: save, wipe, restore, gallery', 'archive.js', { route: '#/', state: { onboarded: true, name: 'Test', classCode: 'test-class', stars: 12, best: { 'lesson:cat': 3, x: 9 } } });
 for (const lang of ['ru', 'en', 'he']) {

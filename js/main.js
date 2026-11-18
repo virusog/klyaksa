@@ -13,8 +13,8 @@ import moreIdeas2 from './content/ideas2.js';
 import { sfx } from './audio.js';
 import { t, N, plural, lang, dir, appName, LANGS } from './i18n.js';
 import { hello, me, setLang } from './hello.js';
-import { rating } from './rating.js';
-import { startSync, joinRating, leaveRating, classFromLink, cleanClass, newClassCode, inviteLink, setClass, forgetDropped, freshPlayer } from './player.js';
+import { classHub, resolveClass } from './class.js';
+import { startSync, joinRating, leaveRating, classFromLink, cleanClass, newClassCode, inviteLink, setClass, forgetDropped, freshPlayer, inClass, loadNews, syncNow } from './player.js';
 
 // The page speaks the chosen language: direction, title and the home-screen name.
 document.documentElement.lang = lang;
@@ -44,7 +44,7 @@ const TILES = [
     art: `<path d="M18 70C40 26 96 26 118 70 96 114 40 114 18 70z" fill="#ffc83d" stroke="#2a2140" stroke-width="5"/><path d="M116 70l28-26-6 26 6 26z" fill="#ff6b5e" stroke="#2a2140" stroke-width="5" stroke-linejoin="round"/><circle cx="46" cy="60" r="7" fill="#2a2140"/><circle cx="20" cy="30" r="7" fill="none" stroke="#fff" stroke-width="4"/><circle cx="36" cy="14" r="4" fill="none" stroke="#fff" stroke-width="3"/>` },
   { href: '#/games', cls: 'games', title: N('Игры'), sub: N('Пазлы, пары, мультики, пиксели'),
     art: `<rect x="20" y="24" width="88" height="88" rx="16" fill="#fff" stroke="#2a2140" stroke-width="5" transform="rotate(-12 64 68)"/><g fill="#2a2140"><circle cx="46" cy="52" r="8"/><circle cx="82" cy="46" r="8"/><circle cx="64" cy="68" r="8"/><circle cx="46" cy="90" r="8"/><circle cx="84" cy="84" r="8"/></g>` },
-  { href: '#/rating', cls: 'rating', title: N('Рейтинг'), sub: N('Кто набрал больше звёзд'),
+  { href: '#/class', cls: 'rating', title: N('Мой класс'), sub: N('Рейтинг, рисунки и чат'),
     art: `<rect x="56" y="34" width="44" height="86" rx="6" fill="#ffc83d" stroke="#2a2140" stroke-width="5"/><rect x="10" y="60" width="44" height="60" rx="6" fill="#fff" stroke="#2a2140" stroke-width="5"/><rect x="102" y="76" width="44" height="44" rx="6" fill="#ff85c0" stroke="#2a2140" stroke-width="5"/><path d="M78 6l6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2z" fill="#ffc83d" stroke="#2a2140" stroke-width="4" stroke-linejoin="round"/>` },
   { href: '#/gallery', cls: 'gallery', title: N('Галерея'), sub: N('Мои картины'),
     art: `<rect x="14" y="20" width="112" height="96" rx="6" fill="#fff" stroke="#2a2140" stroke-width="5"/><path d="M22 106l30-40 22 26 18-16 26 30z" fill="#27c4a8"/><circle cx="96" cy="44" r="12" fill="#ffc83d"/>` },
@@ -82,6 +82,20 @@ function home(root) {
     ))),
     nr && h('a', { class: 'next-gift', href: '#/prizes' }, t('Следующий подарок: {name} — ещё {n} ★', { name: t(nr.name), n: nr.at - state.stars })),
   ));
+  classNews(root.querySelector('.t-rating'));
+}
+
+// Asks the server once whether classmates wrote or showed something she has not seen,
+// and puts a "new" mark on the class tile. Quietly does nothing when offline.
+async function classNews(tileEl) {
+  if (!tileEl || !inClass()) return;
+  try {
+    // The server only answers a girl it knows: a new device introduces her first.
+    if (!state.syncedAt) await syncNow();
+    const n = await loadNews();
+    const fresh = (state.chat !== false && +n?.msg > (state.seenMsg || 0)) || +n?.post > (state.seenPost || 0);
+    if (fresh && tileEl.isConnected && !tileEl.querySelector('.tile-new')) tileEl.append(h('em', { class: 'tile-new' }, t('Новое')));
+  } catch { /* no internet, or she is not on the server yet */ }
 }
 
 function prizes(root) {
@@ -142,7 +156,13 @@ function parents(root) {
     }),
   );
   const name = h('input', { value: state.name, class: 'field', 'aria-label': t('Имя') });
-  name.addEventListener('change', () => { state.name = name.value.replace(/\s+/g, ' ').trim().slice(0, 24) || state.name; name.value = state.name; save(); });
+  name.addEventListener('change', () => {
+    const v = name.value.replace(/\s+/g, ' ').trim().slice(0, 24);
+    // The server takes only a name with a letter in it (see hello.js).
+    if (/\p{L}/u.test(v)) state.name = v; else if (v) toast(t('В имени нужна хотя бы одна буква'));
+    name.value = state.name;
+    save();
+  });
   const check = (label, k) => h('label', { class: 'set' }, h('span', {}, label), h('input', {
     type: 'checkbox', ...(state[k] ? { checked: true } : {}),
     onchange: e => { state[k] = e.target.checked; save(); },
@@ -207,10 +227,10 @@ function parents(root) {
       h('div', { class: 'row wrap parents-langs' }, Object.entries(LANGS).map(([code, L]) =>
         btn(code === lang ? 'primary' : 'ghost', L.name, () => setLang(code, '#/parents')))),
     ),
-    h('section', {}, h('h3', {}, t('Рейтинг класса')),
-      h('p', {}, t('В рейтинге видны только имя, значок и число звёзд, и только одноклассницам с тем же кодом класса. Если выключить, сервер забудет всё об этом игроке.')),
+    h('section', {}, h('h3', {}, t('Мой класс')),
+      h('p', {}, t('Её имя, значок и звёзды, а также рисунки и сообщения, которые она сама отправила, видят все, у кого есть ссылка-приглашение класса. Взрослые чат не проверяют: ссылки, телефоны и грубые слова скрываются сами, а одноклассницы могут пожаловаться. Почитать чат можно здесь же: «Мой класс» → «Чат». Если убрать код класса или выключить участие, сервер всё это удалит.')),
       classRow(),
-      h('label', { class: 'set' }, h('span', {}, t('Участвовать в рейтинге')), h('input', {
+      h('label', { class: 'set' }, h('span', {}, t('Участвовать: рейтинг, рисунки и чат')), h('input', {
         type: 'checkbox', ...(state.rated ? { checked: true } : {}),
         onchange: async e => {
           const on = e.target.checked;
@@ -225,6 +245,7 @@ function parents(root) {
           }
         },
       })),
+      check(t('Чат класса'), 'chat'),
     ),
     h('section', {}, h('h3', {}, t('Сохранность рисунков')),
       h('p', {}, t('Рисунки хранятся только на этом iPad. Иногда скачивайте архив, чтобы они не потерялись при сбросе устройства.')),
@@ -281,14 +302,19 @@ function parents(root) {
 // The class code: typed in, made anew, or shared with classmates as a link.
 function classRow() {
   const field = h('input', { value: state.classCode, class: 'field', dir: 'ltr', autocapitalize: 'off', spellcheck: 'false', 'aria-label': t('Код класса') });
-  const apply = async code => {
-    const c = cleanClass(code);
+  // typed: a code written by hand is checked with the server first (see resolveClass).
+  const apply = async (code, typed) => {
+    let c = cleanClass(code);
     if (code && !c) { toast(t('Код — это от 4 до 24 латинских букв, цифр или чёрточек.')); field.value = state.classCode; return; }
+    if (c && typed && c !== state.classCode) {
+      c = await resolveClass(c);
+      if (!c) { field.value = state.classCode; field.focus(); return; }
+    }
     field.value = c;
     await setClass(c);
     toast(c ? t('Код класса сохранён') : t('Код класса убран'));
   };
-  field.addEventListener('change', () => apply(field.value));
+  field.addEventListener('change', () => apply(field.value, true));
   return h('div', { class: 'class-row' },
     h('label', { class: 'set' }, h('span', {}, t('Код класса')), field),
     h('div', { class: 'row wrap' },
@@ -323,7 +349,9 @@ const routes = {
   parents,
   hello,
   me,
-  rating,
+  class: classHub,
+  // The old address of the rating opens its tab in "My class".
+  rating: r => classHub(r, ''),
 };
 
 const root = document.getElementById('app');

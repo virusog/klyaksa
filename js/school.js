@@ -284,6 +284,7 @@ export function lessonPlay(root, id, mode) {
       text: res.gain ? `+${res.gain} ★` : t('Рисунок сохранён в галерее.'),
       stars,
       unlocked: res.unlocked,
+      brag: { t: 'lesson', what: L.title, stars },
       actions: [
         { label: t('Как я рисовала'), fn: () => { location.hash = `#/art/${artId}/replay`; } },
         !L.noCopy && nextMode

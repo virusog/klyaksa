@@ -183,6 +183,7 @@ function squiggle(root) {
     const r = awardOnce('squiggle');
     celebrate({
       title: t('Вот это превращение!'), text: t('Рисунок в галерее.'), unlocked: r.unlocked,
+      brag: { t: 'game', what: N('Закорючка') },
       actions: [
         { label: t('Ещё закорючку'), primary: true, fn: () => { makeSquiggle(); p.layers[1].ctx.clearRect(0, 0, 1200, 900); } },
         { label: t('К играм'), fn: () => { location.hash = '#/games'; } },
@@ -291,6 +292,7 @@ function half(root) {
     celebrate({
       title: stars === 3 ? t('Как в зеркале!') : stars === 2 ? t('Очень похоже!') : t('Симметрия — дело хитрое. Попробуем ещё?'),
       stars, unlocked: res.unlocked,
+      brag: { t: 'game', what: N('Половинка'), stars },
       actions: [
         { label: t('Ещё половинку'), primary: true, fn: () => { root.textContent = ''; cleanup(); cleanup = half(root); } },
         { label: t('К играм'), fn: () => { location.hash = '#/games'; } },
@@ -391,6 +393,7 @@ function lab(root) {
     if (level + 1 > prev) { state.best['lab:level'] = Math.min(level + 1, LAB.length - 1); save(); }
     celebrate({
       title: t('Получилось: {name}!', { name: t(T.name).toLowerCase() }), text: t(T.fact), stars, unlocked: res.unlocked,
+      brag: { t: 'game', what: N('Цветолаб'), stars },
       actions: [{
         label: level + 1 < LAB.length ? t('Следующий цвет') : t('Заново'), primary: true,
         fn: () => { level = (level + 1) % LAB.length; drops = {}; history = []; render(); },
@@ -536,6 +539,7 @@ function pixels(root, tpl) {
     } else res = awardOnce('pixels');
     celebrate({
       title: t('Пиксель к пикселю!'), text: t('Картинка в галерее.'), stars: T ? stars : null, unlocked: res.unlocked,
+      brag: T ? { t: 'draw', what: T.name, stars } : { t: 'game', what: N('Пиксели') },
       actions: [
         { label: t('К картинкам'), primary: !next, fn: () => { location.hash = '#/game/pixels'; } },
         next && { label: t('Дальше: {name}', { name: t(next.name) }), primary: true, fn: () => { location.hash = `#/game/pixels/${next.id}`; } },
@@ -665,6 +669,7 @@ function guess(root) {
     const res = award(`guess:${new Date().toISOString().slice(0, 10)}`, clamp(stars, 1, 3));
     celebrate({
       title: t('Зоркий глаз!'), text: t('Чем раньше угадываешь форму, тем лучше видишь как художник.'), stars, unlocked: res.unlocked,
+      brag: { t: 'game', what: N('Что рисует Блобика?'), stars },
       actions: [{ label: t('К играм'), primary: true, fn: () => { location.hash = '#/games'; } }],
     });
   }

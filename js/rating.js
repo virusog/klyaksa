@@ -1,14 +1,15 @@
 // The class rating: who has the most stars this week and over all time.
+// It is the first tab of "My class" (js/class.js), which checks the class first.
 import { h } from './util.js';
-import { state, save } from './store.js';
+import { state } from './store.js';
 import { t, plural } from './i18n.js';
-import { loadBoard, syncNow, setClass, cleanClass } from './player.js';
-import { topbar, btn, iconBtn, starBadge, mascot, speaker, toast } from './ui.js';
+import { loadBoard, syncNow } from './player.js';
+import { btn, mascot, speaker } from './ui.js';
 import { sfx } from './audio.js';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-export function rating(root) {
+export function ratingTab(host) {
   let tab = sessionStorage.getItem('ratingTab') === 'all' ? 'all' : 'week';
   let rows = null;
   let failed = false;
@@ -28,26 +29,6 @@ export function rating(root) {
       }, label));
     }
     body.textContent = '';
-    if (!state.classCode) {
-      const field = h('input', { class: 'field rating-code', dir: 'ltr', autocapitalize: 'off', spellcheck: 'false', placeholder: 'class-…', 'aria-label': t('Код класса') });
-      body.append(h('div', { class: 'rating-empty' }, mascot('wow'),
-        h('p', {}, t('Рейтинг — для своего класса. Открой ссылку-приглашение от учительницы или родителей.')),
-        h('small', {}, t('Или введи код класса:')),
-        h('div', { class: 'row' }, field, btn('primary', t('Войти в класс'), async () => {
-          const c = cleanClass(field.value);
-          if (!c) { toast(t('Код — это от 4 до 24 латинских букв, цифр или чёрточек.')); return; }
-          if (!state.rated) { state.rated = true; save(); }
-          await setClass(c);
-          load();
-        }))));
-      return;
-    }
-    if (!state.rated) {
-      body.append(h('div', { class: 'rating-empty' }, mascot('wow'),
-        h('p', {}, t('Ты сейчас не участвуешь в рейтинге.')),
-        h('small', {}, t('Включить можно в разделе «Для родителей».'))));
-      return;
-    }
     if (failed) {
       body.append(h('div', { class: 'rating-empty' }, mascot('wow'),
         h('p', {}, t('Рейтинг не загрузился. Нужен интернет.')),
@@ -95,7 +76,6 @@ export function rating(root) {
     failed = false;
     rows = null;
     render();
-    if (!state.classCode || !state.rated) return;
     try {
       await syncNow();
       const got = await loadBoard();
@@ -108,11 +88,7 @@ export function rating(root) {
     render();
   }
 
-  root.append(h('div', { class: 'screen scroll hub rating' },
-    topbar(t('Рейтинг'), { right: [iconBtn('refresh', t('Обновить'), load), starBadge()] }),
-    tabs,
-    body,
-  ));
+  host.append(h('div', { class: 'class-scroll' }, tabs, body));
   load();
-  return () => { alive = false; };
+  return { reload: load, stop: () => { alive = false; } };
 }

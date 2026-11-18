@@ -5,6 +5,8 @@ import { db } from './store.js';
 import { topbar, btn, icon, iconBtn, confirmBox, shareBlob, mascot, toast } from './ui.js';
 import { HABITATS, makeCreature } from './world.js';
 import { t } from './i18n.js';
+import { inClass } from './player.js';
+import { shareArt, fromPhoto } from './classart.js';
 
 export async function gallery(root) {
   const items = (await db.all('art')).filter(it => it.thumb).sort((a, b) => (b.updated || 0) - (a.updated || 0));
@@ -81,6 +83,13 @@ export async function artView(root, id, action) {
     rec.data && rec.kind === 'studio' && h('a', { class: 'btn ghost', href: `#/studio/${rec.id}` }, icon('brush', 22), ' ', t('Дорисовать')),
     rec.data && h('button', { class: 'btn ghost', onclick: () => worldChooser(rec) }, icon('fish', 22), ' ', t('Оживить')),
     btn('ghost', [icon('share', 22), ' ', t('В Фото')], () => shareBlob(rec.full, `${t(rec.title)}.png`)),
+    // Only a girl who is in a class can show it there, and never a colouring made from a photo.
+    inClass() && !fromPhoto(rec) && btn('ghost class-show', [icon('class', 22), ' ', t('Показать классу')], async () => {
+      if (!(await shareArt(rec))) return;
+      // The router clears toasts when the screen changes, so the toast waits for the new screen.
+      addEventListener('hashchange', () => toast(t('Рисунок теперь в классе!')), { once: true });
+      location.hash = '#/class/art';
+    }),
     iconBtn('trash', t('Удалить'), async () => {
       if (await confirmBox(t('Удалить эту картину навсегда?'), t('Удалить'), t('Оставить'))) {
         await db.del('art', id);

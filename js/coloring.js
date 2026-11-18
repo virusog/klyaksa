@@ -201,6 +201,8 @@ function pageTitle(page) {
 // Pictures keep the Russian name, so the gallery shows it in whatever language is on.
 // A mandala's name has a number in it, so it is kept as it reads now.
 const savedTitle = page => (page.mandala ? pageTitle(page) : page.title);
+// What the class chat says she coloured: a Russian name each classmate reads in her language.
+const bragName = page => (page.mandala ? N('Мандала') : page.title);
 
 async function getPage(id) {
   if (id.startsWith('mandala')) return mandala(+id.slice(7));
@@ -460,7 +462,7 @@ function playFree(root, page, an) {
       await safeSave(async () => {
         await saver.flush();
         await db.put('art', {
-          id: artId, kind: 'coloring', title: savedTitle(page), created: Date.now(), updated: Date.now(),
+          id: artId, kind: 'coloring', title: savedTitle(page), photo: !!page.photo, created: Date.now(), updated: Date.now(),
           thumb: await blobOf(p.thumb()), full: await blobOf(p.flatten()),
         });
         await db.put('kv', { id: kvId, artId, finished: true });
@@ -472,6 +474,7 @@ function playFree(root, page, an) {
       title: t('Какая раскраска!'),
       text: t('Сохранена в галерее.'),
       unlocked: day.unlocked,
+      brag: { t: 'coloring', what: bragName(page) },
       actions: [
         { label: t('Ещё покрашу') },
         { label: t('Другие раскраски'), primary: true, fn: () => { location.hash = '#/coloring'; } },
@@ -665,6 +668,7 @@ function playNumbers(root, page, an, math = false) {
       text: t('Ты закрасила всё до последней клеточки.'),
       stars: 3,
       unlocked: res.unlocked,
+      brag: { t: 'coloring', what: bragName(page), stars: 3 },
       actions: [{ label: t('Другие картины'), primary: true, fn: () => { location.hash = `#/coloring/${math ? 'math' : 'num'}`; } }],
     });
   }

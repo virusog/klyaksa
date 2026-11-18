@@ -49,6 +49,13 @@ function profileForm({ submit, onDone }) {
       name.focus();
       return;
     }
+    // Only emoji or digits: the class server would refuse it, and the class would quietly not work.
+    if (!/\p{L}/u.test(clean)) {
+      sfx.soft();
+      toast(t('В имени нужна хотя бы одна буква'));
+      name.focus();
+      return;
+    }
     state.name = clean;
     state.avatar = avatar;
     state.onboarded = true;

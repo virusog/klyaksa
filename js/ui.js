@@ -4,6 +4,7 @@ import { BRUSHES, drawSample } from './brushes.js';
 import { state, hasReward, REWARDS } from './store.js';
 import { sfx, speak } from './audio.js';
 import { t } from './i18n.js';
+import { inClass, syncNow, sendChat, netError } from './player.js';
 
 const I = {
   back: '<path d="M15 5l-7 7 7 7"/>',
@@ -32,6 +33,7 @@ const I = {
   shape: '<rect x="3" y="11" width="10" height="10" rx="1"/><circle cx="16" cy="8" r="5"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   fish: '<path d="M3 12c4-6 12-6 15 0-3 6-11 6-15 0z"/><path d="M18 12l3-3v6z"/>',
+  class: '<circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><path d="M15.5 14.3c3 0 5.5 2 5.5 5.2"/>',
 };
 
 export const icon = (n, size = 26) =>
@@ -99,12 +101,13 @@ export function starBadge() {
 }
 
 let toastT;
-export function toast(text) {
+// ms: how long it stays; a longer text needs longer to read.
+export function toast(text, ms = 2400) {
   document.querySelector('.toast')?.remove();
   const el = h('div', { class: 'toast' }, text);
   document.body.append(el);
   clearTimeout(toastT);
-  toastT = setTimeout(() => el.remove(), 2400);
+  toastT = setTimeout(() => el.remove(), ms);
 }
 
 export function popover(anchor, content) {
@@ -114,7 +117,9 @@ export function popover(anchor, content) {
   const a = anchor.getBoundingClientRect();
   const w = pop.offsetWidth;
   pop.style.left = `${clamp(a.left + a.width / 2 - w / 2, 10, innerWidth - w - 10)}px`;
-  pop.style.top = `${a.bottom + 12}px`;
+  // Below the button, or above it when there is no room below (the chat's last message).
+  const below = a.bottom + 12 + pop.offsetHeight <= innerHeight - 10;
+  pop.style.top = `${below ? a.bottom + 12 : Math.max(10, a.top - pop.offsetHeight - 12)}px`;
   const close = e => {
     if (pop.contains(e.target)) return;
     pop.remove();
@@ -171,7 +176,28 @@ export function confetti(ms = 2600) {
   requestAnimationFrame(f);
 }
 
-export function celebrate({ title, text, stars, unlocked = [], actions = [] }) {
+// A ghost button that tells her class chat what she has just done.
+// brag: { t: 'lesson' | 'game' | 'coloring' | 'draw', what: a Russian name (translated by each reader), stars }.
+function bragBtn(brag) {
+  if (!brag?.what || !inClass() || state.chat === false) return null;
+  const b = btn('ghost brag', ['🏅 ', t('Похвастаться классу')], async () => {
+    try {
+      await syncNow();
+      // The server takes 0 to 3 whole stars, or none.
+      const stars = Number.isInteger(brag.stars) && brag.stars >= 0 && brag.stars <= 3 ? { stars: brag.stars } : {};
+      await sendChat('result', JSON.stringify({ t: brag.t, what: brag.what, ...stars }));
+    } catch (e) {
+      const why = netError(e);
+      toast(why === 'offline' ? t('Нет связи. Сообщение не отправлено.') : why === 'limit' ? t('Не так быстро! Подожди немного.') : t('Не получилось. Попробуй ещё раз.'));
+      return;
+    }
+    b.disabled = true;
+    toast(t('Класс увидит твой успех!'));
+  });
+  return b;
+}
+
+export function celebrate({ title, text, stars, unlocked = [], actions = [], brag }) {
   sfx.win();
   confetti();
   // Confetti must not keep falling over whatever she opens next.
@@ -186,6 +212,7 @@ export function celebrate({ title, text, stars, unlocked = [], actions = [] }) {
       ),
       unlocked.map(r => h('div', { class: 'unlock' }, h('b', {}, t('Подарок!')), ' ', t(r.name))),
       h('div', { class: 'row wrap' }, actions.map(a => btn(a.primary ? 'primary' : 'ghost', a.label, () => { close(); a.fn?.(); }))),
+      bragBtn(brag),
     ),
   );
   document.body.append(o);

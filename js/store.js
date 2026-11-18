@@ -5,6 +5,9 @@ const KEY = 'klyaksa.v1';
 const DEFAULTS = {
   name: '', avatar: '🐱', lang, onboarded: false, rated: true, player: null, classCode: '',
   stars: 0, best: {}, sound: true, voice: false, breakMin: 30, shown: [], unlockAll: false, forget: [],
+  // The class: the chat switch for parents, the newest message and drawing she has seen
+  // (for the "new" badge), and the ids of her drawings already shown to the class.
+  chat: true, seenMsg: 0, seenPost: 0, shared: [],
 };
 
 export const state = (() => {
