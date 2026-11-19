@@ -4,7 +4,7 @@
 import { h } from './util.js';
 import { state, save } from './store.js';
 import { t } from './i18n.js';
-import { checkClass, cleanClass, setClass } from './player.js';
+import { checkClass, cleanClass, setClass, classLocked, onLocked, retryLocked, refreshSwitches } from './player.js';
 import { topbar, btn, iconBtn, starBadge, mascot, toast, confirmBox } from './ui.js';
 import { ratingTab } from './rating.js';
 import { artTab } from './classart.js';
@@ -23,6 +23,8 @@ export async function resolveClass(code) {
   let info;
   try { info = await checkClass(code); } catch { return code; }
   const real = cleanClass(info?.class) || code;
+  // Closed by the grown-ups to newcomers: she stays where she was.
+  if (info?.locked === true) { toast(lockedText(), 6000); return null; }
   if (+info?.players === 0) {
     // The code is isolated left to right, so its dashes stay in place in Hebrew.
     // Nearly always a typo, so fixing it is the big button.
@@ -33,10 +35,13 @@ export async function resolveClass(code) {
   return real;
 }
 
-function codeEntry(onJoined) {
+export const lockedText = () => t('Этот класс закрыт для новых участниц. Спроси учительницу или родителей.');
+
+// text: what the gate says above the field (by default, what "Мой класс" is).
+function codeEntry(onJoined, text) {
   const field = h('input', { class: 'field rating-code', dir: 'ltr', autocapitalize: 'off', spellcheck: 'false', placeholder: 'class-…', 'aria-label': t('Код класса') });
   return h('div', { class: 'rating-empty' }, mascot('wow'),
-    h('p', {}, t('В «Моём классе» — рейтинг, рисунки и чат твоего класса. Открой ссылку-приглашение от учительницы или родителей.')),
+    h('p', {}, text || t('В «Моём классе» — рейтинг, рисунки и чат твоего класса. Открой ссылку-приглашение от учительницы или родителей.')),
     h('small', {}, t('Или введи код класса:')),
     h('div', { class: 'row' }, field, btn('primary', t('Войти в класс'), async () => {
       const c = cleanClass(field.value);
@@ -45,6 +50,7 @@ function codeEntry(onJoined) {
       if (!real) { field.focus(); return; }
       if (!state.rated) { state.rated = true; save(); }
       await setClass(real);
+      if (classLocked()) toast(lockedText(), 6000);
       onJoined();
     })));
 }
@@ -67,7 +73,9 @@ export function classHub(root, tabId = '', arg) {
     current?.stop?.();
     current = null;
     main.textContent = '';
-    const gated = !state.classCode || !state.rated;
+    // Her class is closed to newcomers and the server has not taken her in.
+    const shut = !!state.classCode && state.rated && classLocked();
+    const gated = !state.classCode || !state.rated || shut;
     nav.classList.toggle('hidden', gated);
     if (!state.classCode) {
       main.append(h('div', { class: 'class-scroll' }, codeEntry(open)));
@@ -79,14 +87,27 @@ export function classHub(root, tabId = '', arg) {
         h('small', {}, t('Включить можно в разделе «Для родителей».')))));
       return;
     }
+    if (shut) {
+      main.append(h('div', { class: 'class-scroll' }, codeEntry(open, lockedText())));
+      main.querySelector('.rating-empty')?.classList.add('class-locked');
+      return;
+    }
     current = tab.make(main, arg);
   }
 
   root.append(h('div', { class: `screen hub class class-${tab.id || 'rating'}` },
-    topbar(t('Мой класс'), { right: [iconBtn('refresh', t('Обновить'), () => (current ? current.reload() : open())), starBadge()] }),
+    topbar(t('Мой класс'), { right: [iconBtn('refresh', t('Обновить'), async () => {
+      if (current) { refreshSwitches(); current.reload(); return; }
+      if (classLocked()) await retryLocked();
+      open();
+    }), starBadge()] }),
     nav,
     main,
   ));
+  // A save refused while this screen is open (the class is closed) shows the gate at once.
+  const offLocked = onLocked(() => { if (alive) open(); });
   open();
-  return () => { alive = false; current?.stop?.(); };
+  // What the grown-ups switched off (chat, drawings) is asked once when the class opens.
+  refreshSwitches();
+  return () => { alive = false; offLocked(); current?.stop?.(); };
 }

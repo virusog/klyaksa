@@ -94,11 +94,29 @@ export function classFromLink() {
 let timer = 0;
 let running = null;
 
+// A class the grown-ups closed to newcomers: the server refused her save into it
+// ('55000'). Automatic saves leave it alone for a while instead of asking again on
+// every star and every return to the app; the class screen can ask again (retryLocked).
+const LOCK_PAUSE = 10 * 60e3;
+let locked = { code: '', at: 0 };
+const lockListeners = new Set();
+
+// True when this device's class refused her as a newcomer and she is not in it on the server.
+export const classLocked = () => !!state.classCode && locked.code === state.classCode;
+export function onLocked(fn) { lockListeners.add(fn); return () => lockListeners.delete(fn); }
+// Forgets the refusal and saves again now, e.g. when she opens her class once more.
+export function retryLocked() {
+  if (locked.code) locked = { code: '', at: 0 };
+  return syncNow();
+}
+
 // Sends her name, avatar and stars. Silent when offline: the next change or launch tries again.
 export function syncNow() {
   if (running) return running;
   const canSave = state.onboarded && state.rated && state.name && state.classCode;
   if (!canSave && !state.forget?.length) return Promise.resolve(false);
+  // Refused a moment ago: no new try until the pause is over or she asks.
+  if (canSave && classLocked() && Date.now() - locked.at < LOCK_PAUSE && !state.forget?.length) return Promise.resolve(false);
   running = (async () => {
     // Her old player goes first, so she is never on the board twice.
     if (!(await flushForget()) || !canSave) return false;
@@ -116,9 +134,19 @@ export function syncNow() {
         // A mistyped code the server knows a fix for: she moves to the real class.
         if (res?.class && state.classCode === sent && res.class !== sent && cleanClass(res.class)) state.classCode = res.class;
         state.syncedAt = Date.now();
+        // The class the server has her in now (the home badge asks about that class).
+        state.syncedClass = cleanClass(res?.class) || sent;
+        if (locked.code) locked = { code: '', at: 0 };
         save();
         return true;
       } catch (e) {
+        // The class is closed to newcomers: once, quietly, and the class screen explains it.
+        if (e.code === '55000') {
+          const was = locked.code;
+          locked = { code: sent, at: Date.now() };
+          if (was !== sent) lockListeners.forEach(fn => { try { fn(); } catch { /* a closed screen */ } });
+          return false;
+        }
         // Her id is taken by someone else's secret: start afresh with a new one.
         // (PostgREST answers this 42501 with 401 to the public key, so the code is what counts.)
         if ((e.code === '42501' || e.status === 403) && attempt === 0) { state.player = null; continue; }
@@ -148,17 +176,39 @@ function asMe(name, params = {}, ms) {
   return rpc(name, { p_id: p.id, p_secret: p.secret, ...params }, ms);
 }
 
+// What the grown-ups switched on or off for her class on the server: the chat and
+// showing drawings. Reading always works. Known from klyaksa_news and from a refusal
+// ('55000'); until then both count as on. Screens follow it with onSwitches.
+export const switches = { chat: true, drawings: true };
+const switchListeners = new Set();
+export function onSwitches(fn) { switchListeners.add(fn); return () => switchListeners.delete(fn); }
+function setSwitches(next) {
+  let changed = false;
+  for (const k of ['chat', 'drawings']) {
+    if (typeof next[k] === 'boolean' && next[k] !== switches[k]) { switches[k] = next[k]; changed = true; }
+  }
+  if (changed) switchListeners.forEach(fn => { try { fn(); } catch { /* a closed screen */ } });
+}
+// A refusal with '55000' means that switch is off now.
+const orOff = (key, call) => call.catch(e => { if (e?.code === '55000') setSwitches({ [key]: false }); throw e; });
+
 export const addPost = ({ title, thumb, image, w, h }) =>
-  asMe('klyaksa_post_add', { p_title: title, p_thumb: thumb, p_image: image, p_w: w, p_h: h }, 30000);
+  orOff('drawings', asMe('klyaksa_post_add', { p_title: title, p_thumb: thumb, p_image: image, p_w: w, p_h: h }, 30000));
 export const loadPosts = (sort = 'new') => asMe('klyaksa_posts', { p_sort: sort, p_limit: 60 }, 15000);
 export const postImage = id => asMe('klyaksa_post_image', { p_post: id }, 20000);
 export const likePost = (id, on) => asMe('klyaksa_like', { p_post: id, p_on: on });
 export const deletePost = id => asMe('klyaksa_post_delete', { p_post: id });
-export const sendChat = (kind, body) => asMe('klyaksa_chat_send', { p_kind: kind, p_body: body });
+export const sendChat = (kind, body) => orOff('chat', asMe('klyaksa_chat_send', { p_kind: kind, p_body: body }));
 export const loadChat = (after = 0) => asMe('klyaksa_chat', { p_after: after, p_limit: 80 });
 export const deleteChat = id => asMe('klyaksa_chat_delete', { p_msg: id });
 export const report = (kind, target) => asMe('klyaksa_report', { p_kind: kind, p_target: target });
-export const loadNews = () => asMe('klyaksa_news', {}, 6000);
+export const loadNews = () => asMe('klyaksa_news', {}, 6000).then(n => {
+  // An older server sends no switches: then nothing is off.
+  setSwitches({ chat: n?.chat !== false, drawings: n?.drawings !== false });
+  return n;
+});
+// Asks the server what is switched on; quiet when she is offline or not on the server yet.
+export const refreshSwitches = () => (inClass() && !classLocked() ? loadNews().catch(() => null) : Promise.resolve(null));
 
 // Why a class call failed, in words she understands. No status means no internet.
 export function netError(e) {
@@ -166,6 +216,8 @@ export function netError(e) {
   if (e.code === '54000') return 'limit';
   if (e.code === '42501') return 'denied';
   if (e.code === '22023') return 'bad';
+  // Switched off by the grown-ups (the chat, the drawings) or a class closed to newcomers.
+  if (e.code === '55000') return 'off';
   return 'other';
 }
 

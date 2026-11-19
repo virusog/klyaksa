@@ -4,7 +4,7 @@ import { BRUSHES, drawSample } from './brushes.js';
 import { state, hasReward, REWARDS } from './store.js';
 import { sfx, speak } from './audio.js';
 import { t } from './i18n.js';
-import { inClass, syncNow, sendChat, netError } from './player.js';
+import { inClass, syncNow, sendChat, netError, switches, classLocked } from './player.js';
 
 const I = {
   back: '<path d="M15 5l-7 7 7 7"/>',
@@ -179,7 +179,8 @@ export function confetti(ms = 2600) {
 // A ghost button that tells her class chat what she has just done.
 // brag: { t: 'lesson' | 'game' | 'coloring' | 'draw', what: a Russian name (translated by each reader), stars }.
 function bragBtn(brag) {
-  if (!brag?.what || !inClass() || state.chat === false) return null;
+  // Not in a class closed to her: the server does not have her there (or has her in her old class).
+  if (!brag?.what || !inClass() || classLocked() || state.chat === false || switches.chat === false) return null;
   const b = btn('ghost brag', ['🏅 ', t('Похвастаться классу')], async () => {
     try {
       await syncNow();
@@ -188,7 +189,9 @@ function bragBtn(brag) {
       await sendChat('result', JSON.stringify({ t: brag.t, what: brag.what, ...stars }));
     } catch (e) {
       const why = netError(e);
-      toast(why === 'offline' ? t('Нет связи. Сообщение не отправлено.') : why === 'limit' ? t('Не так быстро! Подожди немного.') : t('Не получилось. Попробуй ещё раз.'));
+      toast(why === 'offline' ? t('Нет связи. Сообщение не отправлено.') : why === 'limit' ? t('Не так быстро! Подожди немного.')
+        : why === 'off' ? t('Чат сейчас выключен взрослыми.') : t('Не получилось. Попробуй ещё раз.'));
+      if (why === 'off') b.disabled = true;
       return;
     }
     b.disabled = true;

@@ -3,7 +3,7 @@
 import { h, canvas, blobOf, loadImg } from './util.js';
 import { state, save, db } from './store.js';
 import { t } from './i18n.js';
-import { inClass, syncNow, addPost, loadPosts, postImage, likePost, deletePost, report, netError } from './player.js';
+import { inClass, syncNow, addPost, loadPosts, postImage, likePost, deletePost, report, netError, switches, onSwitches, classLocked } from './player.js';
 import { btn, mascot, toast, confirmBox, icon } from './ui.js';
 import { sfx } from './audio.js';
 
@@ -49,10 +49,14 @@ export async function prepareImage(full) {
   return { image: await base64(big.blob), thumb: await base64(small.blob), w: big.w, h: big.h };
 }
 
+// Showing drawings to the class is switched off by the grown-ups on the server.
+export const drawingsOff = () => t('Показывать рисунки сейчас нельзя: взрослые выключили.');
+
 // posting: the limit she can reach by posting is the day's number of drawings.
 function failText(e, posting) {
   const why = netError(e);
   if (why === 'offline') return t('Нет связи. Попробуй позже.');
+  if (why === 'off' && posting) return drawingsOff();
   if (why === 'limit') return posting ? t('На сегодня хватит рисунков. Завтра можно ещё!') : t('Не так быстро! Подожди немного.');
   return t('Не получилось. Попробуй ещё раз.');
 }
@@ -61,6 +65,8 @@ function failText(e, posting) {
 export async function shareArt(rec) {
   if (!inClass() || !rec?.full) return false;
   if (fromPhoto(rec)) { toast(t('Рисунки из фото остаются только у тебя')); return false; }
+  if (switches.drawings === false) { toast(drawingsOff(), 5000); return false; }
+  if (classLocked()) { toast(t('Этот класс закрыт для новых участниц. Спроси учительницу или родителей.'), 6000); return false; }
   const again = (state.shared || []).includes(rec.id);
   const ask = again ? t('Этот рисунок уже в классе. Показать ещё раз?') : t('Показать этот рисунок всему классу?');
   if (!(await confirmBox(ask, t('Показать'), t('Отмена')))) return false;
@@ -72,7 +78,7 @@ export async function shareArt(rec) {
     await addPost({ title: rec.title || '', ...img });
   } catch (e) {
     console.warn(e);
-    toast(failText(e, true));
+    toast(failText(e, true), 5000);
     return false;
   }
   state.shared = [...(state.shared || []).filter(id => id !== rec.id), rec.id].slice(-200);
@@ -99,7 +105,7 @@ async function pickArt() {
           sfx.pop();
           o.classList.add('hidden');
           const ok = await shareArt(it);
-          if (ok) close(true); else o.classList.remove('hidden');
+          if (ok) close(true); else if (switches.drawings === false) close(false); else o.classList.remove('hidden');
         },
       }, h('img', { src: url, alt: '' }), h('span', {}, t(it.title)));
     }));
@@ -125,6 +131,15 @@ export function artTab(host, openId) {
   const share = btn('primary class-share', [icon('plus', 22), t('Показать свой рисунок')], async () => {
     if (await pickArt()) { sort = 'new'; sessionStorage.setItem('classArtSort', sort); load(); }
   });
+  // Switched off by the grown-ups: the drawings stay to look at, the button gives way to a note.
+  const off = h('p', { class: 'class-off-note', role: 'status' }, drawingsOff());
+  const applySwitch = () => {
+    const on = switches.drawings !== false;
+    share.classList.toggle('hidden', !on);
+    off.classList.toggle('hidden', on);
+  };
+  applySwitch();
+  const offSwitch = onSwitches(applySwitch);
 
   // Every place that shows one post's hearts (its card, the open dialog) redraws together.
   const views = new Map();
@@ -285,8 +300,8 @@ export function artTab(host, openId) {
   }
 
   host.append(h('div', { class: 'class-scroll' },
-    h('div', { class: 'art-head' }, tabs, share),
+    h('div', { class: 'art-head' }, tabs, share, off),
     body));
   load();
-  return { reload: load, stop: () => { alive = false; } };
+  return { reload: load, stop: () => { alive = false; offSwitch(); } };
 }

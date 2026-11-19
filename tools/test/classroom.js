@@ -3,7 +3,10 @@
 // 'test-class' has Маша and Noa, three drawings and four messages). Checks the
 // tabs, typed codes and class moves, sharing a drawing and a result, hearts,
 // reports and deleting, the chat with its limits and its polling, the chat switch,
-// the home badge, the class gate, and drawings from photos staying at home.
+// the home badge, the class gate, and drawings from photos staying at home; and
+// what the parents' admin page switches on the server: the chat off, showing
+// drawings off, and a class closed to newcomers (no badge or brag from it), an
+// admin move and a brag that learns the chat is off only when tapped.
 const problems = [];
 const check = (ok, msg) => { if (!ok) problems.push(msg); };
 const FAKE = 'klyaksa.fakeServer';
@@ -411,7 +414,183 @@ nameField.value = '🌸🌸';
 await T.click(T.q('.hello-go'), 200);
 check(/хотя бы одна буква/.test(toastText()) && state.name === 'Test', `an emoji-only name is refused (${toastText()}, ${state.name})`);
 
-// 15. Every class call signs with her player and never names a class.
+// 15. What the grown-ups switch on the server (the parents' admin page, table class_settings).
+const player = await import(location.origin + '/js/player.js');
+const { switches, classLocked, loadNews, syncSoon } = player;
+const fresh = () => Object.assign(switches, { chat: true, drawings: true });
+const setSwitch = settings => editFake(d => { d.settings = settings; });
+const offNote = sel => { const el = T.q(sel); return !!el && !el.classList.contains('hidden') && T.visible(el); };
+
+// The chat off: a message sent before the screen knew it is refused kindly, and the field gives way to a note.
+await T.go('#/class/chat', 300);
+await until(() => T.qq('.msg-row').length >= 3);
+check(T.visible(T.q('.chat-input')) && T.q('.chat-off')?.classList.contains('hidden'), 'with the chat on there is a field and no note');
+setSwitch({ 'test-class': { chat: false } });
+const typed = T.q('.chat-input');
+typed.value = 'Можно писать?';
+await T.click(T.q('.chat-send'), 100);
+await until(() => /выключен взрослыми/.test(toastText()), 2000);
+check(/Чат сейчас выключен взрослыми/.test(toastText()), `a message to a switched-off chat says so (${toastText()})`);
+check(!!(await until(() => T.q('.chat-bar')?.classList.contains('hidden'))) && offNote('.chat-off'), 'then the field gives way to the note');
+check(/Чат сейчас выключен взрослыми/.test(T.q('.chat-off')?.textContent || '') && T.q('.chat-note')?.classList.contains('hidden'), 'the note says the grown-ups switched it off');
+check(!fake().messages.some(m => m.body === 'Можно писать?'), 'nothing was stored');
+check(T.qq('.msg-row').length >= 3, `the messages stay to read (${T.qq('.msg-row').length})`);
+clean('#/class/chat switched off');
+// Opening the class asks the server once: the note is there without trying to write.
+fresh();
+await T.go('#/games', 100);
+await T.go('#/class/chat', 300);
+check(!!(await until(() => offNote('.chat-off'))) && T.q('.chat-bar').classList.contains('hidden'), 'opening the class learns that the chat is off');
+check(T.qq('.class-tab').length === 3, 'the chat tab stays, to read');
+celebrate({ title: 'Ура', stars: 3, brag: { t: 'game', what: 'Пазл', stars: 3 } });
+check(!T.q('.celebrate .brag'), 'with the chat off there is no brag button');
+T.q('.celebrate')?.closest('.modal-back')?.remove();
+T.q('.celebrate')?.remove();
+// The '*' row turns it off for every class.
+setSwitch({ '*': { chat: false } });
+fresh();
+await loadNews();
+check(switches.chat === false && switches.drawings === true, `the '*' row switches the chat off for every class (${JSON.stringify(switches)})`);
+setSwitch({});
+await loadNews();
+check(switches.chat === true, 'and on again');
+await T.go('#/games', 100);
+await T.go('#/class/chat', 300);
+check(!!(await until(() => T.visible(T.q('.chat-input')))) && T.q('.chat-off').classList.contains('hidden'), 'with the chat on again the field comes back');
+
+// Showing drawings off: the drawings stay to look at; the button gives way to a note, here and in the art view.
+setSwitch({ 'test-class': { drawings: false } });
+fresh();
+await T.go('#/class/art', 300);
+check(!!(await until(() => T.q('.class-share')?.classList.contains('hidden'))) && offNote('.art-head .class-off-note'), 'the class drawings have a note instead of "Показать свой рисунок"');
+check(/взрослые выключили/.test(T.q('.art-head .class-off-note')?.textContent || ''), `the note says why (${T.q('.art-head .class-off-note')?.textContent})`);
+check(!!(await until(() => T.qq('.post-card').length >= 1)), 'the drawings are still there');
+clean('#/class/art switched off');
+await T.go(`#/art/${art.id}`, 900);
+check(!!(await until(() => T.q('.class-show')?.classList.contains('hidden'))) && offNote('.art-actions .class-off-note'), 'the art view has the note instead of "Показать классу"');
+clean('art view switched off');
+// A share that started before the screen knew it is refused by the server and says so.
+fresh();
+await T.go(`#/art/${art.id}`, 900);
+const { shareArt: share2 } = await import(location.origin + '/js/classart.js');
+const posts0 = fake().posts.length;
+const going = share2(art);
+await yes(100);
+check(!(await going) && /взрослые выключили/.test(toastText()), `sharing to switched-off drawings says so (${toastText()})`);
+check(fake().posts.length === posts0 && switches.drawings === false, 'nothing was stored and the switch is known now');
+check(!!(await until(() => T.q('.class-show')?.classList.contains('hidden'))), 'and the open art view hides its button');
+setSwitch({});
+fresh();
+
+// A class closed to newcomers. A typed code: told so, and she stays where she was.
+editFake(d => {
+  d.settings = { 'locked-class': { locked: true } };
+  d.players.push({ id: 'fake-4', secret: 'x', klass: 'locked-class', name: 'Dana', avatar: '🐯', stars: 5, week: 5, visible: true });
+});
+const lockedSaves = () => rpcs.filter(r => r.name === 'klyaksa_save' && r.body.p_class === 'locked-class').length;
+state.classCode = '';
+save();
+await T.go('#/games', 100);
+await T.go('#/class', 500);
+T.q('.rating-code').value = 'locked-class';
+await T.click(T.q('.rating-empty .btn.primary'), 100);
+await until(() => /закрыт для новых/.test(toastText()), 3000);
+check(/Этот класс закрыт для новых участниц/.test(toastText()), `a typed code of a closed class says so (${toastText()})`);
+check(!state.classCode && !!T.q('.rating-code') && lockedSaves() === 0, `and she does not join (${state.classCode}, ${lockedSaves()} saves)`);
+check(fake().players.find(p => p.id === state.player.id)?.klass === 'test-class', 'on the server she is still in her class');
+// An invitation link to it (the code is set without asking): one refused save, the gate explains, nothing loops.
+state.classCode = 'locked-class';
+save();
+await T.go('#/games', 100);
+await T.go('#/class', 300);
+const gateText = await until(() => (/закрыт для новых/.test(T.q('.rating-empty')?.textContent || '') ? T.q('.rating-empty').textContent : ''), 4000);
+check(!!gateText, `the class gate says the class is closed (${T.q('.rating-empty')?.textContent})`);
+check(T.q('.class-tabs')?.classList.contains('hidden') && !T.q('.rating-row') && !T.q('.chat'), 'and shows no tabs, board or chat');
+check(lockedSaves() === 1 && classLocked(), `one save was tried (${lockedSaves()})`);
+check(!!T.q('.rating-code'), 'she can type another code there');
+clean('#/class closed');
+for (let i = 0; i < 3; i++) { document.dispatchEvent(new Event('visibilitychange')); syncSoon(10); await T.wait(100); }
+await T.go('#/class/chat', 300);
+await T.wait(2200);
+check(lockedSaves() === 1, `no more saves into the closed class come by themselves (${lockedSaves()})`);
+check(!!(await until(() => /закрыт для новых/.test(T.q('.rating-empty')?.textContent || ''))), 'every tab shows the gate');
+check(fake().players.find(p => p.id === state.player.id)?.klass === 'test-class', 'the server kept her in her old class');
+// The refresh button asks again: still closed. When the grown-ups open the class, it takes her in.
+const refresh = T.q('.topbar [aria-label="Обновить"]');
+await T.click(refresh, 600);
+check(lockedSaves() === 2 && /закрыт для новых/.test(T.q('.rating-empty')?.textContent || ''), `the refresh button tries once more (${lockedSaves()})`);
+setSwitch({});
+await T.click(refresh, 300);
+check(!!(await until(() => T.q('.chat') && !T.q('.rating-empty'), 4000)) && !T.q('.class-tabs').classList.contains('hidden'), 'once the class is open the refresh takes her in: the chat opens');
+await T.go('#/class', 300);
+check(!!(await until(() => T.qq('.rating-row').length === 2, 4000)), `and its rating has her and Dana (${T.qq('.rating-row').length} rows)`);
+check(!classLocked() && fake().players.find(p => p.id === state.player.id)?.klass === 'locked-class', 'she is in that class on the server now');
+check(rpcs.some(r => r.name === 'klyaksa_class_check' && r.body.p_class === 'locked-class'), 'the typed code was checked with the server');
+await setClass('test-class');
+check(fake().players.find(p => p.id === state.player.id)?.klass === 'test-class', 'and can go back to her class');
+await T.go('#/games', 100);
+await T.go('#/class', 500);
+check(!!(await until(() => T.qq('.rating-row').length === 3)), 'back in her class, the rating shows');
+clean('#/class after the switches');
+
+// A brag that learns only when tapped that the chat is off: told so kindly, and the button gives up.
+setSwitch({ 'test-class': { chat: false } });
+fresh();
+celebrate({ title: 'Ура', stars: 3, brag: { t: 'game', what: 'Пазл', stars: 3 } });
+const bragLate = await until(() => T.q('.celebrate .brag'), 1000);
+check(!!bragLate, 'before the app knows the chat is off the brag button is there');
+if (bragLate) await T.click(bragLate, 100);
+check(!!(await until(() => /Чат сейчас выключен взрослыми/.test(toastText()), 3000)), `a brag to a switched-off chat says so (${toastText()})`);
+check(!!bragLate?.disabled && switches.chat === false, 'and the button gives up');
+T.q('.celebrate')?.closest('.modal-back')?.remove();
+T.q('.celebrate')?.remove();
+setSwitch({});
+fresh();
+
+// A class move by the admin page (forced_class): her app takes the class the server answers.
+editFake(d => { d.players.find(p => p.id === state.player.id).forcedClass = 'test-class-b'; });
+await syncNow();
+check(state.classCode === 'test-class-b' && fake().players.find(p => p.id === state.player.id)?.klass === 'test-class-b', `an admin move is adopted (${state.classCode})`);
+editFake(d => { delete d.players.find(p => p.id === state.player.id).forcedClass; });
+await setClass('test-class');
+check(state.classCode === 'test-class' && fake().players.find(p => p.id === state.player.id)?.klass === 'test-class', 'without it she goes back to her own class');
+
+// A known typo that leads to a closed class is refused like the class itself.
+editFake(d => { d.settings = { 'locked-class': { locked: true } }; d.moves['lockd-typo'] = 'locked-class'; });
+await setClass('lockd-typo');
+check(classLocked() && fake().players.find(p => p.id === state.player.id)?.klass === 'test-class', `a typo moved to a closed class does not take her in (${fake().players.find(p => p.id === state.player.id)?.klass})`);
+
+// Her device names a closed class while the server keeps her in her old one: no badge
+// from the old class's news, and no brag that would land in its chat.
+state.classCode = 'locked-class';
+save();
+editFake(d => d.messages.push({ id: 903, player: 'fake-1', klass: 'test-class', kind: 'text', body: 'Новости старого класса', hidden: false, at: new Date().toISOString() }));
+await T.go('#/games', 100);
+await T.go('#/', 300);
+await T.wait(1200);
+check(classLocked() && !T.q('.t-rating .tile-new'), `no "Новое" from the class she is not let into (${classLocked()})`);
+await T.go('#/class', 500);
+await T.go('#/', 300);
+await T.wait(1000);
+check(!T.q('.t-rating .tile-new'), 'not after visiting the class gate either');
+celebrate({ title: 'Ура', stars: 3, brag: { t: 'game', what: 'Пазл', stars: 3 } });
+check(!T.q('.celebrate .brag'), 'in a closed class there is no brag button');
+T.q('.celebrate')?.closest('.modal-back')?.remove();
+T.q('.celebrate')?.remove();
+// A new device opening the invitation: not on the server at all, still no brag button.
+const myRow = fake().players.find(p => p.id === state.player.id);
+editFake(d => { d.players = d.players.filter(p => p.id !== state.player.id); });
+await player.retryLocked();
+celebrate({ title: 'Ура', stars: 3, brag: { t: 'game', what: 'Пазл', stars: 3 } });
+check(classLocked() && !T.q('.celebrate .brag'), 'nor for a newcomer the closed class refused');
+T.q('.celebrate')?.closest('.modal-back')?.remove();
+T.q('.celebrate')?.remove();
+editFake(d => { d.players.push(myRow); d.settings = {}; delete d.moves['lockd-typo']; });
+await setClass('test-class');
+check(!classLocked() && fake().players.find(p => p.id === state.player.id)?.klass === 'test-class', 'and back in her class all is as before');
+clean('#/ after the closed class');
+
+// 16. Every class call signs with her player and never names a class.
 const signed = ['klyaksa_post_add', 'klyaksa_posts', 'klyaksa_post_image', 'klyaksa_like', 'klyaksa_post_delete', 'klyaksa_chat_send', 'klyaksa_chat', 'klyaksa_chat_delete', 'klyaksa_report', 'klyaksa_news'];
 const called = new Set(rpcs.map(r => r.name));
 check(signed.every(n => called.has(n)) && called.has('klyaksa_class_check'), `every class call was used (missing: ${signed.filter(n => !called.has(n)).join(' ')})`);

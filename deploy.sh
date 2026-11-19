@@ -15,7 +15,8 @@ name=$(git config user.name)
 email=$(git config user.email)
 out=$(mktemp -d)
 
-cp -R index.html manifest.webmanifest sw.js css js icons "$out"/
+# The parents' page (admin/) goes too; it is not in sw.js, so the app never caches it.
+cp -R index.html manifest.webmanifest sw.js css js icons admin "$out"/
 sed -i '' "s/klyaksa-dev/klyaksa-$sha/" "$out/sw.js"
 touch "$out/.nojekyll"
 

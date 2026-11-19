@@ -13,8 +13,8 @@ import moreIdeas2 from './content/ideas2.js';
 import { sfx } from './audio.js';
 import { t, N, plural, lang, dir, appName, LANGS } from './i18n.js';
 import { hello, me, setLang } from './hello.js';
-import { classHub, resolveClass } from './class.js';
-import { startSync, joinRating, leaveRating, classFromLink, cleanClass, newClassCode, inviteLink, setClass, forgetDropped, freshPlayer, inClass, loadNews, syncNow } from './player.js';
+import { classHub, resolveClass, lockedText } from './class.js';
+import { startSync, joinRating, leaveRating, classFromLink, cleanClass, newClassCode, inviteLink, setClass, forgetDropped, freshPlayer, inClass, loadNews, syncNow, classLocked } from './player.js';
 
 // The page speaks the chosen language: direction, title and the home-screen name.
 document.documentElement.lang = lang;
@@ -88,10 +88,12 @@ function home(root) {
 // Asks the server once whether classmates wrote or showed something she has not seen,
 // and puts a "new" mark on the class tile. Quietly does nothing when offline.
 async function classNews(tileEl) {
-  if (!tileEl || !inClass()) return;
+  if (!tileEl || !inClass() || classLocked()) return;
   try {
-    // The server only answers a girl it knows: a new device introduces her first.
-    if (!state.syncedAt) await syncNow();
+    // The server only answers a girl it knows, about the class it has her in: a new device
+    // or a new code (an invitation) is saved first. A class closed to her gives no news.
+    if (!state.syncedAt || state.syncedClass !== state.classCode) await syncNow();
+    if (classLocked() || state.syncedClass !== state.classCode) return;
     const n = await loadNews();
     const fresh = (state.chat !== false && +n?.msg > (state.seenMsg || 0)) || +n?.post > (state.seenPost || 0);
     if (fresh && tileEl.isConnected && !tileEl.querySelector('.tile-new')) tileEl.append(h('em', { class: 'tile-new' }, t('Новое')));
@@ -236,7 +238,7 @@ function parents(root) {
           const on = e.target.checked;
           try {
             if (on) await joinRating(); else await leaveRating();
-            toast(on ? t('Теперь она в рейтинге') : t('Убрали из рейтинга'));
+            toast(on && classLocked() ? lockedText() : on ? t('Теперь она в рейтинге') : t('Убрали из рейтинга'));
           } catch {
             toast(t('Нет связи с интернетом. Попробуйте позже.'));
             state.rated = !on;
@@ -312,7 +314,8 @@ function classRow() {
     }
     field.value = c;
     await setClass(c);
-    toast(c ? t('Код класса сохранён') : t('Код класса убран'));
+    // A class the grown-ups closed to newcomers did not take her in.
+    toast(c && classLocked() ? lockedText() : c ? t('Код класса сохранён') : t('Код класса убран'), c && classLocked() ? 6000 : undefined);
   };
   field.addEventListener('change', () => apply(field.value, true));
   return h('div', { class: 'class-row' },

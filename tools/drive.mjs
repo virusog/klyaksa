@@ -50,9 +50,13 @@ const BAD_WORDS = [...SCHEMA.slice(badFrom, SCHEMA.indexOf('on conflict do nothi
 // parameters, answers and error codes, kept in this page's localStorage. Class
 // 'test-class' already has Маша and Noa, three drawings (Noa gave Маша's flower a
 // heart) and four chat messages; 'tset-class' is a known typo moved to 'test-class'.
+// What the parents' admin page switches (server table class_settings) lives in
+// db.settings: { 'test-class': { chat: false, drawings: false, locked: true }, '*': {...} };
+// a test sets it through the same localStorage entry. A player may carry forcedName
+// and forcedClass (an admin rename or move), which klyaksa_save keeps.
 // Errors come back as the real PostgREST sends them to the public key:
-// {"code":"42501"} with 401, {"code":"22023"} with 400 and {"code":"54000"} with
-// 500, so the app must look at the code, not the status. This function is never
+// {"code":"42501"} with 401, {"code":"22023"} with 400, {"code":"54000"} with
+// 500 and {"code":"55000"} with 500, so the app must look at the code, not the status. This function is never
 // run in Node: its source text is put into the page.
 function fakeServer(mode, IMG, BAD) {
   if (mode === 'real') return;
@@ -81,6 +85,7 @@ function fakeServer(mode, IMG, BAD) {
       { id: 4, player: 'fake-1', klass: 'test-class', kind: 'result', body: JSON.stringify({ t: 'lesson', what: 'Котик', stars: 3 }), hidden: false, at: ago(2 * HOUR) },
     ],
     reports: [],
+    settings: {},
   });
   const load = () => ({ ...seed(), ...(JSON.parse(localStorage.getItem(KEY) || 'null') || {}) });
   const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -88,6 +93,8 @@ function fakeServer(mode, IMG, BAD) {
   const deny = () => oops(401, '42501');
   const bad = () => oops(400, '22023');
   const limit = () => oops(500, '54000');
+  // Switched off by the grown-ups, or a class closed to newcomers.
+  const off = () => oops(500, '55000');
 
   const cleanClass = s => { const c = String(s || '').trim().toLowerCase(); return /^[a-z0-9-]{4,24}$/.test(c) ? c : ''; };
   const INVISIBLE = /[\u0000-\u001f\u007f-\u009f\u20e3\u00ad\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\u3164\ufe00-\ufe0f\ufeff\uffa0]/g;
@@ -125,6 +132,12 @@ function fakeServer(mode, IMG, BAD) {
       if (!p || p.secret !== b.p_secret || !p.visible || !p.klass) deny();
       return p;
     };
+    // A switch is on unless the class row or the '*' row turns it off; locked if either says so.
+    const sw = klass => {
+      const a = (db.settings || {})[klass] || {};
+      const g = (db.settings || {})['*'] || {};
+      return { chat: a.chat !== false && g.chat !== false, drawings: a.drawings !== false && g.drawings !== false, locked: !!(a.locked || g.locked) };
+    };
     const reportedBy = (who, kind, id) => db.reports.some(r => r.reporter === who && r.kind === kind && r.target === id);
     const count = klass => db.players.filter(p => p.visible && p.klass === klass).length;
     // Hearts of blocked players do not count.
@@ -157,15 +170,20 @@ function fakeServer(mode, IMG, BAD) {
           if (p && p.secret !== b.p_secret) deny();
           const c = cleanClass(b.p_class);
           if (!c) bad();
-          const klass = db.moves[c] || c;
+          // An admin move or rename wins over what the device sends.
+          const klass = p?.forcedClass || db.moves[c] || c;
           // The name is masked like the chat and must keep a letter.
-          const name = mask(tidy(b.p_name, 24));
-          if (!/\p{L}/u.test(name)) bad();
+          const name = p?.forcedName || mask(tidy(b.p_name, 24));
+          if (!p?.forcedName && !/\p{L}/u.test(name)) bad();
           // At most 60 newcomers a day in a class, moving in included.
           const moved = !p || p.klass !== klass;
+          // A class closed to newcomers takes nobody new and nobody moving in (an admin move excepted).
+          if (moved && !p?.forcedClass && sw(klass).locked) off();
           if (moved && db.players.filter(x => x.klass === klass && Date.parse(x.joinedAt || 0) > Date.now() - 24 * HOUR).length >= 60) limit();
           // "visible" is set only for a new player: a block by hand stays.
           if (!p) db.players.push(p = { id: b.p_id, secret: b.p_secret, stars: b.p_stars, week: 0, visible: b.p_visible !== false });
+          // She left while blocked, renamed or moved (klyaksa_forget kept her row): back like a newcomer, with that.
+          else if (!p.klass) Object.assign(p, { stars: b.p_stars, week: 0 });
           else if (moved) {
             // Her drawings and messages leave the old class.
             db.posts.filter(x => x.player === p.id && x.klass !== klass).forEach(x => { x.hidden = true; });
@@ -183,7 +201,10 @@ function fakeServer(mode, IMG, BAD) {
         }
         case 'klyaksa_forget': {
           const gone = db.players.filter(p => p.id === b.p_id && p.secret === b.p_secret).map(p => p.id);
-          db.players = db.players.filter(p => !gone.includes(p.id));
+          // What the admin page set (a block, a name, a class) stays: her row is kept in no class.
+          const keep = db.players.filter(p => gone.includes(p.id) && (!p.visible || p.forcedName || p.forcedClass));
+          keep.forEach(p => Object.assign(p, { klass: '', stars: 0, week: 0, name: p.forcedName || '—', avatar: '🐱' }));
+          db.players = db.players.filter(p => !gone.includes(p.id) || keep.includes(p));
           // Everything of hers goes with her, as the cascades do on the server.
           const posts = db.posts.filter(x => gone.includes(x.player)).map(x => x.id);
           db.posts = db.posts.filter(x => !gone.includes(x.player));
@@ -191,18 +212,19 @@ function fakeServer(mode, IMG, BAD) {
           db.messages = db.messages.filter(x => !gone.includes(x.player));
           db.reports = db.reports.filter(r => !gone.includes(r.reporter));
           saveDb();
-          return reply({ ok: true });
+          return reply({ ok: gone.length > 0 });
         }
         case 'klyaksa_class_check': {
           let c = cleanClass(b.p_class);
           c = db.moves[c] || c;
           if (c && !count(c) && !c.startsWith('class-') && count(`class-${c}`)) c = `class-${c}`;
-          return reply({ class: c, players: c ? count(c) : 0 });
+          return reply({ class: c, players: c ? count(c) : 0, locked: c ? sw(c).locked : false });
         }
         case 'klyaksa_post_add': {
           const p = me();
           // Every parameter is required, as on the server (PostgREST answers 404 PGRST202 otherwise).
           if (!['p_title', 'p_thumb', 'p_image', 'p_w', 'p_h'].every(k => k in b)) return reply({ code: 'PGRST202' }, 404);
+          if (!sw(p.klass).drawings) off();
           if (b.p_thumb == null || b.p_image == null || String(b.p_title || '').length > 1000) bad();
           if (bytes(b.p_thumb) > 45000 || bytes(b.p_image) > 450000) limit();
           if (!isJpeg(b.p_thumb) || !isJpeg(b.p_image)) bad();
@@ -215,7 +237,8 @@ function fakeServer(mode, IMG, BAD) {
           const size = v => (Number.isInteger(v) && v >= 1 && v <= 10000 ? v : null);
           db.posts.push({ id, player: p.id, klass: p.klass, title, thumb: b.p_thumb, image: b.p_image, w: size(b.p_w), h: size(b.p_h),
             name: p.name, avatar: p.avatar, hidden: false, at: new Date().toISOString() });
-          say(p, 'post', JSON.stringify({ post: id, what: title }));
+          // With the chat switched off its title does not go there.
+          if (sw(p.klass).chat) say(p, 'post', JSON.stringify({ post: id, what: title }));
           saveDb();
           return reply({ ok: true, id });
         }
@@ -253,6 +276,7 @@ function fakeServer(mode, IMG, BAD) {
         }
         case 'klyaksa_chat_send': {
           const p = me();
+          if (!sw(p.klass).chat) off();
           let body;
           if (b.p_body == null || String(b.p_body).length > 2000) bad();
           if (b.p_kind === 'text') {
@@ -312,7 +336,7 @@ function fakeServer(mode, IMG, BAD) {
           // What the chat and the drawings show her, or the badge would never go away.
           const top = (list, days, kind, more = () => true) => Math.max(0, ...list.filter(x => x.klass === p.klass && x.player !== p.id && shown(x)
             && Date.parse(x.at) > Date.now() - days * 24 * HOUR && !reportedBy(p.id, kind, x.id) && more(x)).map(x => x.id));
-          return reply({ msg: top(db.messages, 30, 'msg', x => noticeShown(p, x)), post: top(db.posts, 90, 'post') });
+          return reply({ msg: top(db.messages, 30, 'msg', x => noticeShown(p, x)), post: top(db.posts, 90, 'post'), ...(({ chat, drawings }) => ({ chat, drawings }))(sw(p.klass)) });
         }
         default:
           return new Response('{}', { status: 404 });

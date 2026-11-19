@@ -1,8 +1,9 @@
 // Tests the class functions (rating, drawings, chat) on the real server. Run: node tools/test/server.test.mjs
 // Uses classes nobody else has (test-<tag>...), and removes every player, drawing,
-// message and class move it creates.
+// message and class move it creates. The admin checks use a temporary admin key
+// (note 'test-<tag>'), removed at the end with its log rows, settings and words.
 import { RATING_URL, RATING_KEY } from '../../js/net-config.js';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 
@@ -32,6 +33,8 @@ const check = (ok, msg) => { if (!ok) fails.push(msg); console.log(`${ok ? 'ok  
 const tag = randomBytes(3).toString('hex');
 const CLASS = `test-${tag}`;
 const OTHER = `test-${tag}-b`;
+const ADMIN_KEY = randomBytes(32).toString('hex');
+const ADMIN_NOTE = `test-${tag}`;
 const me = () => ({ p_id: randomUUID(), p_secret: randomBytes(16).toString('hex') });
 const save = (p, extra = {}) => rpc('klyaksa_save', { ...p, p_class: CLASS, p_name: 'Тест', p_avatar: '🦊', p_lang: 'ru', p_stars: 5, p_visible: true, ...extra });
 const board = async (p = {}, klass = CLASS) => (await rpc('klyaksa_board', { p_class: klass, p_id: p.p_id, p_secret: p.p_secret, p_limit: 300 })).body;
@@ -475,6 +478,360 @@ try {
     (select count(*) from public.post_likes where player_id = '${m1.p_id}')::int as likes,
     (select count(*) from public.reports where reporter = '${m1.p_id}')::int as reports`);
   if (rest) check(rest[0].posts + rest[0].msgs + rest[0].likes + rest[0].reports === 0, `nothing of hers is left (${JSON.stringify(rest[0])})`);
+  // ---------- The parents' admin page: klyaksa_admin ----------
+  // A temporary admin key (only its sha256 is stored), taken away again in finally.
+  const keyRow = await admin(`insert into public.admin_keys (hash, note) values ('${createHash('sha256').update(ADMIN_KEY).digest('hex')}', '${ADMIN_NOTE}') returning note`);
+  if (keyRow) {
+    const adm = (action, args = {}, key = ADMIN_KEY) => rpc('klyaksa_admin', { p_key: key, p_action: action, p_args: args });
+    const keys = o => Object.keys(o || {}).sort().join();
+    const has = (o, list) => list.every(k => k in (o || {}));
+    const A1 = `test-${tag}-a1`, A2 = `test-${tag}-a2`, TYPO = `test-${tag}-typo2`;
+
+    // The key.
+    let t0 = Date.now();
+    r = await adm('stats', {}, randomBytes(32).toString('hex'));
+    check(r.status >= 400 && seen(r, '42501') && Date.now() - t0 >= 300, `a wrong key is refused, after a pause (${r.status} ${code(r)}, ${Date.now() - t0} ms)`);
+    r = await rpc('klyaksa_admin', { p_key: null, p_action: 'stats' });
+    check(code(r) === '42501', `no key is refused (${r.status} ${code(r)})`);
+    r = await rpc('klyaksa_admin', { p_action: 'stats' });
+    check(r.status >= 400, `a call without p_key is refused (${r.status} ${code(r)})`);
+    r = await adm('players', { class: A1 }, ADMIN_KEY.slice(0, -1));
+    check(code(r) === '42501', 'a key one character short is refused');
+    r = await adm('nope');
+    check(code(r) === '22023', `an unknown action is refused (${r.status} ${code(r)})`);
+    r = await rpc('klyaksa_admin', { p_key: ADMIN_KEY, p_action: 'stats', p_args: [1] });
+    check(code(r) === '22023', 'args that are not an object are refused');
+    for (const t of ['admin_keys', 'admin_log', 'class_settings']) {
+      const d = await fetch(`${RATING_URL}/rest/v1/${t}?select=*`, { headers: { apikey: RATING_KEY, Authorization: `Bearer ${RATING_KEY}` } });
+      const rows = d.ok ? await d.json() : [];
+      check(!d.ok || rows.length === 0, `the table ${t} cannot be read with the public key (${d.status})`);
+    }
+    const insKey = await fetch(`${RATING_URL}/rest/v1/admin_keys`, { method: 'POST', headers: { apikey: RATING_KEY, Authorization: `Bearer ${RATING_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hash: 'x', note: ADMIN_NOTE }) });
+    check(!insKey.ok, `nobody can add a key with the public key (${insKey.status})`);
+    for (const [fn, body] of [['klyaksa_switches', { p_class: A1 }], ['klyaksa_admin_tidy', {}], ['klyaksa_admin_id', { a: {}, k: 'id' }]]) {
+      check((await rpc(fn, body)).status >= 400, `the helper ${fn} cannot be called from outside`);
+    }
+
+    // A class with three players, messages, a drawing and reports.
+    const aa = await join(A1, 'Аня'), ab = await join(A1, 'Бэлла'), ac = await join(A1, 'Вера');
+    r = await call('klyaksa_chat_send', aa, { p_kind: 'text', p_body: 'Привет от Ани' });
+    const AM1 = r.body.id;
+    r = await call('klyaksa_chat_send', ab, { p_kind: 'text', p_body: 'Привет от Бэллы' });
+    const AM2 = r.body.id;
+    r = await call('klyaksa_chat_send', ac, { p_kind: 'text', p_body: 'Это сотру' });
+    const AM3 = r.body.id;
+    await call('klyaksa_chat_delete', ac, { p_msg: AM3 });
+    r = await call('klyaksa_post_add', aa, { p_title: 'Кошка', p_thumb: JPEG, p_image: JPEG, p_w: 2, p_h: 2 });
+    const AP1 = r.body.id;
+    await call('klyaksa_like', ab, { p_post: AP1, p_on: true });
+    await call('klyaksa_report', ab, { p_kind: 'msg', p_target: AM1 });
+    await call('klyaksa_report', ac, { p_kind: 'msg', p_target: AM1 });
+    await call('klyaksa_report', ab, { p_kind: 'post', p_target: AP1 });
+    check(!(await call('klyaksa_chat', ab)).body.some(m => m.id === AM1), 'two reports hide the message (before the admin looks)');
+
+    // Looking.
+    r = await adm('stats');
+    const statKeys = 'active_7d,classes,days,db_bytes,messages_7d,new_7d,players,posts_7d,posts_bytes,reports_open,visible';
+    check(r.status === 200 && keys(r.body) === statKeys, `stats has every number (${keys(r.body)})`);
+    check(r.body.days?.length === 14 && keys(r.body.days[0]) === 'active,day,messages,new_players,posts'
+      && r.body.days.every((d, i) => i === 0 || d.day > r.body.days[i - 1].day), 'stats has 14 days, oldest first');
+    const lastDay = r.body.days?.[13] || {};
+    check(r.body.players >= 3 && r.body.new_7d >= 3 && r.body.active_7d >= 3 && r.body.messages_7d >= 3 && r.body.posts_7d >= 1
+      && r.body.reports_open >= 2 && r.body.db_bytes > 1e6 && r.body.posts_bytes > 0, `stats counts the test class (${JSON.stringify({ ...r.body, days: undefined })})`);
+    check(lastDay.new_players >= 3 && lastDay.messages >= 3 && lastDay.posts >= 1 && lastDay.active >= 3, `today in the days (${JSON.stringify(lastDay)})`);
+
+    r = await adm('classes');
+    let cls = r.body.find?.(c => c.code === A1);
+    check(r.status === 200 && r.body[0].code === '*' && has(r.body[0], ['chat', 'drawings', 'locked']), `classes starts with "*" (${JSON.stringify(r.body?.[0])})`);
+    check(cls && has(cls, ['code', 'players', 'active_7d', 'messages_7d', 'posts_7d', 'reports_open', 'chat', 'drawings', 'locked', 'note', 'moved_from'])
+      && cls.players === 3 && cls.active_7d === 3 && cls.messages_7d === 3 && cls.posts_7d === 1 && cls.reports_open === 2
+      && cls.chat === true && cls.drawings === true && cls.locked === false && cls.note === null && Array.isArray(cls.moved_from),
+      `classes counts the test class (${JSON.stringify(cls)})`);
+
+    r = await adm('players', { class: A1 });
+    const plKeys = ['id', 'name', 'forced_name', 'avatar', 'lang', 'class', 'forced_class', 'stars', 'week', 'visible', 'created_at', 'updated_at', 'posts', 'messages', 'reports_against'];
+    check(r.status === 200 && r.body.length === 3 && r.body.every(p => has(p, plKeys)), `players of a class with every field (${r.body?.length}: ${keys(r.body?.[0])})`);
+    const pa = r.body.find(p => p.id === aa.p_id);
+    check(pa && pa.name === 'Аня' && pa.class === A1 && pa.stars === 5 && pa.week === 0 && pa.posts === 1 && pa.messages === 1
+      && pa.reports_against === 3 && pa.visible && pa.forced_name === null, `a player's numbers (${JSON.stringify(pa)})`);
+    r = await adm('players', { class: A1, q: 'бЭл' });
+    check(r.body.length === 1 && r.body[0].id === ab.p_id, 'players: q finds a name in any case');
+    r = await adm('players', { class: 'x!' });
+    check(code(r) === '22023', 'players: a bad class code is refused');
+    r = await adm('players', { q: 5 });
+    check(code(r) === '22023', 'players: a q that is not text is refused');
+
+    r = await adm('chat', { class: A1 });
+    const chKeys = ['id', 'player_id', 'name', 'avatar', 'kind', 'body', 'hidden', 'deleted', 'reports', 'at'];
+    check(r.status === 200 && r.body.length === 4 && r.body.every(m => has(m, chKeys)) && r.body.every((m, i) => i === 0 || m.id < r.body[i - 1].id),
+      `the admin sees the whole chat, newest first (${r.body?.length}: ${keys(r.body?.[0])})`);
+    const am1 = r.body.find(m => m.id === AM1), am3 = r.body.find(m => m.id === AM3), note1 = r.body.find(m => m.kind === 'post');
+    check(am1?.hidden && !am1.deleted && am1.reports === 2 && am1.name === 'Аня' && am1.player_id === aa.p_id, `a reported message: hidden, 2 reports (${JSON.stringify(am1)})`);
+    check(am3?.hidden && am3.deleted && am3.body === '', `a message she deleted is marked deleted (${JSON.stringify(am3)})`);
+    check(note1 && JSON.parse(note1.body).post === AP1 && !note1.deleted, 'the drawing notice is there');
+    r = await adm('chat', { class: A1, before: AM3, limit: 1 });
+    check(r.body.length === 1 && r.body[0].id === AM2, `chat: before and limit (${JSON.stringify(r.body?.map(m => m.id))})`);
+    r = await adm('chat', { class: A1, before: 'x' });
+    check(code(r) === '22023', 'chat: a bad "before" is refused');
+    r = await adm('chat', {});
+    check(code(r) === '22023', 'chat: the class is needed');
+
+    r = await adm('posts', { class: A1 });
+    const poKeys = ['id', 'player_id', 'name', 'avatar', 'title', 'thumb', 'hearts', 'hidden', 'deleted', 'reports', 'bytes', 'at'];
+    const ap1 = r.body?.[0];
+    check(r.status === 200 && r.body.length === 1 && has(ap1, poKeys) && ap1.id === AP1 && ap1.thumb === JPEG && ap1.hearts === 1
+      && ap1.reports === 1 && !ap1.hidden && !ap1.deleted && ap1.bytes > 0 && ap1.name === 'Аня', `posts with every field (${keys(ap1)})`);
+    r = await adm('post_image', { id: AP1 });
+    check(r.status === 200 && r.body.image === JPEG, 'post_image gives the full picture');
+    r = await adm('post_image', { id: 0 });
+    check(code(r) === '22023', 'post_image of no drawing is refused');
+
+    r = await adm('reports');
+    const repKeys = ['kind', 'target', 'class', 'author_id', 'author_name', 'preview', 'thumb', 'count', 'reporters', 'hidden', 'last_at'];
+    const rm = r.body?.find?.(x => x.kind === 'msg' && x.target === AM1), rp = r.body?.find?.(x => x.kind === 'post' && x.target === AP1);
+    check(r.status === 200 && has(rm, repKeys) && rm.class === A1 && rm.author_id === aa.p_id && rm.author_name === 'Аня' && rm.preview === 'Привет от Ани'
+      && rm.count === 2 && rm.reporters.sort().join() === 'Бэлла,Вера' && rm.hidden === true && rm.thumb === null, `reports: the message (${JSON.stringify(rm)})`);
+    check(has(rp, repKeys) && rp.preview === 'Кошка' && rp.thumb === JPEG && rp.count === 1 && rp.hidden === false, `reports: the drawing (${JSON.stringify({ ...rp, thumb: !!rp?.thumb })})`);
+
+    r = await adm('words');
+    check(r.status === 200 && Array.isArray(r.body) && r.body.includes('=дура'), 'words lists the bad words');
+    r = await adm('log', { limit: 5 });
+    check(r.status === 200 && Array.isArray(r.body) && r.body.length <= 5, 'log can be read');
+
+    // Changing.
+    r = await adm('reports_clear', { kind: 'msg', target: AM1 });
+    check(r.status === 200 && r.body.ok && r.body.cleared === 2 && r.body.hidden === false, `reports_clear (${JSON.stringify(r.body)})`);
+    check((await call('klyaksa_chat', ab)).body.some(m => m.id === AM1), 'a cleared message is back for the class');
+    r = await adm('reports_clear', { kind: 'msg', target: AM3 });
+    check(r.body.hidden === true, 'reports_clear keeps a message its author deleted hidden');
+    await call('klyaksa_report', ab, { p_kind: 'msg', p_target: AM1 });
+    r = await adm('reports_clear', { kind: 'msg', target: AM1, hidden: true });
+    check(r.body.ok && r.body.cleared === 1 && r.body.hidden === true && !(await call('klyaksa_chat', ac)).body.some(m => m.id === AM1),
+      `reports_clear with hidden: true closes the report and hides it in one step (${JSON.stringify(r.body)})`);
+    r = await adm('msg_set', { id: AM1, hidden: false });
+    check(r.body.hidden === false, 'and it can be shown again');
+    r = await adm('reports_clear', { kind: 'msg', target: AM1, hidden: 'yes' });
+    check(code(r) === '22023', 'reports_clear: hidden must be true or false');
+    r = await adm('reports_clear', { kind: 'x', target: AM1 });
+    check(code(r) === '22023', 'reports_clear: a bad kind is refused');
+
+    r = await adm('msg_set', { id: AM2, hidden: true });
+    check(r.status === 200 && r.body.ok && r.body.hidden === true && !(await call('klyaksa_chat', aa)).body.some(m => m.id === AM2), 'msg_set hides a message');
+    r = await adm('msg_set', { id: AM2, hidden: false });
+    check(r.body.hidden === false && (await call('klyaksa_chat', aa)).body.some(m => m.id === AM2), 'and shows it again');
+    r = await adm('msg_set', { id: AM3, hidden: false });
+    check(r.body.hidden === true, 'a message its author deleted cannot be shown');
+    r = await adm('msg_set', { id: AM2, hidden: 'yes' });
+    check(code(r) === '22023', 'msg_set: hidden must be true or false');
+    r = await adm('msg_set', { id: 0, hidden: true });
+    check(code(r) === '22023', 'msg_set: no such message');
+    r = await adm('msg_delete', { id: AM2 });
+    check(r.body.ok === true && !(await adm('chat', { class: A1 })).body.some(m => m.id === AM2), 'msg_delete deletes a message');
+    r = await adm('msg_delete', { id: AM2 });
+    check(r.status === 200 && r.body.ok === false, 'deleting it again says ok: false');
+
+    r = await adm('post_set', { id: AP1, hidden: true });
+    check(r.body.ok && r.body.hidden === true && !(await call('klyaksa_posts', ab)).body.length
+      && !(await call('klyaksa_chat', ab)).body.some(m => m.kind === 'post'), 'post_set hides a drawing and its notice');
+    r = await adm('post_set', { id: AP1, hidden: false });
+    check(r.body.hidden === false && (await call('klyaksa_posts', ab)).body.length === 0, 'shown again it stays gone for the girl who reported it');
+    check((await call('klyaksa_posts', ac)).body.length === 1 && (await call('klyaksa_chat', ac)).body.some(m => m.kind === 'post'), 'and is back for the others, with its notice');
+
+    // Players: block, rename, move. A name or class given here survives her own saves.
+    r = await adm('player_set', { id: ab.p_id, visible: false });
+    check(r.status === 200 && r.body.ok && r.body.visible === false && code(await call('klyaksa_chat', ab)) === '42501', `player_set blocks her (${JSON.stringify(r.body)})`);
+    r = await adm('player_set', { id: ab.p_id, visible: true });
+    check(r.body.visible === true && (await call('klyaksa_chat', ab)).status === 200, 'and unblocks her');
+    r = await adm('player_set', { id: ac.p_id, name: '  Вера   Звонкова 054-123-4567 ' });
+    check(r.body.name === 'Вера Звонкова ***' && r.body.forced_name === 'Вера Звонкова ***', `player_set renames, tidied and masked (${JSON.stringify(r.body)})`);
+    await save(ac, { p_class: A1, p_name: 'Вера' });
+    check((await board({}, A1)).some(p => p.name === 'Вера Звонкова ***'), 'her own save keeps the new name');
+    r = await save(ac, { p_class: A1, p_name: '***' });
+    check(r.status === 200 && (await board({}, A1)).some(p => p.name === 'Вера Звонкова ***'),
+      `a name the admin gave her lets her save even when her own has no letter left (${r.status} ${JSON.stringify(r.body)})`);
+    r = await adm('player_set', { id: ac.p_id, name: null });
+    check(r.body.forced_name === null && r.body.name === 'Вера Звонкова ***', 'name: null lets her name go');
+    r = await save(ac, { p_class: A1, p_name: '***' });
+    check(code(r) === '22023', 'without it a name with no letter is refused again');
+    await save(ac, { p_class: A1, p_name: 'Вера' });
+    check((await board({}, A1)).some(p => p.name === 'Вера'), 'and her next save brings her own name back');
+    r = await adm('player_set', { id: ac.p_id, name: '!!!' });
+    check(code(r) === '22023', 'player_set: a name without letters is refused');
+    r = await adm('player_set', { id: ac.p_id, name: 5 });
+    check(code(r) === '22023', 'player_set: a name that is not text is refused');
+    r = await adm('player_set', { id: 'not-a-uuid', visible: true });
+    check(code(r) === '22023', 'player_set: a bad id is refused');
+    r = await adm('player_set', { id: randomUUID(), visible: true });
+    check(code(r) === '22023', 'player_set: an unknown player is refused');
+    r = await adm('player_set', { id: ac.p_id });
+    check(code(r) === '22023', 'player_set: nothing to change is refused');
+    r = await adm('player_set', { id: ac.p_id, class: 'X!' });
+    check(code(r) === '22023', 'player_set: a bad class is refused');
+    r = await adm('player_set', { id: ac.p_id, class: A2 });
+    check(r.body.class === A2 && r.body.forced_class === A2, `player_set moves her to another class (${JSON.stringify(r.body)})`);
+    r = await save(ac, { p_class: A1, p_name: 'Вера' });
+    check(r.status === 200 && r.body.class === A2, `her own save keeps the new class and tells her app (${JSON.stringify(r.body)})`);
+    check((await adm('chat', { class: A2 })).body.some(m => m.id === AM3), 'her messages went with her');
+    r = await adm('player_set', { id: ac.p_id, class: null });
+    check(r.body.forced_class === null && r.body.class === A2, 'class: null lets the class go');
+    r = await save(ac, { p_class: A1, p_name: 'Вера' });
+    check(r.body.class === A1, 'and her next save takes her where her app says');
+
+    // Leaving and joining again from her own app does not undo what the admin page set.
+    const lv = await join(A2, 'Уходящая');
+    await call('klyaksa_chat_send', lv, { p_kind: 'text', p_body: 'Я тут' });
+    await adm('player_set', { id: lv.p_id, visible: false });
+    r = await rpc('klyaksa_forget', lv);
+    check(r.body?.ok === true, 'a blocked player can leave');
+    let row1 = (await admin(`select visible, class_code, stars, (select count(*) from public.messages where player_id = '${lv.p_id}')::int as msgs from public.players where id = '${lv.p_id}'`))?.[0];
+    check(row1 && row1.visible === false && row1.class_code === '' && row1.stars === 0 && row1.msgs === 0,
+      `leaving takes all of hers but keeps the block, in no class (${JSON.stringify(row1)})`);
+    r = await save(lv, { p_class: A2, p_name: 'Вернулась', p_stars: 50 });
+    row1 = (await admin(`select visible, class_code, stars from public.players where id = '${lv.p_id}'`))?.[0];
+    check(r.status === 200 && r.body.stars === 50 && row1?.visible === false && row1.class_code === A2, `joining again does not unblock her (${JSON.stringify(row1)})`);
+    check(!(await board({}, A2)).some(p => p.name === 'Вернулась'), 'she stays off the rating');
+    check(code(await call('klyaksa_chat', lv)) === '42501', 'and out of the chat');
+    await adm('player_set', { id: lv.p_id, visible: true, name: 'Имя от папы', class: A1 });
+    await rpc('klyaksa_forget', lv);
+    check(!(await board({}, A1)).some(p => p.name === 'Имя от папы'), 'a renamed and moved player who leaves is off the rating');
+    r = await save(lv, { p_class: A2, p_name: 'Своё имя' });
+    check(r.status === 200 && r.body.class === A1 && (await board({}, A1)).some(p => p.name === 'Имя от папы'),
+      `joining again keeps the name and the class the admin gave her (${JSON.stringify(r.body)})`);
+    await adm('player_delete', { id: lv.p_id });
+    const lv2 = await join(A2, 'Обычная');
+    r = await rpc('klyaksa_forget', lv2);
+    check(r.body?.ok === true && !(await admin(`select id from public.players where id = '${lv2.p_id}'`))?.length, 'a player the admin never touched is deleted outright');
+
+    // The switches.
+    r = await adm('class_set', { class: A1, chat: false, note: '  Тестовый   класс ' });
+    check(r.status === 200 && r.body.ok && r.body.code === A1 && r.body.chat === false && r.body.drawings === true && r.body.locked === false
+      && r.body.note === 'Тестовый класс', `class_set (${JSON.stringify(r.body)})`);
+    r = await call('klyaksa_chat_send', aa, { p_kind: 'text', p_body: 'А теперь?' });
+    check(seen(r, '55000') && /chat is off/.test(r.body?.message), `with the chat off she cannot write (${r.status} ${JSON.stringify(r.body)})`);
+    check((await call('klyaksa_chat', aa)).status === 200, 'but she can still read it');
+    r = await call('klyaksa_news', aa);
+    check(r.body.chat === false && r.body.drawings === true, `news says the chat is off (${JSON.stringify(r.body)})`);
+    r = await call('klyaksa_chat_send', x, { p_kind: 'text', p_body: 'другой класс' });
+    check(r.status === 200, 'another class still chats');
+    r = await call('klyaksa_post_add', aa, { p_title: 'Заголовок в чат', p_thumb: JPEG, p_image: JPEG, p_w: 2, p_h: 2 });
+    const AP2 = r.body?.id;
+    check(r.status === 200 && AP2 > 0, `with the chat off a drawing can still be shown (${r.status} ${JSON.stringify(r.body)})`);
+    check(!(await call('klyaksa_chat', ab)).body.some(m => m.kind === 'post' && JSON.parse(m.body).post === AP2)
+      && !(await adm('chat', { class: A1 })).body.some(m => m.kind === 'post' && JSON.parse(m.body).post === AP2)
+      && (await call('klyaksa_posts', ab)).body.some(d => d.id === AP2), 'but its title does not go into the switched-off chat');
+    await adm('post_delete', { id: AP2 });
+    r = await adm('class_set', { class: A1, chat: true, drawings: false });
+    check(r.body.chat === true && r.body.drawings === false && r.body.note === 'Тестовый класс', 'class_set changes only what it is given');
+    r = await call('klyaksa_post_add', ac, { p_title: 'Нельзя', p_thumb: JPEG, p_image: JPEG, p_w: 2, p_h: 2 });
+    check(code(r) === '55000' && /drawings are off/.test(r.body?.message), `with drawings off she cannot show one (${r.status} ${JSON.stringify(r.body)})`);
+    check((await call('klyaksa_posts', ac)).body.length === 1 && (await call('klyaksa_like', ac, { p_post: AP1, p_on: true })).status === 200, 'but viewing and hearts go on');
+    r = await call('klyaksa_news', aa);
+    check(r.body.chat === true && r.body.drawings === false, 'news says the drawings are off');
+    r = await call('klyaksa_chat_send', ac, { p_kind: 'text', p_body: 'А чат работает' });
+    check(r.status === 200, 'the chat is back on');
+    r = await adm('class_set', { class: A1, drawings: true, locked: true });
+    check(r.body.locked === true, 'class_set closes the class');
+    r = await rpc('klyaksa_class_check', { p_class: A1 });
+    check(r.body.locked === true && r.body.players === 3, `class_check says it is closed (${JSON.stringify(r.body)})`);
+    check((await rpc('klyaksa_class_check', { p_class: A2 })).body.locked === false, 'class_check: other classes are open');
+    const newbie = me(); made.push(newbie);
+    r = await save(newbie, { p_class: A1, p_name: 'Новенькая' });
+    check(seen(r, '55000') && /locked/.test(r.body?.message), `a closed class takes no new player (${r.status} ${JSON.stringify(r.body)})`);
+    r = await save(aa, { p_class: A1, p_name: 'Аня', p_stars: 9 });
+    check(r.status === 200 && r.body.class === A1, 'those already in it go on');
+    r = await save(newbie, { p_class: A2, p_name: 'Новенькая' });
+    check(r.status === 200, 'she joins another class');
+    r = await save(newbie, { p_class: A1, p_name: 'Новенькая' });
+    check(code(r) === '55000', 'and cannot move into the closed one');
+    r = await adm('player_set', { id: newbie.p_id, class: A1 });
+    r = await save(newbie, { p_class: A2, p_name: 'Новенькая' });
+    check(r.status === 200 && r.body.class === A1, `the admin can still move her in (${JSON.stringify(r.body)})`);
+    r = await adm('class_set', { class: A1, locked: false, note: null });
+    check(r.body.locked === false && r.body.note === null, 'class_set opens it again and clears the note');
+    r = await adm('class_set', { class: '**' });
+    check(code(r) === '22023', 'class_set: a bad class is refused');
+    r = await adm('class_set', { class: A1, chat: 'off' });
+    check(code(r) === '22023', 'class_set: a switch must be true or false');
+    cls = (await adm('classes')).body.find(c => c.code === A1);
+    check(cls && cls.chat && cls.drawings && !cls.locked && cls.players === 4, `classes shows the switches (${JSON.stringify(cls)})`);
+
+    // Bad words.
+    const W = `zzq${tag}`;
+    r = await adm('word_add', { word: `  ${W.toUpperCase()} ` });
+    check(r.status === 200 && r.body.ok && r.body.word === W && r.body.added === true, `word_add (${JSON.stringify(r.body)})`);
+    check((await adm('words')).body.includes(W), 'the word is in the list');
+    r = await call('klyaksa_chat_send', aa, { p_kind: 'text', p_body: `ты ${W}ка` });
+    check(r.body?.body === 'ты ***ка', `the new word is masked (${JSON.stringify(r.body)})`);
+    r = await adm('word_add', { word: `=${W}x` });
+    check(r.body.word === `=${W}x`, 'a whole-word "=" form is kept');
+    for (const bad of ['x', ' ', '==ab', '!!', 'a'.repeat(41), 5]) {
+      r = await adm('word_add', { word: bad });
+      check(code(r) === '22023', `word_add refuses ${JSON.stringify(bad)}`);
+    }
+    r = await adm('word_delete', { word: W });
+    check(r.body.ok === true && !(await adm('words')).body.includes(W), 'word_delete');
+    r = await adm('word_delete', { word: `=${W}x` });
+    check(r.body.ok === true, 'word_delete of the "=" form');
+
+    // Class moves.
+    const typo = await join(TYPO, 'Опечатка');
+    r = await adm('move_add', { from: TYPO, to: A1 });
+    check(r.status === 200 && r.body.ok && r.body.moved === 1, `move_add moves those already there (${JSON.stringify(r.body)})`);
+    check((await board({}, A1)).some(p => p.name === 'Опечатка'), 'she is on the real class board now');
+    r = await adm('moves');
+    const mv = r.body?.find?.(m => m.from === TYPO);
+    check(mv && mv.to === A1 && mv.players_now === 5 && keys(mv).includes('players_now'), `moves lists it (${JSON.stringify(mv)})`);
+    check((await adm('classes')).body.find(c => c.code === A1)?.moved_from.includes(TYPO), 'classes shows where a class was moved from');
+    r = await save(typo, { p_class: TYPO, p_name: 'Опечатка' });
+    check(r.body.class === A1, 'her app adopts the real class');
+    for (const [args, why] of [[{ from: A1, to: A1 }, 'to itself'], [{ from: 'x', to: A1 }, 'from a bad code'], [{ from: A2, to: TYPO }, 'to a moved code']]) {
+      r = await adm('move_add', args);
+      check(code(r) === '22023', `move_add refuses a move ${why}`);
+    }
+    r = await adm('move_delete', { from: TYPO });
+    check(r.body.ok === true && !(await adm('moves')).body.some(m => m.from === TYPO), 'move_delete');
+
+    // Deleting.
+    r = await adm('post_delete', { id: AP1 });
+    check(r.body.ok === true && !(await adm('posts', { class: A1 })).body.length && !(await adm('chat', { class: A1 })).body.some(m => m.kind === 'post'),
+      'post_delete deletes the drawing and its notice');
+    check(!(await adm('reports')).body.some(x => x.kind === 'post' && x.target === AP1), 'and its reports');
+    r = await adm('player_delete', { id: typo.p_id });
+    check(r.body.ok === true && !(await adm('players', { class: A1 })).body.some(p => p.id === typo.p_id), 'player_delete');
+    r = await adm('player_delete', { id: typo.p_id });
+    check(r.body.ok === false, 'player_delete again says ok: false');
+    r = await adm('class_delete', { class: A2 });
+    check(r.status === 200 && r.body.ok && r.body.players === 0, `class_delete of a class with nobody left (${JSON.stringify(r.body)})`);
+    let gone2 = (await adm('classes')).body.find(c => c.code === A2);
+    check(gone2 && gone2.locked === true && gone2.players === 0, `a deleted class stays in the list, closed to newcomers (${JSON.stringify(gone2)})`);
+    r = await adm('class_delete', { class: A1 });
+    check(r.body.ok && r.body.players === 4, `class_delete removes every player (${JSON.stringify(r.body)})`);
+    check(!(await adm('players', { class: A1 })).body.length && !(await adm('chat', { class: A1 })).body.length, 'nothing of the class is left');
+    r = await save(aa, { p_class: A1, p_name: 'Аня' });
+    check(code(r) === '55000', `a girl's device cannot make the deleted class again (${r.status} ${JSON.stringify(r.body)})`);
+    check(!(await adm('players', { class: A1 })).body.length, 'it stays empty');
+    r = await adm('class_delete', { class: '*' });
+    check(code(r) === '22023', 'class_delete refuses "*"');
+
+    // The log: every change, none of the looking.
+    const log = await admin(`select action, count(*)::int as n from public.admin_log where who = '${ADMIN_NOTE}' group by 1 order by 1`);
+    const acts = Object.fromEntries((log || []).map(l => [l.action, l.n]));
+    check(['player_set', 'player_delete', 'msg_set', 'msg_delete', 'post_set', 'post_delete', 'reports_clear', 'class_set', 'class_delete',
+      'word_add', 'word_delete', 'move_add', 'move_delete'].every(a => acts[a] > 0) && !acts.stats && !acts.chat && !acts.players,
+      `the log has every change and none of the looking (${JSON.stringify(acts)})`);
+    check(!acts.nope, 'an unknown action is not logged');
+    r = await adm('log', { limit: 500 });
+    const lr = r.body.find(l => l.action === 'class_delete' && l.args?.class === A1);
+    check(lr && keys(lr) === 'about,action,args,at,id,who' && lr.who === ADMIN_NOTE, `log rows say what, when and with which key (${JSON.stringify(lr)})`);
+    const about = act => r.body.filter(l => l.action === act).map(l => l.about);
+    check(about('player_set').includes(`Бэлла (${A1})`) && about('msg_set').some(x => x === 'Бэлла: Привет от Бэллы')
+      && about('post_set').includes('Аня: «Кошка»') && about('reports_clear').includes('Аня: Привет от Ани'),
+      `log rows name who or what it was about (${JSON.stringify(r.body.filter(l => l.about).slice(0, 6).map(l => [l.action, l.about]))})`);
+    check(about('player_delete').every(x => x == null || /\(/.test(x)) && about('player_delete').some(Boolean), 'a deleted player keeps her name in the log');
+    check(!r.body.some(l => l.args?.id === 'not-a-uuid'), 'a refused change leaves no log row');
+  } else console.log('skip the admin checks: no admin token on this machine');
+
   console.log('\nerror answers of PostgREST:');
   for (const [k, v] of Object.entries(errors)) console.log(`  ${k}: ${v}`);
 } finally {
@@ -482,13 +839,24 @@ try {
     const r = await rpc('klyaksa_forget', p);
     check(r.status === 200, `test player removed (${JSON.stringify(r.body)})`);
   }
+  // A player the admin page blocked, renamed or moved keeps her row when she leaves (in no class): removed by id.
+  if (made.length) await admin(`delete from public.players where id in (${made.map(p => `'${p.p_id}'`).join(',')})`);
   await admin(`delete from public.class_moves where from_code like 'test-${tag}%' or to_code like '%test-${tag}%';
-    delete from public.players where class_code = 'test-${tag}-e' and secret_hash = 'x'`);
+    delete from public.players where class_code = 'test-${tag}-e' and secret_hash = 'x';
+    delete from public.players where class_code like 'test-${tag}%';
+    delete from public.admin_keys where note = '${ADMIN_NOTE}';
+    delete from public.admin_log where who = '${ADMIN_NOTE}' or args::text like '%test-${tag}%';
+    delete from public.class_settings where class_code like '%test-${tag}%';
+    delete from public.bad_words where word like '%zzq${tag}%'`);
   const left = await admin(`select
-    (select count(*) from public.players where class_code like '%test-${tag}%')::int as players,
+    (select count(*) from public.players where class_code like '%test-${tag}%' or id in (${made.map(p => `'${p.p_id}'`).join(',') || 'null'}))::int as players,
     (select count(*) from public.posts where class_code like '%test-${tag}%')::int as posts,
     (select count(*) from public.messages where class_code like '%test-${tag}%')::int as messages,
-    (select count(*) from public.class_moves where from_code like '%test-${tag}%' or to_code like '%test-${tag}%')::int as moves`);
+    (select count(*) from public.class_moves where from_code like '%test-${tag}%' or to_code like '%test-${tag}%')::int as moves,
+    (select count(*) from public.admin_keys where note = '${ADMIN_NOTE}')::int as keys,
+    (select count(*) from public.admin_log where who = '${ADMIN_NOTE}' or args::text like '%test-${tag}%')::int as log,
+    (select count(*) from public.class_settings where class_code like '%test-${tag}%')::int as settings,
+    (select count(*) from public.bad_words where word like '%zzq${tag}%')::int as words`);
   if (left) check(Object.values(left[0]).every(n => n === 0), `nothing of the test is left on the server (${JSON.stringify(left[0])})`);
 }
 console.log(fails.length ? `\n${fails.length} FAILED` : '\nALL PASSED');

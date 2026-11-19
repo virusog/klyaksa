@@ -55,7 +55,7 @@ if (ready.stdout !== '200') {
   process.exit(2);
 }
 
-run('syntax of every module', 'bash', ['-c', 'for f in js/*.js js/*/*.js js/lang/*/*.js sw.js; do node --check --input-type=module < "$f" || echo "BAD $f"; done | grep BAD; test $? -eq 1']);
+run('syntax of every module', 'bash', ['-c', 'for f in js/*.js js/*/*.js js/lang/*/*.js sw.js admin/*.js; do node --check --input-type=module < "$f" || echo "BAD $f"; done | grep BAD; test $? -eq 1']);
 run('every file is cached for offline use', 'python3', ['-c', `
 import re,os,sys
 s=open('sw.js',encoding='utf8').read()
@@ -71,6 +71,7 @@ run('all shown Russian text is marked for translation', 'node', ['tools/i18n.mjs
 });
 run('English and Hebrew are complete and well-formed', 'node', ['tools/i18n.mjs', 'check']);
 run('rating server', 'node', ['tools/test/server.test.mjs']);
+run('the parents\' admin page on the real server', 'node', ['tools/test/admin.test.mjs']);
 
 page('first launch from a class invitation, profile, cookie and the real rating server', 'profile.js', { route: '#/', flags: ['--net', '--base', `http://localhost:8123/index.html?class=${TEST_CLASS}`], vars: { __CLASS__: TEST_CLASS } });
 page('my class with no internet', 'offline.js', { route: '#/', state: { lang: 'ru', onboarded: true, name: 'Test', rated: true, classCode: 'test-class' }, flags: ['--offline'] });

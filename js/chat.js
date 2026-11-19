@@ -4,7 +4,7 @@
 import { h } from './util.js';
 import { state, save } from './store.js';
 import { t, N, lang, LANGS } from './i18n.js';
-import { syncNow, sendChat, loadChat, deleteChat, report, netError } from './player.js';
+import { syncNow, sendChat, loadChat, deleteChat, report, netError, switches, onSwitches } from './player.js';
 import { btn, mascot, toast, confirmBox, popover, closePop } from './ui.js';
 import { sfx } from './audio.js';
 import { postTitle, untitled } from './classart.js';
@@ -48,6 +48,7 @@ export function sendError(e) {
   if (why === 'offline') return t('Нет связи. Сообщение не отправлено.');
   if (why === 'limit') return t('Не так быстро! Подожди немного.');
   if (why === 'bad') return t('Так написать нельзя. Попробуй по-другому.');
+  if (why === 'off') return t('Чат сейчас выключен взрослыми.');
   return t('Не получилось. Попробуй ещё раз.');
 }
 
@@ -67,10 +68,20 @@ export function chatTab(host) {
   });
   const send = btn('primary chat-send', t('Отправить'), () => doSend());
   const smile = h('button', { class: 'btn icon chat-emoji', 'aria-label': t('Смайлики'), onclick: e => emojiPop(e.currentTarget) }, '😊');
-  const wrap = h('div', { class: 'chat' },
-    list,
-    h('p', { class: 'chat-note' }, t('Пиши по-доброму. Ссылки и номера телефонов чат скрывает.')),
-    h('div', { class: 'chat-bar' }, smile, input, send));
+  const kind = h('p', { class: 'chat-note' }, t('Пиши по-доброму. Ссылки и номера телефонов чат скрывает.'));
+  const bar = h('div', { class: 'chat-bar' }, smile, input, send);
+  // Switched off by the grown-ups on the server: she can still read, but not write.
+  const off = h('p', { class: 'chat-off', role: 'status' }, t('Чат сейчас выключен взрослыми.'));
+  const wrap = h('div', { class: 'chat' }, list, kind, bar, off);
+  const applySwitch = () => {
+    const on = switches.chat !== false;
+    kind.classList.toggle('hidden', !on);
+    bar.classList.toggle('hidden', !on);
+    off.classList.toggle('hidden', on);
+    if (!on) { closePop(); input.blur(); }
+  };
+  applySwitch();
+  const offSwitch = onSwitches(applySwitch);
 
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); doSend(); }
@@ -290,6 +301,7 @@ export function chatTab(host) {
     reload: load,
     stop() {
       alive = false;
+      offSwitch();
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onShow);
       vv?.removeEventListener('resize', fit);

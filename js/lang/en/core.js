@@ -386,4 +386,7 @@ export default {
   "{name} показала новый рисунок": "{name} shared a new drawing",
   "Рисунки из фото остаются только у тебя": "Pictures made from photos stay just with you",
   "В имени нужна хотя бы одна буква": "Your name needs at least one letter",
+  "Чат сейчас выключен взрослыми.": "The grown-ups have turned the chat off for now.",
+  "Показывать рисунки сейчас нельзя: взрослые выключили.": "You can't show drawings right now: the grown-ups turned it off.",
+  "Этот класс закрыт для новых участниц. Спроси учительницу или родителей.": "This class is closed to new members. Ask your teacher or your parents.",
 };
