@@ -1,0 +1,127 @@
+/* «Мультик»: the list */
+.anim-new {
+  display: flex; align-items: center; gap: 14px; min-height: 84px; padding: 12px 22px;
+  background: #bfe0ff; border: var(--line); border-radius: 24px; box-shadow: 0 5px 0 var(--ink);
+}
+.anim-new:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.anim-new b { display: block; font-size: 25px; font-weight: 900; line-height: 1.1; }
+.anim-new small { font-size: 16px; opacity: .8; }
+.anim-head { font-size: 22px; font-weight: 900; }
+.anim-top .anim-head { margin-top: 16px; }
+
+.anim-thumb { width: 104px; height: 78px; }
+.anim-thumb g { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.anim-thumb .anim-g { stroke: var(--ink); stroke-width: 20; }
+.anim-thumb .anim-g-ghost { stroke: #b9b1cc; stroke-width: 16; }
+.anim-thumb .anim-g-fix { stroke: #cfc8dd; stroke-width: 12; }
+.anim-thumb .anim-g-far { stroke: #9a93ad; }
+.anim-thumb .anim-g-lid { fill: #ffd9c7; }
+
+.anim-mine { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; padding-bottom: 20px; }
+.anim-card {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 0;
+  background: #fff; border: var(--line); border-radius: 18px; box-shadow: 0 5px 0 var(--ink);
+}
+.anim-card img { width: 100%; aspect-ratio: 4 / 3; border: 2px solid var(--ink); border-radius: 10px; }
+.anim-card-foot { display: flex; align-items: center; gap: 6px; }
+.anim-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; min-height: 52px; }
+.anim-card-text b { font-size: 15px; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.anim-card-text small { font-size: 13px; opacity: .75; }
+
+/* The studio: brushes, the sheet, and the film on the right */
+.anim-screen .topbar h1 { flex: none; }
+/* The bar has room for full-size buttons even on an upright iPad. */
+.anim-screen .topbar .btn.icon { width: 52px; }
+.anim-tip { flex: 1 1 0; }
+.anim-tip .mascot { width: 46px; height: 46px; }
+.anim-tip .bubble { font-size: 15px; line-height: 1.2; padding: 6px 12px; }
+
+.anim-main { flex: 1; min-height: 0; display: flex; gap: 10px; }
+.anim-panel { flex: none; width: clamp(234px, 20.5vw, 240px); min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.anim-play { flex: none; min-height: 56px; font-size: 20px; }
+.anim-play.going { background: var(--coral); color: #fff; }
+
+.anim-speeds { flex: none; display: flex; }
+.anim-speed {
+  flex: 1; min-width: 0; min-height: 52px; padding: 0; margin-inline-start: -3px; cursor: pointer;
+  background: var(--card); border: var(--line); font-size: 12.5px; font-weight: 800; letter-spacing: -.3px;
+}
+/* Logical corners: the outer ends stay round when Hebrew mirrors the row. */
+.anim-speed:first-child { margin-inline-start: 0; border-start-start-radius: 16px; border-end-start-radius: 16px; }
+.anim-speed:last-child { border-start-end-radius: 16px; border-end-end-radius: 16px; }
+/* Undo and redo point the way the bar reads. */
+[dir=rtl] .anim-screen :is(.ico-undo, .ico-redo) svg { transform: scaleX(-1); }
+.anim-speed.on { background: var(--sun); }
+
+.anim-strip {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-content: start;
+  padding: 4px; overflow-y: auto; touch-action: pan-y; scrollbar-width: none;
+  background: #efe6d2; border: var(--line); border-radius: 16px;
+}
+.anim-strip::-webkit-scrollbar { display: none; }
+.anim-strip.dense { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.anim-frame {
+  position: relative; aspect-ratio: 4 / 3; min-width: 0; padding: 0; overflow: hidden; cursor: pointer;
+  background: #fff; border: 2px solid var(--ink); border-radius: 10px;
+}
+.anim-frame canvas { display: block; width: 100%; height: 100%; }
+.anim-frame i {
+  position: absolute; left: 3px; top: 3px; min-width: 22px; height: 22px; padding: 0 4px; display: grid; place-items: center;
+  background: #fff; border: 2px solid var(--ink); border-radius: 11px; font-style: normal; font-size: 13px; font-weight: 900; line-height: 1;
+}
+.anim-strip.dense .anim-frame i { left: 2px; top: 2px; min-width: 19px; height: 19px; padding: 0 3px; font-size: 11px; }
+.anim-frame.ok i { background: var(--mint); color: #fff; }
+.anim-frame.on { outline: 4px solid var(--coral); outline-offset: -1px; }
+.anim-frame.on i { background: var(--sun); color: var(--ink); }
+
+.anim-acts { flex: none; display: flex; gap: 8px; }
+.anim-act { flex: 1; min-width: 0; min-height: 58px; padding: 0; flex-direction: column; gap: 0; font-size: 13px; line-height: 1.1; }
+
+.anim-screen.playing .rail, .anim-screen.playing .tools-foot { opacity: .4; pointer-events: none; }
+.anim-screen .tools-foot { min-height: 44px; }
+
+/* Under the sheet: the lesson guide and the previous frame, both faint */
+.anim-guide { position: absolute; inset: 0; width: 100%; height: 100%; }
+.anim-guide g { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.anim-guide .anim-g { stroke: #62a8fb; stroke-width: 5; stroke-dasharray: 13 10; }
+.anim-guide .anim-g-ghost { stroke: #b3d0f3; stroke-width: 4; }
+.anim-guide .anim-g-ghost.before { stroke: #f6c79b; }
+.anim-guide .anim-g-far { opacity: .5; }
+.anim-guide .anim-g-fix { stroke: #ddd6ea; stroke-width: 5; }
+.anim-guide .anim-g-lid { fill: #eef4fd; }
+.anim-guide .anim-g-ghost .anim-g-lid { fill: none; }
+.anim-guide .anim-g-dots { fill: #cdc5df; }
+.anim-guide .anim-g-now { fill: var(--coral); }
+.anim-onion { position: absolute; inset: 0; opacity: .3; }
+.anim-player { position: absolute; inset: 0; background: #fff; }
+
+/* A narrower iPad on its side: the three speed names still have to fit. */
+@media (max-width: 1100px) {
+  .anim-speed { font-size: 11.5px; }
+}
+
+/* On its side the advice shares the top bar; upright it gets a line of its own. */
+@media (orientation: landscape) {
+  .anim-screen.lesson .topbar .spacer { display: none; }
+}
+
+/* Upright iPad: brushes above the sheet, the film below it */
+@media (orientation: portrait) {
+  .anim-screen .topbar { flex-wrap: wrap; }
+  /* Tall enough for two lines, so the sheet does not shift from frame to frame. */
+  .anim-tip { order: 9; flex: 0 0 100%; min-height: 54px; }
+  .anim-main { flex-direction: column; }
+  .anim-main .rail { flex-direction: row; width: 100%; }
+  .anim-main .brush.on { transform: translateY(3px); }
+  .anim-panel {
+    width: auto; display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px 10px;
+    grid-template-areas: "play speeds acts" "strip strip strip";
+  }
+  /* Wide enough for both of its labels, so the row does not jump when it plays. */
+  .anim-play { grid-area: play; min-width: 170px; padding: 0 18px; }
+  .anim-speeds { grid-area: speeds; }
+  .anim-speed { flex: none; width: 96px; font-size: 14px; }
+  .anim-acts { grid-area: acts; justify-self: end; }
+  .anim-act { flex: none; width: 78px; }
+  .anim-strip, .anim-strip.dense { grid-area: strip; grid-template-columns: repeat(8, 1fr); gap: 6px; overflow: visible; }
+}

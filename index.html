@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<script>
+// One home address, so progress saved in the browser is never split between
+// blobika.app and blobika.com.
+if (/^(www\.)?blobika\.app$|^www\.blobika\.com$/.test(location.hostname)) location.replace('https://blobika.com/' + location.search + location.hash);
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Blobika">
+<meta name="theme-color" content="#fff6e2">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Blobika</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/play/pairs.css">
+<link rel="stylesheet" href="css/play/puzzle.css">
+<link rel="stylesheet" href="css/play/diff.css">
+<link rel="stylesheet" href="css/play/dots.css">
+<link rel="stylesheet" href="css/play/dictation.css">
+<link rel="stylesheet" href="css/play/oneline.css">
+<link rel="stylesheet" href="css/play/shades.css">
+<link rel="stylesheet" href="css/play/patterns.css">
+<link rel="stylesheet" href="css/play/anim.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

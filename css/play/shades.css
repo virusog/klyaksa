@@ -1,0 +1,44 @@
+/* «Оттенки»: the level list */
+.level-thumb > .shades-thumb { margin: 2px auto; border-radius: 6px; box-shadow: 0 0 0 2px var(--ink); }
+
+/* «Оттенки»: the board */
+.shades-play > .speaker { flex: none; }
+.shades-score {
+  flex: none; min-height: 52px; padding: 3px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--card); border: var(--line); border-radius: 18px; line-height: 1.15; white-space: nowrap;
+}
+.shades-score b { font-size: 17px; font-weight: 850; }
+.shades-score small { font-size: 14px; color: #a56f00; }
+.shades-stage { flex: 1; min-height: 0; position: relative; touch-action: none; }
+.shades-board {
+  position: absolute; background: var(--card); border-radius: 3px; touch-action: none;
+  box-shadow: 0 0 0 4px var(--ink), 0 6px 0 4px var(--ink);
+}
+/* Tiles touch with no gap: a finished gradient is one smooth picture, and a
+   seam between two tiles is the only clue she gets. */
+.shades-tile {
+  position: absolute; left: 0; top: 0; width: var(--w); height: var(--h);
+  transform: translate(var(--x), var(--y)) scale(var(--s, 1));
+  transition: transform .26s cubic-bezier(.3, 1.2, .5, 1);
+}
+/* The dot of a tile that never moves: dark with a light ring, so it shows on any colour. */
+.shades-tile.fixed::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 3px rgba(255, 255, 255, .8); pointer-events: none;
+}
+.shades-tile.fly { z-index: 2; }
+.shades-tile.sel, .shades-tile.drag { --s: 1.1; border-radius: 12px; box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--ink), 0 7px 0 7px var(--ink); }
+.shades-tile.sel { z-index: 3; }
+.shades-tile.drag { z-index: 5; transition: none; box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--ink), 0 14px 0 7px rgba(42, 33, 64, .3); }
+.shades-tile.over { z-index: 1; box-shadow: inset 0 0 0 4px var(--ink), inset 0 0 0 8px #fff; }
+.shades-tile.nope { animation: shades-nope .3s; }
+.shades-tile.pin { animation: shades-pin .5s .26s; }
+.shades-board.done .shades-tile { animation: shades-wave .5s var(--d); }
+@keyframes shades-nope {
+  25% { transform: translate(calc(var(--x) - 6px), var(--y)); }
+  75% { transform: translate(calc(var(--x) + 6px), var(--y)); }
+}
+@keyframes shades-pin { 40% { transform: translate(var(--x), var(--y)) scale(1.18); } }
+@keyframes shades-wave {
+  45% { transform: translate(var(--x), calc(var(--y) - 8px)) scale(.84); border-radius: 30%; }
+}
