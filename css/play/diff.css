@@ -1,0 +1,48 @@
+/* Найди отличия */
+.diff-thumb { border: 2px solid var(--ink); border-radius: 8px; background: #fff; }
+
+/* A fixed height: a longer hint in the bubble must not move the pictures under her finger. */
+.diff-status { display: flex; align-items: center; gap: 12px; flex: none; height: 68px; }
+.diff-status .bubble { padding: 8px 14px; font-size: 17px; }
+.diff-score { display: flex; align-items: center; gap: 10px; flex: none; }
+.diff-count {
+  display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; font-size: 19px; font-weight: 850;
+  background: var(--sun); border: var(--line); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); white-space: nowrap;
+}
+.diff-count:empty, .diff-miss:empty { display: none; }
+.diff-miss { font-size: 16px; opacity: .75; white-space: nowrap; }
+
+/* The pictures take all the room that is left and keep their 4:3 shape. */
+.diff-board {
+  flex: 1; min-height: 0; container-type: size; touch-action: none;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+.diff-pic {
+  position: relative; flex: none; overflow: hidden; touch-action: none; cursor: pointer;
+  width: min(50cqw - 7px, (100cqh - 8px) * 4 / 3); aspect-ratio: 4 / 3;
+  background: #fff; border: var(--line); border-radius: 18px; box-shadow: 0 5px 0 var(--ink);
+}
+.diff-pic canvas { display: block; width: 100%; height: 100%; }
+.diff-marks { position: absolute; inset: 0; pointer-events: none; }
+
+.diff-ring {
+  position: absolute; border: 5px solid var(--coral); border-radius: 50%;
+  box-shadow: 0 0 0 3px #fff, inset 0 0 0 3px #fff; animation: diff-in .35s backwards;
+}
+.diff-ring.diff-hint { border: 5px dashed var(--ink); box-shadow: 0 0 0 5px var(--sun); animation: diff-pulse .7s 5; }
+/* Neither animation makes the ring much bigger: one by the edge must not poke out of the screen. */
+@keyframes diff-in { 0% { transform: scale(.5); opacity: 0; } 70% { transform: scale(1.06); } }
+@keyframes diff-pulse { 50% { transform: scale(.84); opacity: .55; } }
+
+.diff-no {
+  position: absolute; width: 38px; height: 38px; margin: -19px 0 0 -19px; display: grid; place-items: center;
+  font-style: normal; font-size: 30px; font-weight: 900; line-height: 1; color: var(--ink);
+  background: rgba(255, 253, 247, .85); border: 2px solid var(--ink); border-radius: 50%;
+  animation: diff-no .9s forwards;
+}
+@keyframes diff-no { 0% { transform: scale(.4); } 25% { transform: scale(1); } 60% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (orientation: portrait) {
+  .diff-board { flex-direction: column; }
+  .diff-pic { width: min(100cqw, (50cqh - 12px) * 4 / 3); }
+}

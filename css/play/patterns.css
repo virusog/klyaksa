@@ -1,0 +1,87 @@
+/* «Продолжи узор» */
+.patterns-screen > .speaker { flex: none; }
+.patterns-screen .step-dots { flex: none; gap: 9px; padding: 0 8px; }
+
+.patterns-fig { display: block; width: 100%; height: 100%; overflow: visible; }
+/* The outline stays the same thickness however small the figure is drawn. */
+.patterns-fig path { stroke: var(--ink); stroke-width: 3px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* The row and its choices stay together in the middle of the free space. */
+.patterns-stage { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; touch-action: none; }
+/* --s is the side of one cell: as big as the width lets the row (--n cells)
+   and the choices (--k of them) be, and as the height lets both be. A choice
+   holds a figure of exactly this size, so small, medium and large look the
+   same in the row and among the choices. */
+.patterns-desk {
+  --n: 8; --k: 6;
+  --s: min(132px, (100cqw - 26px - (var(--n) - 1) * 6px) / var(--n), (100cqw + 12px) / var(--k) - 26px, (100cqh - 90px) / 2);
+  display: flex; flex-direction: column; align-items: center; gap: 30px;
+}
+.patterns-desk-sq { --s: min(150px, (100cqw + 12px) / var(--k) - 26px, (100cqh - 104px) / 4); gap: 22px; }
+.patterns-desk .patterns-fig path { stroke-width: clamp(2px, var(--s) / 34, 3.4px); }
+
+.patterns-row, .patterns-square {
+  background: var(--card); border: var(--line); border-radius: 26px; box-shadow: 0 5px 0 var(--ink);
+}
+/* Nothing to show until the saved game has been looked up. */
+.patterns-row:empty, .patterns-square:empty { visibility: hidden; }
+.patterns-row { display: flex; gap: 6px; padding: 10px; }
+.patterns-square { display: grid; grid-template-columns: repeat(3, var(--s)); gap: 8px; padding: 14px; }
+.patterns-cell {
+  flex: none; width: var(--s); height: var(--s); display: grid; place-items: center;
+  background: #fff7e3; border-radius: calc(var(--s) * .18);
+}
+/* A drawn frame, not a border: a border would make the figure inside smaller. */
+.patterns-square .patterns-cell { background: #fff; box-shadow: inset 0 0 0 2px #e6dcc4; }
+.patterns-row .patterns-hole, .patterns-square .patterns-hole {
+  background: #f1ebff; border: 3px dashed #a99bd0; box-shadow: none; color: #8a7bb8;
+  font-size: calc(var(--s) * .5); font-weight: 900; line-height: 1;
+}
+/* The blank she is filling now. */
+.patterns-row .patterns-now, .patterns-square .patterns-now {
+  background: #fff0b8; border-color: var(--ink); color: var(--ink); animation: patterns-wait 1.3s ease-in-out infinite;
+}
+.patterns-got { animation: patterns-land .35s; }
+.patterns-row .patterns-got, .patterns-square .patterns-got { background: #d6f5e0; }
+@keyframes patterns-wait { 50% { transform: scale(.92); } }
+@keyframes patterns-in { 0% { transform: scale(.7); opacity: 0; } }
+@keyframes patterns-land { 0% { transform: scale(.4); } 70% { transform: scale(1.12); } }
+
+.patterns-tray { display: flex; justify-content: center; gap: 12px; padding-bottom: 5px; }
+/* Padding and border add 14px, so the figure gets the full side of a cell. */
+.patterns-pick {
+  flex: none; width: calc(var(--s) + 14px); height: calc(var(--s) + 14px); padding: 4px;
+  background: #fff; border: var(--line); border-radius: 22px; box-shadow: 0 5px 0 var(--ink);
+  cursor: pointer; touch-action: manipulation; animation: patterns-in .25s backwards;
+}
+.patterns-pick:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.patterns-pick.patterns-yes { background: #bff0cf; }
+/* A wrong choice stays in its place, pressed down and grey, so the rest do not jump. */
+.patterns-pick.patterns-off { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); filter: grayscale(1); opacity: .32; cursor: default; }
+.patterns-pick.patterns-no { animation: patterns-shake .4s; }
+@keyframes patterns-shake {
+  0% { transform: translate(0, 0); filter: none; opacity: 1; }
+  20% { transform: translate(-8px, 0); filter: none; opacity: 1; }
+  40% { transform: translate(8px, 0); }
+  60% { transform: translate(-6px, 2px); }
+  80% { transform: translate(5px, 3px); }
+}
+
+/* Upright, a square has room for bigger cells if its choices stand in two
+   rows of three. The wider padding makes the square as wide as those rows. */
+@media (orientation: portrait) {
+  .patterns-desk-sq { --s: min(150px, (100cqw - 100px) / 3, (100cqh - 148px) / 5); }
+  .patterns-desk-sq .patterns-square { padding: 22px; }
+  .patterns-desk-sq .patterns-tray { display: grid; grid-template-columns: repeat(3, auto); }
+}
+
+/* The sample on a level card */
+.level-thumb > .patterns-thumb { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.patterns-thumb .patterns-fig { width: 25px; height: 25px; flex: none; }
+.patterns-thumb .patterns-fig path { stroke-width: 1.6px; }
+.patterns-thumb i {
+  width: 23px; height: 23px; flex: none; display: grid; place-items: center; border: 2px dashed #a99bd0; border-radius: 7px;
+  font-style: normal; font-size: 14px; font-weight: 900; color: #8a7bb8; background: #f1ebff;
+}
+.level-thumb > .patterns-thumb-sq { display: grid; grid-template-columns: repeat(3, 21px); gap: 2px; place-items: center; }
+.patterns-thumb-sq .patterns-fig, .patterns-thumb-sq i { width: 21px; height: 21px; }
