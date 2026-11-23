@@ -317,12 +317,18 @@ function classRow() {
     // A class the grown-ups closed to newcomers did not take her in.
     toast(c && classLocked() ? lockedText() : c ? t('Код класса сохранён') : t('Код класса убран'), c && classLocked() ? 6000 : undefined);
   };
-  field.addEventListener('change', () => apply(field.value, true));
+  // A typed code is taken by its own button (or Enter), so a parent sees how to join.
+  field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); apply(field.value, true); } });
   return h('div', { class: 'class-row' },
     h('label', { class: 'set' }, h('span', {}, t('Код класса')), field),
     h('div', { class: 'row wrap' },
-      btn('ghost', t('Новый класс'), () => apply(newClassCode())),
-      btn('primary', t('Пригласить одноклассниц'), async () => {
+      btn('primary', t('Войти в класс'), () => apply(field.value, true)),
+      // A new code takes her out of the class she is in, so it is asked first.
+      btn('ghost', t('Новый класс'), async () => {
+        if (state.classCode && !(await confirmBox(t('Создать новый класс? Она выйдет из класса «{code}».', { code: state.classCode }), t('Создать'), t('Отмена')))) return;
+        await apply(newClassCode());
+      }),
+      btn('ghost', t('Пригласить одноклассниц'), async () => {
         if (!state.classCode) { toast(t('Сначала задайте код класса.')); return; }
         const url = inviteLink(state.classCode);
         try {
@@ -425,7 +431,10 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     updateReady = true;
     planUpdate();
   });
-  navigator.serviceWorker.register('sw.js');
+  // A Home Screen app on iPad is often resumed, not launched, so it looks for a new version each time she comes back.
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+  }).catch(() => {});
 }
 
 classFromLink();

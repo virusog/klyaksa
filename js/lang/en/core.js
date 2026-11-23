@@ -314,6 +314,8 @@ export default {
   "Код — это от 4 до 24 латинских букв, цифр или чёрточек.": "A code is 4 to 24 Latin letters, digits or dashes.",
   "Код класса сохранён": "Class code saved",
   "Код класса убран": "Class code removed",
+  "Создать новый класс? Она выйдет из класса «{code}».": "Create a new class? She will leave the class “{code}”.",
+  "Создать": "Create",
   "Новый класс": "New class",
   "Пригласить одноклассниц": "Invite classmates",
   "Сначала задайте код класса.": "Set a class code first.",
